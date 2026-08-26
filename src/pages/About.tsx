@@ -1,4 +1,15 @@
-import { ArrowRight, Compass, Eye, MessageCircle, ShieldCheck, Star } from "lucide-react";
+import {
+  ArrowRight,
+  ClipboardCheck,
+  Compass,
+  Eye,
+  HeartHandshake,
+  MessageCircle,
+  MessagesSquare,
+  ShieldCheck,
+  Star,
+  Truck,
+} from "lucide-react";
 import Container from "../components/Container";
 import Button from "../components/Button";
 import GlucoseWave from "../components/GlucoseWave";
@@ -21,6 +32,13 @@ const MISSION_VISION = [
     image: "/about/vision-bg.webp",
     alt: "A man walks a park path toward his family, with diabetes supplies and a shield in front.",
   },
+];
+
+const HERO_PROMISES = [
+  { icon: ClipboardCheck, lines: ["We handle", "the paperwork"] },
+  { icon: Truck, lines: ["Delivered", "to your door"] },
+  { icon: MessagesSquare, lines: ["Real people,", "real support"] },
+  { icon: ShieldCheck, lines: ["Trusted brands.", "Reliable care."] },
 ];
 
 const STORY = [
@@ -63,38 +81,91 @@ export default function About() {
 
   return (
     <div ref={revealRef}>
-      {/* hero: product photograph on the left, copy on the right */}
+      {/* hero: copy on the left, product photograph bleeding off the right */}
       <section className="bg-wash relative overflow-hidden">
-        <Blob tone="green" strength={0.2} blur={40} size={440} className="-right-[120px] -top-[140px]" />
+        <Blob tone="green" strength={0.14} blur={44} size={420} className="-left-[160px] -top-[150px]" />
         <Grain opacity={0.05} />
-        <Container wide className="relative grid items-center gap-10 py-14 md:py-20 lg:grid-cols-2 lg:gap-16">
-          <div className="rise-in order-2 lg:order-1" style={{ "--rise-delay": "160ms" } as React.CSSProperties}>
+
+        <div className="relative">
+          {/* From lg up the photograph fills the right half to the viewport
+              edge, with its left side faded into the wash. Below lg it runs
+              in the normal flow underneath the copy instead. */}
+          <div aria-hidden="true" className="absolute inset-y-0 right-0 hidden w-[52%] lg:block">
+            <img
+              src="/about/about-hero.webp"
+              alt=""
+              className="mask-fade-left h-full w-full object-cover object-right"
+            />
+          </div>
+
+          <Container wide className="relative">
+            <div className="grid lg:grid-cols-2">
+              <div className="py-14 md:py-20 lg:py-24 lg:pr-10">
+                <span className="rise-in inline-flex items-center gap-2.5 rounded-full bg-green-soft px-5 py-2.5 text-body font-semibold text-green">
+                  <HeartHandshake size={20} strokeWidth={2} />
+                  About Us
+                </span>
+                <h1
+                  className="rise-in mt-6 max-w-[19ch] font-display text-h1 font-bold leading-[1.08] text-ink"
+                  style={{ "--rise-delay": "80ms" } as React.CSSProperties}
+                >
+                  Your best interest is our{" "}
+                  <span className="text-green">first concern.</span>
+                </h1>
+                <div
+                  className="rise-in mt-7 flex items-center gap-2"
+                  style={{ "--rise-delay": "140ms" } as React.CSSProperties}
+                  aria-hidden="true"
+                >
+                  <span className="h-px w-20 bg-line-strong" />
+                  <span className="h-[7px] w-[7px] rounded-full bg-green-bright" />
+                </div>
+                <p
+                  className="rise-in mt-7 max-w-[46ch] text-body-lg leading-relaxed text-grey-dark"
+                  style={{ "--rise-delay": "200ms" } as React.CSSProperties}
+                >
+                  Medville Diabetes supplies continuous glucose monitors from the
+                  leading brands to people living with diabetes.
+                </p>
+                <p
+                  className="rise-in mt-4 max-w-[46ch] text-body-lg leading-relaxed text-grey-dark"
+                  style={{ "--rise-delay": "260ms" } as React.CSSProperties}
+                >
+                  We handle the paperwork, we deliver your supplies to your door,
+                  and we answer your questions with real people, in plain language.
+                </p>
+              </div>
+              <div />
+            </div>
+
             <img
               src="/about/about-hero.webp"
               alt="A phone shows a glucose reading of 6.2 next to a sensor and a monitor box."
-              className="floaty w-full rounded-lg object-cover object-[78%_center] shadow-soft"
+              className="rise-in mb-14 w-full rounded-lg shadow-soft lg:hidden"
+              style={{ "--rise-delay": "320ms" } as React.CSSProperties}
             />
-          </div>
-          <div className="order-1 lg:order-2">
-            <p className="rise-in m-0">
-              <Eyebrow>About Us</Eyebrow>
-            </p>
-            <h1
-              className="rise-in mt-3 max-w-[22ch] font-display text-h1 font-bold text-ink"
-              style={{ "--rise-delay": "80ms" } as React.CSSProperties}
-            >
-              Your best interest is our first concern.
-            </h1>
-            <p
-              className="rise-in mt-5 max-w-[52ch] text-body-lg leading-relaxed text-grey-dark"
-              style={{ "--rise-delay": "160ms" } as React.CSSProperties}
-            >
-              Medville Diabetes supplies continuous glucose monitors from the leading
-              brands to people living with diabetes. We handle the paperwork, we
-              deliver your supplies to your door, and we answer your questions with
-              real people, in plain language.
-            </p>
-          </div>
+          </Container>
+        </div>
+
+        <Container wide className="relative">
+          <ul className="m-0 grid list-none grid-cols-1 gap-y-6 border-t border-line-green p-0 py-8 sm:grid-cols-2 lg:grid-cols-4">
+            {HERO_PROMISES.map((promise, index) => (
+              <li
+                key={promise.lines[1]}
+                data-reveal={index * 110}
+                className={`flex items-center gap-3.5 lg:px-6 ${
+                  index === 0 ? "lg:pl-0" : "lg:border-l lg:border-line-green"
+                }`}
+              >
+                <promise.icon size={30} strokeWidth={1.7} className="flex-none text-green" />
+                <p className="m-0 text-body leading-snug text-grey-dark">
+                  {promise.lines[0]}
+                  <br />
+                  {promise.lines[1]}
+                </p>
+              </li>
+            ))}
+          </ul>
         </Container>
       </section>
 

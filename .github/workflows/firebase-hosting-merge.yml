@@ -7,6 +7,15 @@ on:
     branches:
       - main
   workflow_dispatch:
+
+# Only the newest deploy may reach the live channel. A run that has been
+# sitting in the queue (GitHub's 2026-08-26 Actions incident left several
+# stranded for an hour) would otherwise publish its stale commit over a
+# newer one, which is exactly what happened to run 13. Grouping every run
+# here means a newer run supersedes any older run still pending.
+concurrency:
+  group: firebase-hosting-live
+  cancel-in-progress: true
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
