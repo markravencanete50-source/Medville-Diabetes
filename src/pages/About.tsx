@@ -11,11 +11,15 @@ const MISSION_VISION = [
     icon: Compass,
     title: "Our Mission",
     body: "To make diabetes management easier by giving people dependable access to the supplies they need and support they can count on. We help simplify the process, from understanding coverage to getting supplies on time, so managing diabetes takes up less of everyday life.",
+    image: "/about/mission-bg.webp",
+    alt: "A family looks over green hills, with diabetes supplies and a plant in front.",
   },
   {
     icon: Eye,
     title: "Our Vision",
     body: "To create a better experience for people living with diabetes, where getting the right supplies and support feels simple, reliable, and stress-free. We want every person we serve to feel more confident in their care and have more time and freedom to focus on the life they want to live.",
+    image: "/about/vision-bg.webp",
+    alt: "A man walks a park path toward his family, with diabetes supplies and a shield in front.",
   },
 ];
 
@@ -94,34 +98,35 @@ export default function About() {
         </Container>
       </section>
 
-      {/* mission and vision over the landscape photograph */}
-      <section className="relative overflow-hidden">
-        <img
-          src="/about/mission-bg.webp"
-          alt=""
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-        />
-        <div aria-hidden="true" className="bg-overlay-wash absolute inset-0" />
-        <Container wide className="relative py-16 md:py-24">
+      {/* mission and vision, each over its own photograph */}
+      <section className="py-16 md:py-24">
+        <Container wide>
           <div data-reveal={0} className="max-w-[560px]">
             <Eyebrow>What guides us</Eyebrow>
             <h2 className="mt-3 font-display text-h2 font-bold text-ink">
               Why we do this work
             </h2>
           </div>
-          <div className="mt-10 grid gap-6 md:grid-cols-2">
+          <div className="mt-10 grid gap-6 lg:grid-cols-2">
             {MISSION_VISION.map((item, index) => (
               <div
                 key={item.title}
                 data-reveal={140 + index * 140}
-                className={`${index === 0 ? "reveal-left" : "reveal-right"} rounded-lg bg-surface-raised/95 p-8 shadow-overlay backdrop-blur-sm md:p-10`}
+                className={`${index === 0 ? "reveal-left" : "reveal-right"} reveal-slow group relative overflow-hidden rounded-lg shadow-soft`}
               >
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-green-soft text-green">
-                  <item.icon size={22} strokeWidth={2} />
-                </span>
-                <h3 className="mt-5 font-display text-h3 font-bold text-ink">{item.title}</h3>
-                <p className="mt-3 text-body leading-relaxed text-grey-dark">{item.body}</p>
+                <img
+                  src={item.image}
+                  alt={item.alt}
+                  loading="lazy"
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1200ms] ease-(--ease-out-quart) group-hover:scale-[1.04]"
+                />
+                <div className="relative m-4 mt-52 rounded-md bg-surface-raised/95 p-7 backdrop-blur-sm md:m-6 md:mt-60 md:p-8">
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-green-soft text-green">
+                    <item.icon size={22} strokeWidth={2} />
+                  </span>
+                  <h3 className="mt-4 font-display text-h3 font-bold text-ink">{item.title}</h3>
+                  <p className="mt-3 text-body leading-relaxed text-grey-dark">{item.body}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -129,39 +134,31 @@ export default function About() {
       </section>
 
       {/* the company story */}
-      <section className="py-16 md:py-24">
-        <Container wide className="grid items-start gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
-          <div data-reveal={0} className="reveal-left lg:sticky lg:top-28">
-            <img
-              src="/about/about-family.webp"
-              alt="A family stands together in a green landscape, with diabetes supplies in front of them."
-              loading="lazy"
-              className="w-full rounded-lg object-cover shadow-soft"
-            />
-            <p
-              data-reveal={200}
-              className="mt-6 rounded-lg border-l-4 border-green bg-green-tint px-6 py-5 font-display text-[1.15rem] font-semibold leading-snug text-green"
-            >
-              Reliable supplies. Dedicated support. More time for life.
-            </p>
+      <section className="bg-why-band py-16 md:py-24">
+        <Container>
+          <div data-reveal={0}>
+            <Eyebrow>Who we are</Eyebrow>
+            <h2 className="mt-3 font-display text-h2 font-bold text-ink">
+              About Medville Diabetes
+            </h2>
           </div>
-          <div>
-            <div data-reveal={80}>
-              <Eyebrow>Who we are</Eyebrow>
-              <h2 className="mt-3 font-display text-h2 font-bold text-ink">
-                About Medville Diabetes
-              </h2>
-            </div>
+          <div className="mt-8 grid gap-x-14 gap-y-5 lg:grid-cols-2">
             {STORY.map((paragraph, index) => (
               <p
                 key={index}
-                data-reveal={160 + index * 110}
-                className="mt-5 max-w-[62ch] text-body leading-relaxed text-grey-dark"
+                data-reveal={120 + index * 110}
+                className="m-0 max-w-[62ch] text-body leading-relaxed text-grey-dark"
               >
                 {paragraph}
               </p>
             ))}
           </div>
+          <p
+            data-reveal={200}
+            className="reveal-zoom mt-10 rounded-lg border-l-4 border-green bg-surface-raised px-8 py-6 font-display text-h3 font-semibold leading-snug text-green shadow-soft"
+          >
+            Reliable supplies. Dedicated support. More time for life.
+          </p>
         </Container>
       </section>
 

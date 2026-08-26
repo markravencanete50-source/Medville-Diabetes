@@ -25,8 +25,8 @@ const MAP = {
   "Plain Answers.png": ["value-plain-answers", 900],
   "The leading brands.png": ["value-leading-brands", 900],
   "Privacy by design.png": ["value-privacy", 900],
-  "Mission background.png": ["mission-bg", 1600],
-  "About Medville.png": ["about-family", 1200],
+  "Mission Background.png": ["mission-bg", 1600],
+  "Vision Background.png": ["vision-bg", 1600],
 };
 
 const present = await readdir(dir);
