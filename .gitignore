@@ -5,3 +5,8 @@ dist
 .firebase
 *.log
 *.tsbuildinfo
+
+# Firebase CLI local agent tooling (machine-local, not site code)
+.agents/
+.claude/skills/
+skills-lock.json
