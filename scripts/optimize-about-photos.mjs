@@ -21,10 +21,10 @@ const dir = join(here, "..", "public", "about");
 /* Source name as delivered -> output slug and width. The hero spans the
    full viewport, so it keeps more pixels than the three cards. */
 const MAP = {
-  "About hero.png": ["about-hero", 1600],
-  "Plain answers.png": ["value-plain-answers", 900],
-  "Leading brands.png": ["value-leading-brands", 900],
-  "Privacy.png": ["value-privacy", 900],
+  "About page hero section background.png": ["about-hero", 1600],
+  "Plain Answers.png": ["value-plain-answers", 900],
+  "The leading brands.png": ["value-leading-brands", 900],
+  "Privacy by design.png": ["value-privacy", 900],
 };
 
 const present = await readdir(dir);
