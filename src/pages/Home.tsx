@@ -57,7 +57,7 @@ const STEPS = [
     title: "Answer a short form",
     body: "Tell us your contact details and one question about your insulin use. It takes less than one minute.",
     image: "/home/step-1-short-form.webp",
-    alt: "A phone shows the short qualify form with a green submit button.",
+    alt: "A phone on a desk shows the short qualify form, with a green submit button.",
   },
   {
     icon: Headset,
@@ -65,7 +65,7 @@ const STEPS = [
     title: "Our team reviews it",
     body: "Real people review your answers, handle the paperwork, and contact you with the next steps, usually within one business day.",
     image: "/home/step-2-review.webp",
-    alt: "A laptop shows a reviewed submission with three completed checks.",
+    alt: "A laptop on a desk shows a submission with three completed checks.",
   },
   {
     icon: Truck,
@@ -73,7 +73,7 @@ const STEPS = [
     title: "Delivered to your door",
     body: "Your monitor and supplies arrive at your home. We stay available for questions in plain language.",
     image: "/home/step-3-delivery.webp",
-    alt: "A delivery box on a table with a sensor and supplies beside it.",
+    alt: "A delivery box marked Your health. Delivered., with a sensor and supplies beside it.",
   },
 ];
 
@@ -141,21 +141,21 @@ const GUIDES = [
   {
     to: "/products",
     image: "/home/guide-what-is-a-cgm.webp",
-    alt: "An open guide book that explains a continuous glucose monitor.",
+    alt: "An open book explains what a continuous glucose monitor is, with a sensor and a daily glucose chart.",
     title: "What is a continuous glucose monitor?",
     body: "How a small sensor tracks your glucose around the clock, and what that means for your day.",
   },
   {
     to: "/products",
     image: "/home/guide-libre-or-dexcom.webp",
-    alt: "A phone shows a glucose reading next to a small round sensor.",
+    alt: "A phone shows a glucose reading of 6.2 next to a small round sensor.",
     title: "FreeStyle Libre or Dexcom: how to choose",
     body: "The two leading families compared in simple terms: wear time, alarms, and how readings reach your phone.",
   },
   {
     to: "/qualify",
     image: "/home/guide-coverage.webp",
-    alt: "A phone shows a call to the customer care team.",
+    alt: "A phone shows an active call to the customer care team.",
     title: "Does my coverage include a CGM?",
     body: "What our team checks when they review your form, and what usually happens in the first phone call.",
   },
@@ -287,7 +287,7 @@ export default function Home() {
                     src={step.image}
                     alt={step.alt}
                     loading="lazy"
-                    className="aspect-[4/3] w-full object-cover transition-transform duration-[900ms] ease-(--ease-out-quart) group-hover:scale-[1.045]"
+                    className="aspect-[5/4] w-full object-cover transition-transform duration-[900ms] ease-(--ease-out-quart) group-hover:scale-[1.045]"
                   />
                 </div>
               </div>
@@ -359,31 +359,13 @@ export default function Home() {
               ))}
             </ul>
           </div>
-          <div data-reveal={140} className="reveal-right reveal-slow relative">
-            <div className="overflow-hidden rounded-[24px] bg-surface-raised shadow-overlay">
-              <img
-                src="/home/why-monitoring.webp"
-                alt="A daily glucose chart, a phone reading in range, and a small sensor, shown together."
-                loading="lazy"
-                className="w-full object-cover"
-              />
-            </div>
-            <div
-              aria-hidden="true"
-              className="floaty2 absolute -left-3 -top-4 hidden items-center gap-2 rounded-full bg-surface-raised px-4 py-2 text-caption font-semibold text-green shadow-pill md:inline-flex"
-              style={{ "--floaty-duration": "7s" } as React.CSSProperties}
-            >
-              <Check size={14} strokeWidth={2.6} className="text-green-bright" />
-              In your target range
-            </div>
-            <div
-              aria-hidden="true"
-              className="floaty2 absolute -right-2 -bottom-4 hidden items-center gap-2 rounded-full bg-surface-raised px-4 py-2 text-caption font-semibold text-accent-deep shadow-pill md:inline-flex"
-              style={{ "--floaty-duration": "8s", "--floaty-delay": "1.2s" } as React.CSSProperties}
-            >
-              <Bell size={14} strokeWidth={2.4} />
-              Alerts in real time
-            </div>
+          <div data-reveal={140} className="reveal-right reveal-slow">
+            <img
+              src="/home/why-monitoring.webp"
+              alt="A woman wearing a sensor on her arm looks at her phone, which shows a glucose reading of 112 inside her target range."
+              loading="lazy"
+              className="floaty w-full rounded-[24px] shadow-soft"
+            />
           </div>
         </Container>
         <Container className="relative">
@@ -484,7 +466,7 @@ export default function Home() {
                 data-reveal={index * 120}
                 className="group flex flex-col overflow-hidden rounded-lg bg-surface-raised shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover"
               >
-                <div className="h-[185px] overflow-hidden bg-grey-light">
+                <div className="aspect-[3/2] overflow-hidden bg-grey-light">
                   <img
                     src={guide.image}
                     alt={guide.alt}
