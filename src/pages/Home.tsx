@@ -2,14 +2,17 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
+  Bell,
   Check,
   ClipboardList,
-  CircleHelp,
+  Clock,
   Headset,
   Lock,
-  Route,
   ShieldCheck,
+  Target,
+  TrendingUp,
   Truck,
+  Users,
 } from "lucide-react";
 import Container from "../components/Container";
 import Button from "../components/Button";
@@ -53,33 +56,63 @@ const STEPS = [
     tone: "green" as const,
     title: "Answer a short form",
     body: "Tell us your contact details and one question about your insulin use. It takes less than one minute.",
+    image: "/home/step-1-short-form.webp",
+    alt: "A phone shows the short qualify form with a green submit button.",
   },
   {
     icon: Headset,
     tone: "cyan" as const,
     title: "Our team reviews it",
     body: "Real people review your answers, handle the paperwork, and contact you with the next steps, usually within one business day.",
+    image: "/home/step-2-review.webp",
+    alt: "A laptop shows a reviewed submission with three completed checks.",
   },
   {
     icon: Truck,
     tone: "green" as const,
     title: "Delivered to your door",
     body: "Your monitor and supplies arrive at your home. We stay available for questions in plain language.",
+    image: "/home/step-3-delivery.webp",
+    alt: "A delivery box on a table with a sensor and supplies beside it.",
   },
 ];
 
 const WHY = [
   {
+    icon: TrendingUp,
+    tone: "green" as const,
     title: "See your level and where it is heading",
     body: "A continuous glucose monitor shows your current number and the direction it is moving, at any time of day or night.",
   },
   {
+    icon: Target,
+    tone: "cyan" as const,
     title: "Spend more time in your target range",
     body: "Watching your trends helps you keep your glucose inside your target range, which may help lower your A1C over time.",
   },
   {
+    icon: Users,
+    tone: "green" as const,
     title: "Share your readings with people you trust",
     body: "You can share your data with family members, caregivers, and your care team, so the people around you can help.",
+  },
+];
+
+const ASSURANCES = [
+  {
+    icon: Clock,
+    title: "24/7",
+    body: "Insights around the clock.",
+  },
+  {
+    icon: Bell,
+    title: "Real-time",
+    body: "Alerts for high and low glucose.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Peace of mind",
+    body: "For you and the people who support you.",
   },
 ];
 
@@ -107,25 +140,22 @@ const TESTIMONIALS = [
 const GUIDES = [
   {
     to: "/products",
-    icon: CircleHelp,
-    tint: "bg-[linear-gradient(120deg,#e6f3ec,#d2ead9)]",
-    iconColour: "text-green",
+    image: "/home/guide-what-is-a-cgm.webp",
+    alt: "An open guide book that explains a continuous glucose monitor.",
     title: "What is a continuous glucose monitor?",
     body: "How a small sensor tracks your glucose around the clock, and what that means for your day.",
   },
   {
     to: "/products",
-    icon: Route,
-    tint: "bg-[linear-gradient(120deg,#e2f5fa,#d0edf5)]",
-    iconColour: "text-accent-deep",
+    image: "/home/guide-libre-or-dexcom.webp",
+    alt: "A phone shows a glucose reading next to a small round sensor.",
     title: "FreeStyle Libre or Dexcom: how to choose",
     body: "The two leading families compared in simple terms: wear time, alarms, and how readings reach your phone.",
   },
   {
     to: "/qualify",
-    icon: ShieldCheck,
-    tint: "bg-[linear-gradient(120deg,#e6f3ec,#e2f5fa)]",
-    iconColour: "text-green",
+    image: "/home/guide-coverage.webp",
+    alt: "A phone shows a call to the customer care team.",
     title: "Does my coverage include a CGM?",
     body: "What our team checks when they review your form, and what usually happens in the first phone call.",
   },
@@ -233,7 +263,7 @@ export default function Home() {
               <div
                 key={step.title}
                 data-reveal={index * 120}
-                className="rounded-lg bg-surface-raised p-8 shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover"
+                className="group flex flex-col rounded-lg bg-surface-raised p-8 shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover"
               >
                 <span
                   className={`inline-flex h-12 w-12 items-center justify-center rounded-md ${
@@ -249,6 +279,17 @@ export default function Home() {
                   {step.title}
                 </h3>
                 <p className="mt-2 text-[0.9rem] leading-relaxed text-grey-dark">{step.body}</p>
+                <div
+                  data-reveal={index * 120 + 200}
+                  className="reveal-zoom reveal-slow mt-6 overflow-hidden rounded-md bg-grey-light"
+                >
+                  <img
+                    src={step.image}
+                    alt={step.alt}
+                    loading="lazy"
+                    className="aspect-[4/3] w-full object-cover transition-transform duration-[900ms] ease-(--ease-out-quart) group-hover:scale-[1.045]"
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -297,10 +338,16 @@ export default function Home() {
               See the whole picture, not one moment
             </h2>
             <ul className="mt-7 flex list-none flex-col gap-5.5 p-0">
-              {WHY.map((item) => (
-                <li key={item.title} className="flex gap-4">
-                  <span className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full bg-surface-raised text-green shadow-[0_1px_3px_rgb(0_41_59/0.1)]">
-                    <Check size={16} strokeWidth={2.4} />
+              {WHY.map((item, index) => (
+                <li key={item.title} data-reveal={140 + index * 130} className="reveal-left flex gap-4">
+                  <span
+                    className={`flex h-11 w-11 flex-none items-center justify-center rounded-full shadow-[0_1px_3px_rgb(0_41_59/0.1)] ${
+                      item.tone === "cyan"
+                        ? "bg-accent-soft text-accent-deep"
+                        : "bg-green-soft text-green"
+                    }`}
+                  >
+                    <item.icon size={19} strokeWidth={2.1} />
                   </span>
                   <div>
                     <h3 className="m-0 font-display text-[1.02rem] font-semibold text-ink">
@@ -312,20 +359,46 @@ export default function Home() {
               ))}
             </ul>
           </div>
-          <div data-reveal={140} className="rounded-[24px] bg-surface-raised p-7 shadow-overlay">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="m-0 text-caption font-semibold uppercase tracking-[0.18em] text-green">
-                Your glucose, all day
-              </p>
-              <p className="m-0 inline-flex items-center gap-1.5 text-caption text-grey-muted">
-                <span className="h-2 w-3.5 rounded-[3px] bg-green-bright/25" aria-hidden="true" />
-                Target range
-              </p>
+          <div data-reveal={140} className="reveal-right reveal-slow relative">
+            <div className="overflow-hidden rounded-[24px] bg-surface-raised shadow-overlay">
+              <img
+                src="/home/why-monitoring.webp"
+                alt="A daily glucose chart, a phone reading in range, and a small sensor, shown together."
+                loading="lazy"
+                className="w-full object-cover"
+              />
             </div>
-            <GlucoseWave variant="chart" drawDelay="0.3s" className="mt-4.5 h-[190px]" />
-            <div className="mt-4 flex items-center justify-between text-caption text-grey-muted">
-              <span>Morning</span><span>Midday</span><span>Evening</span><span>Night</span>
+            <div
+              aria-hidden="true"
+              className="floaty2 absolute -left-3 -top-4 hidden items-center gap-2 rounded-full bg-surface-raised px-4 py-2 text-caption font-semibold text-green shadow-pill md:inline-flex"
+              style={{ "--floaty-duration": "7s" } as React.CSSProperties}
+            >
+              <Check size={14} strokeWidth={2.6} className="text-green-bright" />
+              In your target range
             </div>
+            <div
+              aria-hidden="true"
+              className="floaty2 absolute -right-2 -bottom-4 hidden items-center gap-2 rounded-full bg-surface-raised px-4 py-2 text-caption font-semibold text-accent-deep shadow-pill md:inline-flex"
+              style={{ "--floaty-duration": "8s", "--floaty-delay": "1.2s" } as React.CSSProperties}
+            >
+              <Bell size={14} strokeWidth={2.4} />
+              Alerts in real time
+            </div>
+          </div>
+        </Container>
+        <Container className="relative">
+          <div className="mt-12 grid gap-6 border-t border-line-green pt-9 sm:grid-cols-3">
+            {ASSURANCES.map((item, index) => (
+              <div key={item.title} data-reveal={index * 130} className="flex items-start gap-3.5">
+                <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-surface-raised text-green shadow-[0_1px_3px_rgb(0_41_59/0.1)]">
+                  <item.icon size={18} strokeWidth={2.1} />
+                </span>
+                <div>
+                  <p className="m-0 font-display text-[1rem] font-semibold text-ink">{item.title}</p>
+                  <p className="mt-0.5 text-small leading-relaxed text-grey-muted">{item.body}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </Container>
       </section>
@@ -409,10 +482,15 @@ export default function Home() {
                 key={guide.title}
                 to={guide.to}
                 data-reveal={index * 120}
-                className="flex flex-col overflow-hidden rounded-lg bg-surface-raised shadow-soft transition-transform duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1"
+                className="group flex flex-col overflow-hidden rounded-lg bg-surface-raised shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover"
               >
-                <div className={`flex h-[120px] items-center justify-center ${guide.tint}`}>
-                  <guide.icon size={40} strokeWidth={1.6} className={guide.iconColour} />
+                <div className="h-[185px] overflow-hidden bg-grey-light">
+                  <img
+                    src={guide.image}
+                    alt={guide.alt}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-[900ms] ease-(--ease-out-quart) group-hover:scale-[1.05]"
+                  />
                 </div>
                 <div className="px-6 pb-6 pt-5">
                   <h3 className="m-0 font-display text-[1.05rem] font-semibold text-ink">

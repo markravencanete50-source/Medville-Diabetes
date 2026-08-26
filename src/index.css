@@ -250,13 +250,29 @@ h1, h2, h3, h4 {
   transform: translateY(26px);
 }
 
+/*
+  Directional and depth variants for the 2026-08-26 motion pass. A section
+  can pick how its content arrives: from a side, scaled up from slightly
+  behind the page, or resolving from a soft blur. Variants only shape the
+  starting state; the shared .reveal-in transition brings everything home.
+*/
+.reveal-start.reveal-left { transform: translateX(-40px); }
+.reveal-start.reveal-right { transform: translateX(40px); }
+.reveal-start.reveal-zoom { transform: translateY(14px) scale(0.93); }
+.reveal-start.reveal-blur { filter: blur(12px); }
+
 .reveal-in {
   opacity: 1;
   transform: none;
+  filter: none;
   transition:
     opacity var(--duration-reveal) var(--ease-out-quart),
-    transform var(--duration-reveal) var(--ease-out-quart);
+    transform var(--duration-reveal) var(--ease-out-quart),
+    filter var(--duration-reveal) var(--ease-out-quart);
 }
+
+/* slower arrival for large imagery, so photos settle after their copy */
+.reveal-slow.reveal-in { transition-duration: 900ms; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -272,5 +288,5 @@ h1, h2, h3, h4 {
   .wave-draw,
   .sheet-up { animation: none; }
   .wave-dot::after { animation: none; opacity: 0; }
-  .reveal-start { opacity: 1; transform: none; }
+  .reveal-start { opacity: 1; transform: none; filter: none; }
 }
