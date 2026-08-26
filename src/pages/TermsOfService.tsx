@@ -3,12 +3,10 @@ import { usePageMeta } from "../lib/usePageMeta";
 
 /*
   The client's terms of service, reproduced verbatim from the document
-  delivered on 2026-08-26 (termofuseMedville.docx), with one exception:
-  the source document's "Rights & Restrictions" section contained four
-  clauses about access to a video "online course", which do not describe
-  anything this site offers and appear to come from a different business's
-  terms. They are omitted pending the client's confirmation; the age
-  requirement from that section is kept. Changes must come from the client.
+  delivered on 2026-08-26 (termofuseMedville.docx). The client confirmed on
+  2026-08-27 that the document should be published as sent, including the
+  "Rights & Restrictions" clauses about an online course. Changes to this
+  text must come from the client.
 */
 export default function TermsOfService() {
   usePageMeta(
@@ -50,7 +48,27 @@ export default function TermsOfService() {
       </LegalText>
 
       <LegalHeading>Rights &amp; Restrictions</LegalHeading>
-      <LegalText>Members must be at least 18 years of age.</LegalText>
+      <ul className="mb-4 list-disc pl-6 text-body leading-relaxed text-grey-dark">
+        <li className="mb-3">Members must be at least 18 years of age.</li>
+        <li className="mb-3">
+          Members are granted a time-limited, non-exclusive, revocable,
+          nontransferable, and non-sublicensable right to access that portion of the
+          online course corresponding to the purchase.
+        </li>
+        <li className="mb-3">
+          The portion of the online course corresponding to the purchase will be
+          available to the Member as long as the course is maintained by the Company,
+          which will be a minimum of one year after Member&rsquo;s purchase.
+        </li>
+        <li className="mb-3">
+          The videos in the course are provided as a video stream and are not
+          downloadable.
+        </li>
+        <li>
+          By agreeing to grant such access, the Company does not obligate itself to
+          maintain the course, or to maintain it in its present form.
+        </li>
+      </ul>
     </LegalLayout>
   );
 }

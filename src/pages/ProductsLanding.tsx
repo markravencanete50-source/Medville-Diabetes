@@ -81,7 +81,13 @@ export default function ProductsLanding() {
                     index === 0 ? "reveal-left" : "reveal-right"
                   } group flex flex-col overflow-hidden rounded-lg bg-surface-raised shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover`}
                 >
-                  <div className="tint-libre aspect-[16/9] overflow-hidden">
+                  {/*
+                    The delivered product photographs are about 4:3 and carry
+                    their own white margin, so a 16:9 frame letterboxed them and
+                    left a band of dead space above the copy. Matching the frame
+                    to the source ratio lets the product fill the card.
+                  */}
+                  <div className="aspect-[4/3] overflow-hidden bg-canvas">
                     <img
                       src={entry.image}
                       alt={entry.alt}
