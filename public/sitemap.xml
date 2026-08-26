@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Replace REPLACE-WITH-FINAL-DOMAIN with the production domain before launch. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://REPLACE-WITH-FINAL-DOMAIN/</loc></url>
+  <url><loc>https://REPLACE-WITH-FINAL-DOMAIN/products</loc></url>
+  <url><loc>https://REPLACE-WITH-FINAL-DOMAIN/products/freestyle-libre-3</loc></url>
+  <url><loc>https://REPLACE-WITH-FINAL-DOMAIN/products/freestyle-libre-2</loc></url>
+  <url><loc>https://REPLACE-WITH-FINAL-DOMAIN/products/freestyle-libre-14-day</loc></url>
+  <url><loc>https://REPLACE-WITH-FINAL-DOMAIN/products/stelo-by-dexcom</loc></url>
+  <url><loc>https://REPLACE-WITH-FINAL-DOMAIN/products/dexcom-g7</loc></url>
+  <url><loc>https://REPLACE-WITH-FINAL-DOMAIN/products/dexcom-g6</loc></url>
+  <url><loc>https://REPLACE-WITH-FINAL-DOMAIN/products/dexcom-g6-sensors-applicator</loc></url>
+  <url><loc>https://REPLACE-WITH-FINAL-DOMAIN/products/dexcom-g6-transmitter</loc></url>
+  <url><loc>https://REPLACE-WITH-FINAL-DOMAIN/products/freestyle-libre-14-day-sensor</loc></url>
+  <url><loc>https://REPLACE-WITH-FINAL-DOMAIN/products/freestyle-libre-2-sensor</loc></url>
+  <url><loc>https://REPLACE-WITH-FINAL-DOMAIN/products/freestyle-libre-3-sensor</loc></url>
+  <url><loc>https://REPLACE-WITH-FINAL-DOMAIN/qualify</loc></url>
+  <url><loc>https://REPLACE-WITH-FINAL-DOMAIN/about</loc></url>
+  <url><loc>https://REPLACE-WITH-FINAL-DOMAIN/contact</loc></url>
+</urlset>

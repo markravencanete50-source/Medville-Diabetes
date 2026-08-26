@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Deny all client access by default.
+    // The leads collection is written ONLY by the Cloud Run intake function
+    // through the Admin SDK, which bypasses these rules.
+    // The admin panel (a later milestone) will read leads through
+    // Identity Platform authentication with an "admin" custom claim:
+    //   allow read: if request.auth != null && request.auth.token.admin == true;
+    // Do not open leads to unauthenticated reads or writes under any change.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
