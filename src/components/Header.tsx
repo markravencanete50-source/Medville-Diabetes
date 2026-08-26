@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { Menu, X, Phone } from "lucide-react";
+import { ArrowRight, Menu, X, Phone } from "lucide-react";
 import Container from "./Container";
 import Logo from "./Logo";
 import Button from "./Button";
@@ -32,19 +32,18 @@ export default function Header() {
     };
   }, [open]);
 
-  const navClass = ({ isActive }: { isActive: boolean }) =>
-    `text-small font-medium transition-colors duration-(--duration-micro) ${
-      isActive ? "text-accent-deep" : "text-ink-muted hover:text-ink"
-    }`;
-
   return (
     <header className="sticky top-0 z-40">
-      {/* top strip */}
-      <div className="bg-ink text-on-dark">
-        <Container className="flex h-9 items-center justify-between">
-          <a href={PHONE_TEL} className="inline-flex items-center gap-2 text-caption font-medium text-on-dark-muted hover:text-on-dark">
+      {/* top strip: navy into green */}
+      <div className="bg-[linear-gradient(90deg,#00293b_0%,#0a3d2e_100%)]">
+        <Container wide className="flex h-[38px] items-center justify-between gap-4">
+          <a
+            href={PHONE_TEL}
+            className="inline-flex items-center gap-2 text-caption font-medium text-on-dark-muted transition-colors duration-(--duration-micro) hover:text-on-dark"
+          >
             <Phone size={13} strokeWidth={2.5} />
-            Call us today: <span className="text-on-dark">{PHONE_DISPLAY}</span>
+            Call us today:{" "}
+            <span className="font-semibold text-on-dark">{PHONE_DISPLAY}</span>
           </a>
           <span className="hidden text-caption text-on-dark-muted sm:block">
             Monday to Friday, 8:30 AM to 5:00 PM Eastern Time
@@ -52,23 +51,44 @@ export default function Header() {
         </Container>
       </div>
 
-      {/* main bar */}
-      <div className="border-b border-line bg-canvas/95 backdrop-blur">
-        <Container className="flex h-[4.25rem] items-center justify-between gap-6">
+      {/* main bar: glass over whatever is scrolling beneath */}
+      <div className="border-b border-ink/[0.08] bg-canvas/[0.86] backdrop-blur-[14px]">
+        <Container wide className="flex h-[72px] items-center justify-between gap-6">
           <Link to="/" aria-label="Medville Diabetes home page">
             <Logo />
           </Link>
 
-          <nav className="hidden items-center gap-8 md:flex" aria-label="Main navigation">
+          <nav className="hidden items-center gap-7 md:flex" aria-label="Main navigation">
             {links.map((l) => (
-              <NavLink key={l.to} to={l.to} className={navClass} end={l.to === "/"}>
-                {l.label}
+              <NavLink
+                key={l.to}
+                to={l.to}
+                end={l.to === "/"}
+                className={({ isActive }) =>
+                  `relative py-1.5 text-small font-semibold transition-colors duration-(--duration-micro) ${
+                    isActive ? "text-green" : "text-grey-dark hover:text-green"
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {l.label}
+                    <span
+                      aria-hidden="true"
+                      className="absolute bottom-0 left-0 h-0.5 w-full rounded-sm bg-green-bright transition-opacity duration-(--duration-micro)"
+                      style={{ opacity: isActive ? 1 : 0 }}
+                    />
+                  </>
+                )}
               </NavLink>
             ))}
           </nav>
 
           <div className="hidden md:block">
-            <Button to="/qualify" variant="cta">Check if you Qualify</Button>
+            <Button to="/qualify" variant="green" className="px-6 text-[0.875rem]">
+              Check if you Qualify
+              <ArrowRight size={15} strokeWidth={2.2} />
+            </Button>
           </div>
 
           <button
@@ -90,7 +110,7 @@ export default function Header() {
           <button
             type="button"
             aria-label="Close the menu"
-            className="absolute inset-0 bg-ink/40"
+            className="absolute inset-0 bg-ink/40 backdrop-blur-[2px]"
             onClick={() => setOpen(false)}
           />
           <div
@@ -98,7 +118,7 @@ export default function Header() {
             ref={panelRef}
             className="absolute right-0 top-0 flex h-full w-[84%] max-w-sm flex-col bg-canvas shadow-overlay"
           >
-            <div className="flex h-[4.25rem] items-center justify-between border-b border-line px-5">
+            <div className="flex h-[72px] items-center justify-between border-b border-line-green px-5">
               <Logo />
               <button
                 type="button"
@@ -118,7 +138,7 @@ export default function Header() {
                   onClick={() => setOpen(false)}
                   className={({ isActive }) =>
                     `rounded-md px-4 py-3.5 font-display text-body font-semibold ${
-                      isActive ? "bg-accent-soft text-accent-deep" : "text-ink hover:bg-surface"
+                      isActive ? "bg-green-soft text-green" : "text-ink hover:bg-grey-light"
                     }`
                   }
                 >
@@ -126,11 +146,14 @@ export default function Header() {
                 </NavLink>
               ))}
             </nav>
-            <div className="mt-auto space-y-3 border-t border-line p-5">
-              <Button to="/qualify" variant="cta" className="w-full" >
+            <div className="mt-auto space-y-3 border-t border-line-green p-5">
+              <Button to="/qualify" variant="green" className="w-full">
                 Check if you Qualify
               </Button>
-              <a href={PHONE_TEL} className="flex items-center justify-center gap-2 py-2 text-small font-medium text-ink-muted">
+              <a
+                href={PHONE_TEL}
+                className="flex items-center justify-center gap-2 py-2 text-small font-medium text-grey-muted"
+              >
                 <Phone size={15} /> {PHONE_DISPLAY}
               </a>
             </div>

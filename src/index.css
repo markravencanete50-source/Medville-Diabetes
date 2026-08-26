@@ -2,26 +2,34 @@
 
 /*
   Medville Diabetes design tokens.
-  Palette is derived from brand/Medville_Brand.svg:
+
+  Base palette is derived from brand/Medville_Brand.svg:
     navy #00293B · cyan #18BADA · orange #FF9E1B · Poppins.
-  Rules: no raw hex in component files. If a value is used twice, it is a token.
+
+  The 2026-08-26 redesign adds a green and grey system on top of that brand
+  base. Green now carries every call to action; cyan is demoted to data
+  visuals only (the glucose wave lines and the Libre brand pill). Orange is
+  kept as a token but is no longer used on any call to action.
+
+  Rules: no raw hex in component files. If a value is used twice, it is a
+  token. Backgrounds are never plain: use one of the gradient utilities below.
 */
 @theme {
   /* fonts */
   --font-display: "Poppins", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
 
-  /* fluid type: display through h3 only */
-  --text-display: clamp(2.35rem, 1.45rem + 3.9vw, 4.15rem);
+  /* fluid type */
+  --text-display: clamp(2.5rem, 1.5rem + 4vw, 4.3rem);
   --text-h1: clamp(2rem, 1.4rem + 2.6vw, 3.15rem);
-  --text-h2: clamp(1.6rem, 1.25rem + 1.6vw, 2.35rem);
+  --text-h2: clamp(1.7rem, 1.3rem + 1.8vw, 2.5rem);
   --text-h3: clamp(1.25rem, 1.1rem + 0.7vw, 1.6rem);
   --text-body-lg: clamp(1.05rem, 1rem + 0.3vw, 1.2rem);
   --text-body: 1rem;
   --text-small: 0.875rem;
   --text-caption: 0.8125rem;
 
-  /* color roles: literal values live only here */
+  /* neutrals and brand base */
   --color-canvas: #ffffff;
   --color-surface: #f0f7fa;
   --color-surface-raised: #ffffff;
@@ -30,32 +38,98 @@
   --color-ink-subtle: #78909c;
   --color-line: #dae8ee;
   --color-line-strong: #b4cfda;
+
+  /* green system: primary action colour after the 2026-08-26 client decision */
+  --color-green-abyss: #062a20;
+  --color-green-deep: #0a3d2e;
+  --color-green: #0e6a4b;
+  --color-green-hover: #0a523a;
+  --color-green-bright: #2fa97c;
+  --color-green-soft: #e6f3ec;
+  --color-green-mint: #d2ead9;
+  --color-green-tint: #f7fbf9;
+  --color-line-green: #e2e9e6;
+  --color-line-input: #dbe4e0;
+  --color-line-filter: #d9e2de;
+
+  /* grey system */
+  --color-grey-light: #f4f6f7;
+  --color-grey-dark: #3e4c55;
+  --color-grey-muted: #5c6b73;
+  --color-grey-faint: #8a969c;
+
+  /* cyan: data visuals and the Libre brand pill only */
   --color-accent: #18bada;
   --color-accent-soft: #e2f5fa;
   --color-accent-deep: #0b7c9d;
+
+  /* retained brand orange. Not used on calls to action. */
   --color-cta: #ff9e1b;
   --color-cta-hover: #ef8c05;
+
+  /* on dark surfaces */
   --color-navy-raised: #0b3a52;
-  --color-on-dark: #eaf6fa;
-  --color-on-dark-muted: #9cc6d4;
+  --color-on-dark: #ffffff;
+  --color-on-dark-green: #c7dfd4;
+  --color-on-dark-muted: #a9cfc0;
+  --color-on-dark-accent: #7fc7a8;
+
   --color-success: #1d7a4f;
   --color-danger: #b03030;
 
   /* radius: soft consumer stance, held everywhere */
   --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1.1rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.25rem;
+  --radius-card: 1.375rem;
+  --radius-well: 1.25rem;
+  --radius-sheet: 1.75rem;
   --radius-full: 999px;
 
-  /* elevation: contact edge + ambient spread, navy-tinted */
-  --shadow-raised: 0 1px 2px rgb(0 41 59 / 0.06), 0 6px 18px -8px rgb(0 41 59 / 0.12);
-  --shadow-overlay: 0 2px 6px rgb(0 41 59 / 0.08), 0 16px 40px -12px rgb(0 41 59 / 0.22);
+  /* elevation */
+  --shadow-raised: 0 1px 3px rgb(0 41 59 / 0.06), 0 14px 34px -20px rgb(0 41 59 / 0.22);
+  --shadow-raised-hover: 0 2px 8px rgb(0 41 59 / 0.07), 0 24px 50px -20px rgb(0 41 59 / 0.3);
+  --shadow-soft: 0 1px 3px rgb(0 41 59 / 0.05), 0 12px 30px -18px rgb(0 41 59 / 0.18);
+  --shadow-soft-hover: 0 2px 6px rgb(0 41 59 / 0.06), 0 20px 44px -18px rgb(0 41 59 / 0.25);
+  --shadow-overlay: 0 2px 8px rgb(0 41 59 / 0.06), 0 30px 60px -24px rgb(0 41 59 / 0.28);
+  --shadow-green: 0 2px 6px rgb(10 61 46 / 0.18), 0 14px 30px -10px rgb(10 61 46 / 0.4);
+  --shadow-pill: 0 2px 6px rgb(0 41 59 / 0.08), 0 12px 28px -12px rgb(0 41 59 / 0.25);
+  --shadow-sheet: 0 -10px 50px rgb(0 20 12 / 0.35);
 
   /* motion */
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --duration-micro: 180ms;
-  --duration-base: 320ms;
+  --duration-base: 220ms;
+  --duration-slow: 320ms;
   --duration-large: 560ms;
+  --duration-reveal: 700ms;
+}
+
+/*
+  Gradients and the grain overlay. These are plain custom properties rather
+  than @theme tokens because Tailwind has no gradient token type; the paired
+  utility classes below are the supported way to apply them.
+*/
+:root {
+  --gradient-wash: linear-gradient(160deg, #ffffff 0%, #edf6f1 45%, #e4f1f5 100%);
+  --gradient-dark: linear-gradient(135deg, #00293b 0%, #0a3d2e 100%);
+  --gradient-green: linear-gradient(120deg, #0a3d2e 0%, #0e6a4b 55%, #00293b 100%);
+  --gradient-why: linear-gradient(180deg, #e6f3ec 0%, #eef6f1 100%);
+  --gradient-tint-libre: linear-gradient(140deg, #f4f6f7 0%, #e9eef0 100%);
+  --gradient-tint-dexcom: linear-gradient(140deg, #e6f3ec 0%, #ddeee5 100%);
+  --grain: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22160%22 height=%22160%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%222%22/%3E%3C/filter%3E%3Crect width=%22160%22 height=%22160%22 filter=%22url(%23n)%22 opacity=%220.5%22/%3E%3C/svg%3E");
+}
+
+.bg-wash { background: var(--gradient-wash); }
+.bg-dark-band { background: var(--gradient-dark); }
+.bg-green-band { background: var(--gradient-green); }
+.bg-why-band { background: var(--gradient-why); }
+.tint-libre { background: var(--gradient-tint-libre); }
+.tint-dexcom { background: var(--gradient-tint-dexcom); }
+
+/* grain overlay: always aria-hidden and pointer-events none at the call site */
+.grain {
+  background-image: var(--grain);
 }
 
 html {
@@ -76,32 +150,87 @@ h1, h2, h3, h4 {
 }
 
 ::selection {
-  background: var(--color-accent-soft);
-  color: var(--color-accent-deep);
+  background: var(--color-green-soft);
+  color: var(--color-green);
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-accent-deep);
+  outline: 2px solid var(--color-green);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-/* hero entrance: the one orchestrated moment */
+/* ---- keyframes ---- */
+
 @keyframes rise-in {
-  from { opacity: 0; transform: translateY(18px); }
+  from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: none; }
 }
-.rise-in {
-  animation: rise-in var(--duration-large) var(--ease-out-quart) both;
-  animation-delay: var(--rise-delay, 0ms);
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
 }
 
-/* glucose wave dot pulse */
+@keyframes floaty2 {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(8px); }
+}
+
 @keyframes wave-pulse {
   0% { transform: scale(0.6); opacity: 0.9; }
   70% { transform: scale(2.1); opacity: 0; }
   100% { opacity: 0; }
 }
+
+@keyframes draw {
+  from { stroke-dashoffset: 2600; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes blob-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(30px, -20px) scale(1.08); }
+}
+
+@keyframes sheet-up {
+  from { opacity: 0; transform: translateY(48px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ---- animation utilities ---- */
+
+.rise-in {
+  animation: rise-in 640ms var(--ease-out-quart) both;
+  animation-delay: var(--rise-delay, 0ms);
+}
+
+.floaty { animation: floaty 7s ease-in-out infinite; }
+
+.floaty2 {
+  animation: floaty2 var(--floaty-duration, 6s) ease-in-out infinite;
+  animation-delay: var(--floaty-delay, 0s);
+}
+
+.blob-drift {
+  animation: blob-drift var(--blob-duration, 14s) ease-in-out infinite;
+  animation-direction: var(--blob-direction, normal);
+}
+
+.wave-draw {
+  stroke-dasharray: 2600;
+  animation: draw var(--draw-duration, 3s) var(--ease-out-quart) var(--draw-delay, 0s) both;
+}
+
+.sheet-up { animation: sheet-up 380ms var(--ease-out-quart) both; }
+
+.fade-in { animation: fade-in 220ms both; }
+
 .wave-dot::after {
   content: "";
   position: absolute;
@@ -111,6 +240,24 @@ h1, h2, h3, h4 {
   animation: wave-pulse 2s var(--ease-out-quart) infinite;
 }
 
+/*
+  Scroll reveal. useReveal sets the starting state only when motion is
+  allowed, so elements stay visible for reduced-motion users and when
+  JavaScript has not run yet.
+*/
+.reveal-start {
+  opacity: 0;
+  transform: translateY(26px);
+}
+
+.reveal-in {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--duration-reveal) var(--ease-out-quart),
+    transform var(--duration-reveal) var(--ease-out-quart);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -118,6 +265,12 @@ h1, h2, h3, h4 {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  .rise-in { animation: none; }
+  .rise-in,
+  .floaty,
+  .floaty2,
+  .blob-drift,
+  .wave-draw,
+  .sheet-up { animation: none; }
   .wave-dot::after { animation: none; opacity: 0; }
+  .reveal-start { opacity: 1; transform: none; }
 }

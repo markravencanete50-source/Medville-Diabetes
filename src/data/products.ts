@@ -9,9 +9,12 @@
     full term written first.
   - Short sentences. One idea per sentence.
 
-  Images are placeholder vector art so the rotate and zoom viewer works today.
-  Replace each `imageFront` / `imageBack` with real supplier photography before
-  launch. Manufacturers provide press images to authorized resellers.
+  Images are the client's supplier photography, front and back for every
+  product. The originals are 1536x1024 PNGs at roughly 1.4 MB each; they are
+  converted to 1200 px WebP by `scripts/optimize-product-photos.mjs`, which
+  takes the set from 28.5 MB to 0.75 MB. Serve the WebP files only. Hosting
+  bandwidth is the one line item that can push the client past the 0 to 5 USD
+  per month ceiling in Section 7.3 of the agreement.
 */
 
 export type Brand = "FreeStyle Libre" | "Dexcom";
@@ -50,8 +53,8 @@ export const products: Product[] = [
       "Optional low and high glucose alarms",
       "One of the smallest sensors available today",
     ],
-    imageFront: "/products/libre-front.svg",
-    imageBack: "/products/libre-back.svg",
+    imageFront: "/products/freestyle-libre-3-front.webp",
+    imageBack: "/products/freestyle-libre-3-back.webp",
   },
   {
     slug: "freestyle-libre-2",
@@ -72,8 +75,8 @@ export const products: Product[] = [
       "Optional low and high glucose alarms",
       "Works with a compatible phone or with the FreeStyle Libre 2 reader",
     ],
-    imageFront: "/products/libre-front.svg",
-    imageBack: "/products/libre-back.svg",
+    imageFront: "/products/freestyle-libre-2-front.webp",
+    imageBack: "/products/freestyle-libre-2-back.webp",
   },
   {
     slug: "freestyle-libre-14-day",
@@ -93,8 +96,8 @@ export const products: Product[] = [
       "Sensor worn on the back of the upper arm",
       "Scan works through clothing",
     ],
-    imageFront: "/products/libre-front.svg",
-    imageBack: "/products/libre-back.svg",
+    imageFront: "/products/freestyle-libre-14-day-front.webp",
+    imageBack: "/products/freestyle-libre-14-day-back.webp",
   },
   {
     slug: "stelo-by-dexcom",
@@ -114,8 +117,8 @@ export const products: Product[] = [
       "Designed for adults who do not use insulin",
       "Readings appear in the Stelo application on your phone",
     ],
-    imageFront: "/products/dexcom-front.svg",
-    imageBack: "/products/dexcom-back.svg",
+    imageFront: "/products/stelo-by-dexcom-front.webp",
+    imageBack: "/products/stelo-by-dexcom-back.webp",
   },
   {
     slug: "dexcom-g7",
@@ -136,8 +139,8 @@ export const products: Product[] = [
       "Alerts before glucose goes too low or too high",
       "Share readings with family and your care team",
     ],
-    imageFront: "/products/dexcom-front.svg",
-    imageBack: "/products/dexcom-back.svg",
+    imageFront: "/products/dexcom-g7-front.webp",
+    imageBack: "/products/dexcom-g7-back.webp",
   },
   {
     slug: "dexcom-g6",
@@ -157,8 +160,8 @@ export const products: Product[] = [
       "Alerts before glucose goes too low or too high",
       "Works with a phone or with the Dexcom receiver",
     ],
-    imageFront: "/products/dexcom-front.svg",
-    imageBack: "/products/dexcom-back.svg",
+    imageFront: "/products/dexcom-g6-front.webp",
+    imageBack: "/products/dexcom-g6-back.webp",
   },
   {
     slug: "dexcom-g6-sensors-applicator",
@@ -176,8 +179,8 @@ export const products: Product[] = [
       "Includes the applicator",
       "For use with the Dexcom G6 system",
     ],
-    imageFront: "/products/applicator-front.svg",
-    imageBack: "/products/applicator-back.svg",
+    imageFront: "/products/dexcom-g6-sensors-applicator-front.webp",
+    imageBack: "/products/dexcom-g6-sensors-applicator-back.webp",
   },
   {
     slug: "dexcom-g6-transmitter",
@@ -195,8 +198,8 @@ export const products: Product[] = [
       "Sends readings wirelessly to your display device",
       "For use with the Dexcom G6 system",
     ],
-    imageFront: "/products/transmitter-front.svg",
-    imageBack: "/products/transmitter-back.svg",
+    imageFront: "/products/dexcom-g6-transmitter-front.webp",
+    imageBack: "/products/dexcom-g6-transmitter-back.webp",
   },
   {
     slug: "freestyle-libre-14-day-sensor",
@@ -214,8 +217,8 @@ export const products: Product[] = [
       "Worn on the back of the upper arm",
       "Measures glucose every minute",
     ],
-    imageFront: "/products/libre-front.svg",
-    imageBack: "/products/libre-back.svg",
+    imageFront: "/products/freestyle-libre-14-day-sensor-front.webp",
+    imageBack: "/products/freestyle-libre-14-day-sensor-back.webp",
   },
   {
     slug: "freestyle-libre-2-sensor",
@@ -233,8 +236,8 @@ export const products: Product[] = [
       "Lasts up to 14 days",
       "Compatible with the FreeStyle Libre 2 reader",
     ],
-    imageFront: "/products/libre-front.svg",
-    imageBack: "/products/libre-back.svg",
+    imageFront: "/products/freestyle-libre-2-sensor-front.webp",
+    imageBack: "/products/freestyle-libre-2-sensor-back.webp",
   },
   {
     slug: "freestyle-libre-3-sensor",
@@ -252,8 +255,8 @@ export const products: Product[] = [
       "Worn for up to 14 days",
       "A new reading every minute, sent to your phone",
     ],
-    imageFront: "/products/libre-front.svg",
-    imageBack: "/products/libre-back.svg",
+    imageFront: "/products/freestyle-libre-3-sensor-front.webp",
+    imageBack: "/products/freestyle-libre-3-sensor-back.webp",
   },
 ];
 

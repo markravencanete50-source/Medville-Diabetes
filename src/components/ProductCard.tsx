@@ -1,37 +1,97 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Eye } from "lucide-react";
 import type { Product } from "../data/products";
 
-/* Shopify-style product card: clean surface, product first, quiet chrome. */
-export default function ProductCard({ product }: { product: Product }) {
+/*
+  Product card for the redesign.
+
+  Hovering crossfades the front photograph into the back photograph over
+  420ms, and the corner label follows. On touch, where there is no hover, the
+  Quick view button is the way to see the back, so nothing is lost.
+*/
+
+export function brandTint(brand: Product["brand"]) {
+  return brand === "Dexcom" ? "tint-dexcom" : "tint-libre";
+}
+
+export function brandPillColour(brand: Product["brand"]) {
+  return brand === "Dexcom" ? "text-green" : "text-accent-deep";
+}
+
+export default function ProductCard({
+  product,
+  delay = 0,
+  onQuickView,
+}: {
+  product: Product;
+  delay?: number;
+  onQuickView: (slug: string) => void;
+}) {
+  const [showBack, setShowBack] = useState(false);
+
   return (
-    <Link
-      to={`/products/${product.slug}`}
-      className="group flex flex-col overflow-hidden rounded-lg border border-line bg-surface-raised transition-shadow duration-(--duration-micro) hover:shadow-raised"
+    <div
+      data-reveal={delay}
+      onMouseEnter={() => setShowBack(true)}
+      onMouseLeave={() => setShowBack(false)}
+      className="flex flex-col overflow-hidden rounded-card bg-surface-raised shadow-raised transition-all duration-(--duration-slow) ease-(--ease-out-quart) hover:-translate-y-1.5 hover:shadow-raised-hover"
     >
-      <div className="relative bg-surface p-6">
-        <img
-          src={product.imageFront}
-          alt={product.name}
-          loading="lazy"
-          className="aspect-square w-full object-contain transition-transform duration-(--duration-base) ease-(--ease-out-quart) group-hover:scale-[1.045]"
-        />
-        <span className="absolute left-4 top-4 rounded-full bg-surface-raised px-3 py-1 text-caption font-medium text-accent-deep shadow-raised">
+      <div className={`relative p-7 ${brandTint(product.brand)}`}>
+        <div className="relative aspect-square w-full">
+          <img
+            src={product.imageFront}
+            alt={`${product.name}, front`}
+            loading="lazy"
+            className="absolute inset-0 h-full w-full rounded-md object-contain transition-opacity duration-[420ms] ease-(--ease-out-quart)"
+            style={{ opacity: showBack ? 0 : 1 }}
+          />
+          <img
+            src={product.imageBack}
+            alt={`${product.name}, back`}
+            loading="lazy"
+            className="absolute inset-0 h-full w-full rounded-md object-contain transition-opacity duration-[420ms] ease-(--ease-out-quart)"
+            style={{ opacity: showBack ? 1 : 0 }}
+          />
+        </div>
+        <span
+          className={`absolute left-4 top-4 rounded-full bg-canvas/90 px-3.5 py-1.5 text-caption font-semibold shadow-[0_1px_2px_rgb(0_41_59/0.08)] ${brandPillColour(product.brand)}`}
+        >
           {product.brand}
         </span>
-      </div>
-      <div className="flex flex-1 flex-col gap-2 p-5">
-        <h3 className="font-display text-body font-semibold leading-snug text-ink">
-          {product.name}
-        </h3>
-        <p className="text-small leading-relaxed text-ink-muted">
-          {product.shortDescription}
-        </p>
-        <span className="mt-auto inline-flex items-center gap-1.5 pt-2 text-small font-semibold text-accent-deep">
-          Learn more
-          <ArrowRight size={15} className="transition-transform duration-(--duration-micro) group-hover:translate-x-0.5" />
+        <span className="absolute right-4 top-4 rounded-full bg-ink/60 px-3.5 py-1.5 text-[0.72rem] font-semibold text-on-dark backdrop-blur-[4px]">
+          {showBack ? "Back" : "Front"}
         </span>
       </div>
-    </Link>
+
+      <div className="flex flex-1 flex-col gap-2 px-6 pb-6 pt-5">
+        <h3 className="m-0 font-display text-[1.08rem] font-semibold leading-snug text-ink">
+          {product.name}
+        </h3>
+        <p className="m-0 text-small leading-relaxed text-grey-dark">
+          {product.shortDescription}
+        </p>
+        <div className="mt-auto flex items-center gap-2.5 pt-3">
+          <button
+            type="button"
+            onClick={() => onQuickView(product.slug)}
+            className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-full bg-green-soft px-5 py-2.5 font-display text-[0.84rem] font-semibold text-green transition-colors duration-(--duration-micro) hover:bg-green-mint"
+          >
+            <Eye size={15} />
+            Quick view
+          </button>
+          <Link
+            to={`/products/${product.slug}`}
+            className="group inline-flex items-center gap-1.5 text-small font-semibold text-green"
+          >
+            Learn more
+            <ArrowRight
+              size={15}
+              className="transition-transform duration-(--duration-micro) group-hover:translate-x-0.5"
+            />
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -1,20 +1,25 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Check, ChevronRight } from "lucide-react";
 import Container from "../components/Container";
 import Button from "../components/Button";
 import ProductViewer from "../components/ProductViewer";
-import ProductCard from "../components/ProductCard";
+import ProductCard, { brandTint, brandPillColour } from "../components/ProductCard";
+import QuickView from "../components/QuickView";
 import { getProduct, products } from "../data/products";
 import { usePageMeta } from "../lib/usePageMeta";
+import { useReveal } from "../lib/useReveal";
 import NotFound from "./NotFound";
 
 export default function ProductDetail() {
   const { slug } = useParams();
   const product = slug ? getProduct(slug) : undefined;
+  const revealRef = useReveal<HTMLDivElement>();
+  const [quickView, setQuickView] = useState<string | null>(null);
 
   usePageMeta(
     product ? `${product.name} | Medville Diabetes` : "Product not found | Medville Diabetes",
-    product?.shortDescription
+    product?.shortDescription,
   );
 
   if (!product) return <NotFound />;
@@ -24,50 +29,63 @@ export default function ProductDetail() {
     .slice(0, 3);
 
   return (
-    <>
+    <div ref={revealRef}>
       <section className="py-8 md:py-12">
         <Container wide>
           {/* breadcrumb */}
-          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-caption text-ink-subtle">
-            <Link to="/" className="hover:text-ink">Home</Link>
+          <nav
+            aria-label="Breadcrumb"
+            className="flex flex-wrap items-center gap-1.5 text-caption text-grey-muted"
+          >
+            <Link to="/" className="transition-colors hover:text-green">Home</Link>
             <ChevronRight size={13} aria-hidden="true" />
-            <Link to="/products" className="hover:text-ink">Our Products</Link>
+            <Link to="/products" className="transition-colors hover:text-green">Our Products</Link>
             <ChevronRight size={13} aria-hidden="true" />
-            <span className="text-ink-muted">{product.name}</span>
+            <span className="text-grey-dark">{product.name}</span>
           </nav>
 
           <div className="mt-6 grid gap-10 lg:grid-cols-[1fr_1fr] lg:gap-14">
-            {/* viewer */}
+            {/* viewer with front and back thumbnails */}
             <ProductViewer
               front={product.imageFront}
               back={product.imageBack}
               alt={product.name}
-              className="lg:sticky lg:top-28 lg:self-start"
+              tint={brandTint(product.brand)}
+              thumbnails
+              className="lg:sticky lg:top-32 lg:self-start"
             />
 
             {/* details */}
             <div>
-              <p className="text-caption font-semibold uppercase tracking-[0.2em] text-accent-deep">
+              <span
+                className={`inline-flex rounded-full bg-grey-light px-3.5 py-1.5 text-caption font-semibold ${brandPillColour(product.brand)}`}
+              >
                 {product.brand} · {product.category}
-              </p>
-              <h1 className="mt-2 font-display text-h1 font-bold leading-tight text-ink">
+              </span>
+              <h1 className="mt-3 font-display text-h1 font-bold leading-tight text-ink">
                 {product.name}
               </h1>
 
               <div className="mt-5 space-y-4">
                 {product.description.map((para, i) => (
-                  <p key={i} className="max-w-[60ch] text-body leading-relaxed text-ink-muted">{para}</p>
+                  <p key={i} className="max-w-[60ch] text-body leading-relaxed text-grey-dark">
+                    {para}
+                  </p>
                 ))}
               </div>
 
-              <div className="mt-7 rounded-lg border border-line bg-surface p-6">
+              {/* fact chips */}
+              <div className="mt-7">
                 <h2 className="font-display text-small font-semibold uppercase tracking-[0.14em] text-ink">
                   Key facts
                 </h2>
-                <ul className="mt-4 space-y-2.5">
+                <ul className="mt-4 flex list-none flex-wrap gap-2.5 p-0">
                   {product.keyFacts.map((fact) => (
-                    <li key={fact} className="flex items-start gap-2.5 text-small text-ink-muted">
-                      <Check size={16} className="mt-0.5 flex-none text-accent-deep" aria-hidden="true" />
+                    <li
+                      key={fact}
+                      className="inline-flex items-center gap-2 rounded-full border border-green-mint bg-green-tint px-4 py-2 text-caption font-medium text-grey-dark"
+                    >
+                      <Check size={14} strokeWidth={2.4} className="flex-none text-green-bright" aria-hidden="true" />
                       {fact}
                     </li>
                   ))}
@@ -75,12 +93,12 @@ export default function ProductDetail() {
               </div>
 
               <div className="mt-7 flex flex-wrap gap-3">
-                <Button to="/qualify" variant="cta">Check if you Qualify</Button>
+                <Button to="/qualify" variant="green">Check if you Qualify</Button>
                 <Button to="/contact" variant="ghost">Ask us a question</Button>
               </div>
-              <p className="mt-4 max-w-[56ch] text-caption leading-relaxed text-ink-subtle">
-                Availability depends on your coverage and on a review by our
-                team. Checking takes less than one minute and there is no cost.
+              <p className="mt-4 max-w-[56ch] text-caption leading-relaxed text-grey-muted">
+                Availability depends on your coverage and on a review by our team.
+                Checking takes less than one minute and there is no cost.
               </p>
             </div>
           </div>
@@ -88,15 +106,29 @@ export default function ProductDetail() {
       </section>
 
       {related.length > 0 && (
-        <section className="border-t border-line bg-surface py-14">
+        <section className="border-t border-line-green bg-grey-light py-14">
           <Container wide>
-            <h2 className="font-display text-h3 font-bold text-ink">More from {product.brand}</h2>
-            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {related.map((p) => <ProductCard key={p.slug} product={p} />)}
+            <h2 className="font-display text-h3 font-bold text-ink">
+              More from {product.brand}
+            </h2>
+            <div className="mt-6 grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
+              {related.map((p, index) => (
+                <ProductCard
+                  key={p.slug}
+                  product={p}
+                  delay={index * 120}
+                  onQuickView={setQuickView}
+                />
+              ))}
             </div>
           </Container>
         </section>
       )}
-    </>
+
+      <QuickView
+        product={quickView ? getProduct(quickView) ?? null : null}
+        onClose={() => setQuickView(null)}
+      />
+    </div>
   );
 }

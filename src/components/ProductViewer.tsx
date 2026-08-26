@@ -15,12 +15,23 @@ interface ProductViewerProps {
   back: string;
   alt: string;
   className?: string;
+  /* Brand tint class for the stage, from brandTint() in ProductCard. */
+  tint?: string;
+  /* Front and back thumbnails under the stage, per the redesign. */
+  thumbnails?: boolean;
 }
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 2.5;
 
-export default function ProductViewer({ front, back, alt, className = "" }: ProductViewerProps) {
+export default function ProductViewer({
+  front,
+  back,
+  alt,
+  className = "",
+  tint = "tint-libre",
+  thumbnails = false,
+}: ProductViewerProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [angle, setAngle] = useState(0);
   const [zoom, setZoom] = useState(1);
@@ -148,7 +159,7 @@ export default function ProductViewer({ front, back, alt, className = "" }: Prod
         onPointerUp={endPointer}
         onPointerCancel={endPointer}
         onPointerLeave={endPointer}
-        className="relative aspect-square w-full select-none overflow-hidden rounded-lg bg-surface cursor-grab active:cursor-grabbing"
+        className={`relative aspect-square w-full cursor-grab select-none overflow-hidden rounded-well active:cursor-grabbing ${tint}`}
         style={{ touchAction: "none" }}
       >
         <div
@@ -186,13 +197,41 @@ export default function ProductViewer({ front, back, alt, className = "" }: Prod
           </div>
         </div>
 
-        <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-surface-raised/90 px-3 py-1 text-caption font-medium text-ink-muted shadow-raised">
+        <span className="pointer-events-none absolute left-4 top-4 rounded-full bg-canvas/90 px-3.5 py-1.5 text-caption font-semibold text-green shadow-[0_1px_2px_rgb(0_41_59/0.08)]">
           {showingBack ? "Back" : "Front"}
         </span>
       </div>
 
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <p className="text-caption text-ink-subtle">
+      {thumbnails && (
+        <div className="mt-3.5 flex justify-center gap-3">
+          {([
+            { src: front, label: "Front", targetBack: false },
+            { src: back, label: "Back", targetBack: true },
+          ] as const).map((thumb) => {
+            const active = showingBack === thumb.targetBack;
+            return (
+              <button
+                key={thumb.label}
+                type="button"
+                aria-label={`Show the ${thumb.label.toLowerCase()} of the product`}
+                aria-pressed={active}
+                onClick={() => {
+                  setSnapping(true);
+                  setAngle(thumb.targetBack ? 180 : 0);
+                }}
+                className={`h-20 w-20 overflow-hidden rounded-md border-2 p-1.5 transition-colors duration-(--duration-micro) ${
+                  active ? "border-green" : "border-line-filter hover:border-green-mint"
+                } ${tint}`}
+              >
+                <img src={thumb.src} alt="" className="h-full w-full object-contain" />
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-3.5 flex items-center justify-between gap-3">
+        <p className="text-caption text-grey-muted">
           Drag to rotate. Scroll or pinch to zoom.
         </p>
         <div className="flex items-center gap-1.5">
@@ -223,7 +262,7 @@ function ViewerButton({ label, onClick, children }: {
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-surface-raised text-ink-muted shadow-raised transition-colors duration-(--duration-micro) hover:border-line-strong hover:text-ink"
+      className="flex h-10 w-10 items-center justify-center rounded-full border border-line-filter bg-surface-raised text-grey-dark shadow-soft transition-colors duration-(--duration-micro) hover:border-green hover:text-green"
     >
       {children}
     </button>
