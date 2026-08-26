@@ -34,6 +34,7 @@ const MAP = {
     "Dexcom G6 Sensors and Applicator (3 Sensors Per Box) Back.png",
   ],
   "dexcom-g6-transmitter": ["Dexcom G6 Transmitter Front.png", "Dexcom G6 Transmitter Back.png"],
+  "tandem-tslim-x2": ["Tandem t-slim X2 Front.png", "Tandem t-slim X2 Back.png"],
   "freestyle-libre-14-day-sensor": [
     "FreeStyle Libre 14 Day Sensor (Box of 1) Front.png",
     "FreeStyle Libre 14 Day Sensor (Box of 1) Back.png",

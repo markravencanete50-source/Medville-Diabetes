@@ -3,6 +3,7 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
 import Products from "./pages/Products";
+import ProductsLanding from "./pages/ProductsLanding";
 import ProductDetail from "./pages/ProductDetail";
 import Qualify from "./pages/Qualify";
 import About from "./pages/About";
@@ -22,7 +23,9 @@ export default function App() {
       <main id="main">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/products" element={<Products />} />
+          <Route path="/products" element={<ProductsLanding />} />
+          <Route path="/products/cgm" element={<Products line="cgm" />} />
+          <Route path="/products/insulin-pumps" element={<Products line="insulin-pump" />} />
           <Route path="/products/:slug" element={<ProductDetail />} />
           <Route path="/qualify" element={<Qualify />} />
           <Route path="/about" element={<About />} />

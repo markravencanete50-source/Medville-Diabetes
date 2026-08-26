@@ -17,12 +17,17 @@
   per month ceiling in Section 7.3 of the agreement.
 */
 
-export type Brand = "FreeStyle Libre" | "Dexcom";
+export type Brand = "FreeStyle Libre" | "Dexcom" | "Tandem";
+
+/* The two product lines the catalog is organised under. The products page
+   shows one card per line; each line routes to its own listing. */
+export type ProductLine = "cgm" | "insulin-pump";
 
 export interface Product {
   slug: string;
   name: string;
   brand: Brand;
+  line: ProductLine;
   category: "System" | "Sensor" | "Accessory";
   shortDescription: string;
   description: string[];
@@ -37,6 +42,7 @@ export const products: Product[] = [
     slug: "freestyle-libre-3",
     name: "FreeStyle Libre 3",
     brand: "FreeStyle Libre",
+    line: "cgm",
     category: "System",
     featured: true,
     shortDescription:
@@ -60,6 +66,7 @@ export const products: Product[] = [
     slug: "freestyle-libre-2",
     name: "FreeStyle Libre 2",
     brand: "FreeStyle Libre",
+    line: "cgm",
     category: "System",
     featured: true,
     shortDescription:
@@ -82,6 +89,7 @@ export const products: Product[] = [
     slug: "freestyle-libre-14-day",
     name: "FreeStyle Libre 14 Day",
     brand: "FreeStyle Libre",
+    line: "cgm",
     category: "System",
     shortDescription:
       "Read your glucose with a one-second scan of the sensor. No finger stick calibration is required.",
@@ -103,6 +111,7 @@ export const products: Product[] = [
     slug: "stelo-by-dexcom",
     name: "Stelo by Dexcom",
     brand: "Dexcom",
+    line: "cgm",
     category: "System",
     shortDescription:
       "Tracks your glucose 24 hours a day and shows you how food, exercise, and sleep affect your levels.",
@@ -124,6 +133,7 @@ export const products: Product[] = [
     slug: "dexcom-g7",
     name: "Dexcom G7",
     brand: "Dexcom",
+    line: "cgm",
     category: "System",
     featured: true,
     shortDescription:
@@ -146,6 +156,7 @@ export const products: Product[] = [
     slug: "dexcom-g6",
     name: "Dexcom G6",
     brand: "Dexcom",
+    line: "cgm",
     category: "System",
     shortDescription:
       "Shows your current glucose number and the direction it is going, with alerts and no finger sticks.",
@@ -167,6 +178,7 @@ export const products: Product[] = [
     slug: "dexcom-g6-sensors-applicator",
     name: "Dexcom G6 Sensors and Applicator (3 Sensors Per Box)",
     brand: "Dexcom",
+    line: "cgm",
     category: "Sensor",
     shortDescription:
       "Replacement sensors and the applicator for the Dexcom G6 system. Each box contains 3 sensors.",
@@ -186,6 +198,7 @@ export const products: Product[] = [
     slug: "dexcom-g6-transmitter",
     name: "Dexcom G6 Transmitter",
     brand: "Dexcom",
+    line: "cgm",
     category: "Accessory",
     shortDescription:
       "Attaches to the top of the Dexcom G6 sensor and sends your readings wirelessly to your display device.",
@@ -205,6 +218,7 @@ export const products: Product[] = [
     slug: "freestyle-libre-14-day-sensor",
     name: "FreeStyle Libre 14 Day Sensor (Box of 1)",
     brand: "FreeStyle Libre",
+    line: "cgm",
     category: "Sensor",
     shortDescription:
       "A replacement sensor for the FreeStyle Libre 14 Day system. Worn on the back of the upper arm, it measures glucose every minute.",
@@ -224,6 +238,7 @@ export const products: Product[] = [
     slug: "freestyle-libre-2-sensor",
     name: "FreeStyle Libre 2 Sensor (Box of 1)",
     brand: "FreeStyle Libre",
+    line: "cgm",
     category: "Sensor",
     shortDescription:
       "A replacement sensor for the FreeStyle Libre 2 system. It is compatible with the FreeStyle Libre 2 reader and lasts 14 days.",
@@ -243,6 +258,7 @@ export const products: Product[] = [
     slug: "freestyle-libre-3-sensor",
     name: "FreeStyle Libre 3 Sensor (Box of 1)",
     brand: "FreeStyle Libre",
+    line: "cgm",
     category: "Sensor",
     shortDescription:
       "A replacement sensor for the FreeStyle Libre 3 system, the 14-day continuous glucose monitoring system.",
@@ -258,9 +274,41 @@ export const products: Product[] = [
     imageFront: "/products/freestyle-libre-3-sensor-front.webp",
     imageBack: "/products/freestyle-libre-3-sensor-back.webp",
   },
+  {
+    slug: "tandem-tslim-x2",
+    name: "Tandem t:slim X2",
+    brand: "Tandem",
+    line: "insulin-pump",
+    category: "System",
+    shortDescription:
+      "A slim insulin pump with a color touchscreen. It can adjust your insulin automatically when it is connected to a Dexcom sensor.",
+    description: [
+      "The t:slim X2 insulin pump is made by Tandem Diabetes Care. It is a small, slim pump with a color touchscreen. It delivers insulin through a thin tube called an infusion set, so you need fewer daily injections.",
+      "The cartridge holds up to 300 units of insulin. The battery recharges from a standard charger, so you do not buy or replace batteries.",
+      "The pump can connect to a Dexcom continuous glucose monitor. With Control-IQ technology, the pump predicts where your glucose is heading and adjusts your insulin automatically to help keep you in your target range.",
+      "You can update the software of the pump at home. New features can arrive without replacing the pump. Our team can help you check whether your coverage includes an insulin pump.",
+    ],
+    keyFacts: [
+      "Made by Tandem Diabetes Care",
+      "Slim design with a color touchscreen",
+      "Holds up to 300 units of insulin",
+      "Rechargeable battery, no batteries to replace",
+      "Connects to Dexcom continuous glucose monitors",
+      "Control-IQ technology adjusts insulin automatically",
+      "Software updates from home",
+    ],
+    imageFront: "/products/tandem-tslim-x2-front.webp",
+    imageBack: "/products/tandem-tslim-x2-back.webp",
+  },
 ];
 
+/* CGM brand filter chips. The insulin pump listing has one brand and shows
+   no filter, so this list stays scoped to the monitor brands. */
 export const brands: Brand[] = ["FreeStyle Libre", "Dexcom"];
+
+export function lineProducts(line: ProductLine): Product[] {
+  return products.filter((p) => p.line === line);
+}
 
 export function getProduct(slug: string): Product | undefined {
   return products.find((p) => p.slug === slug);

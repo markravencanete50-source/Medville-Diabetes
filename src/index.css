@@ -121,6 +121,7 @@
   --mask-fade-left: linear-gradient(90deg, transparent 0%, rgb(0 0 0 / 0.25) 18%, rgb(0 0 0 / 0.75) 42%, #000 66%);
   --gradient-tint-libre: linear-gradient(140deg, #f4f6f7 0%, #e9eef0 100%);
   --gradient-tint-dexcom: linear-gradient(140deg, #e6f3ec 0%, #ddeee5 100%);
+  --gradient-tint-tandem: linear-gradient(140deg, #eef1f3 0%, #e3e8ec 100%);
   --grain: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22160%22 height=%22160%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%222%22/%3E%3C/filter%3E%3Crect width=%22160%22 height=%22160%22 filter=%22url(%23n)%22 opacity=%220.5%22/%3E%3C/svg%3E");
 }
 
@@ -141,6 +142,7 @@
 }
 .tint-libre { background: var(--gradient-tint-libre); }
 .tint-dexcom { background: var(--gradient-tint-dexcom); }
+.tint-tandem { background: var(--gradient-tint-tandem); }
 
 /* grain overlay: always aria-hidden and pointer-events none at the call site */
 .grain {

@@ -12,11 +12,15 @@ import type { Product } from "../data/products";
 */
 
 export function brandTint(brand: Product["brand"]) {
-  return brand === "Dexcom" ? "tint-dexcom" : "tint-libre";
+  if (brand === "Dexcom") return "tint-dexcom";
+  if (brand === "Tandem") return "tint-tandem";
+  return "tint-libre";
 }
 
 export function brandPillColour(brand: Product["brand"]) {
-  return brand === "Dexcom" ? "text-green" : "text-accent-deep";
+  if (brand === "Dexcom") return "text-green";
+  if (brand === "Tandem") return "text-ink";
+  return "text-accent-deep";
 }
 
 export default function ProductCard({
