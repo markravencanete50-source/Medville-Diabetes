@@ -54,8 +54,8 @@ export default function QuickView({
     const selected = face === value;
     return `min-h-[42px] rounded-full border-[1.5px] px-6 py-2 font-display text-[0.84rem] font-semibold transition-all duration-(--duration-micro) ${
       selected
-        ? "border-green bg-green text-on-dark"
-        : "border-line-filter bg-canvas text-grey-dark hover:border-green"
+        ? "border-brand bg-brand text-on-dark"
+        : "border-line-filter bg-canvas text-grey-dark hover:border-brand"
     }`;
   };
 
@@ -78,7 +78,7 @@ export default function QuickView({
           aria-hidden="true"
           className="sticky top-0 z-10 flex justify-center bg-gradient-to-b from-surface-raised to-transparent pt-2.5"
         >
-          <span className="h-[5px] w-11 rounded-full bg-line-green" />
+          <span className="h-[5px] w-11 rounded-full bg-line-brand" />
         </div>
 
         <button
@@ -86,7 +86,7 @@ export default function QuickView({
           type="button"
           aria-label="Close"
           onClick={onClose}
-          className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-grey-light text-ink transition-colors duration-(--duration-micro) hover:bg-line-green"
+          className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-grey-light text-ink transition-colors duration-(--duration-micro) hover:bg-line-brand"
         >
           <X size={18} />
         </button>
@@ -99,7 +99,7 @@ export default function QuickView({
                 alt={`${product.name}, ${face}`}
                 className="aspect-square w-full rounded-sm object-contain"
               />
-              <span className="absolute left-3.5 top-3.5 rounded-full bg-canvas/90 px-3.5 py-1.5 text-[0.78rem] font-semibold text-green">
+              <span className="absolute left-3.5 top-3.5 rounded-full bg-canvas/90 px-3.5 py-1.5 text-[0.78rem] font-semibold text-brand">
                 {face === "back" ? "Back" : "Front"}
               </span>
             </div>
@@ -114,7 +114,7 @@ export default function QuickView({
           </div>
 
           <div>
-            <p className="m-0 text-[0.78rem] font-semibold uppercase tracking-[0.18em] text-green">
+            <p className="m-0 text-[0.78rem] font-semibold uppercase tracking-[0.18em] text-brand">
               {product.brand} · {product.category}
             </p>
             <h3 className="mt-2 font-display text-[1.5rem] font-bold leading-tight text-ink">
@@ -126,18 +126,18 @@ export default function QuickView({
             <ul className="mt-4 flex list-none flex-col gap-2.5 p-0">
               {product.keyFacts.map((fact) => (
                 <li key={fact} className="flex items-start gap-2.5 text-small text-grey-dark">
-                  <Check size={15} className="mt-0.5 flex-none text-green-bright" strokeWidth={2.4} />
+                  <Check size={15} className="mt-0.5 flex-none text-brand-bright" strokeWidth={2.4} />
                   {fact}
                 </li>
               ))}
             </ul>
             <div className="mt-6 flex flex-wrap gap-2.5">
-              <Button to="/qualify" variant="green" className="text-[0.875rem]">
+              <Button to="/qualify" variant="cta" className="text-[0.875rem]">
                 Check if you Qualify
               </Button>
               <Link
                 to={`/products/${product.slug}`}
-                className="inline-flex min-h-[46px] items-center justify-center rounded-full border-[1.5px] border-green-mint px-6 py-2.5 font-display text-[0.875rem] font-semibold text-green transition-colors duration-(--duration-micro) hover:border-green"
+                className="inline-flex min-h-[46px] items-center justify-center rounded-full border-[1.5px] border-brand-mint px-6 py-2.5 font-display text-[0.875rem] font-semibold text-brand transition-colors duration-(--duration-micro) hover:border-brand"
               >
                 Full details
               </Link>

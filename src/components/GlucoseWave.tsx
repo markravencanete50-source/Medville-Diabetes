@@ -2,14 +2,14 @@
   The site's signature motif: a smooth glucose trend line over a shaded
   "in range" band. Derived from what the products actually do.
 
-  In the redesign the range band is green (the calm, in-range colour) while
+  In the redesign the range band is brand (the calm, in-range colour) while
   the trend line stays cyan, which is now reserved for data visuals. The line
   draws itself in on first paint via the .wave-draw utility.
 
   Variants:
     chart   the framed card on the "why continuous monitoring" section
     hero    a wide, faint underlay at the bottom of a gradient hero
-    onDark  the pale line used inside the dark green call to action bands
+    onDark  the pale line used inside the dark brand call to action bands
 */
 
 const TREND =
@@ -40,19 +40,19 @@ export default function GlucoseWave({
               width="1200"
               height="90"
               rx={isChart ? 8 : 0}
-              fill="var(--color-green-bright)"
+              fill="var(--color-brand-bright)"
               opacity={isChart ? 0.12 : 0.06}
             />
             {isChart && (
               <>
                 <line
                   x1="0" y1="70" x2="1200" y2="70"
-                  stroke="var(--color-green-bright)" strokeOpacity="0.4"
+                  stroke="var(--color-brand-bright)" strokeOpacity="0.4"
                   strokeWidth="1.5" strokeDasharray="2 8"
                 />
                 <line
                   x1="0" y1="160" x2="1200" y2="160"
-                  stroke="var(--color-green-bright)" strokeOpacity="0.4"
+                  stroke="var(--color-brand-bright)" strokeOpacity="0.4"
                   strokeWidth="1.5" strokeDasharray="2 8"
                 />
               </>

@@ -59,13 +59,13 @@ export default function Products({ line }: { line: ProductLine }) {
     <div ref={revealRef} key={line}>
       {/* gradient hero */}
       <section className="bg-wash relative overflow-hidden">
-        <Blob tone="green" strength={0.18} blur={40} size={420} className="-left-[120px] -top-[140px]" />
+        <Blob tone="brand" strength={0.18} blur={40} size={420} className="-left-[120px] -top-[140px]" />
         <Grain opacity={0.05} />
         <Container wide className="relative py-12 md:py-20">
           <p className="rise-in m-0">
             <Link
               to="/products"
-              className="mb-4 inline-flex items-center gap-1.5 text-small font-semibold text-green"
+              className="mb-4 inline-flex items-center gap-1.5 text-small font-semibold text-brand"
             >
               <ArrowLeft size={15} strokeWidth={2.2} />
               All product types
@@ -105,8 +105,8 @@ export default function Products({ line }: { line: ProductLine }) {
                   aria-pressed={filter === f}
                   className={`min-h-[46px] rounded-full border-[1.5px] px-6 font-display text-small font-semibold transition-all duration-[200ms] ease-(--ease-out-quart) ${
                     filter === f
-                      ? "border-green bg-green text-on-dark"
-                      : "border-line-filter bg-surface-raised text-grey-dark hover:border-green hover:text-green"
+                      ? "border-brand bg-brand text-on-dark"
+                      : "border-line-filter bg-surface-raised text-grey-dark hover:border-brand hover:text-brand"
                   }`}
                 >
                   {f}
@@ -125,19 +125,19 @@ export default function Products({ line }: { line: ProductLine }) {
           </div>
 
           {/* not sure panel */}
-          <div className="bg-green-band relative mt-14 overflow-hidden rounded-[24px] p-8 md:p-12">
+          <div className="bg-cta-band relative mt-14 overflow-hidden rounded-[24px] p-8 md:p-12">
             <Grain opacity={0.07} />
             <div className="relative flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
               <div>
                 <h2 className="m-0 font-display text-h3 font-bold text-on-dark">
                   {copy.helpTitle}
                 </h2>
-                <p className="mt-2 max-w-[54ch] text-small leading-relaxed text-on-dark-green">
+                <p className="mt-2 max-w-[54ch] text-small leading-relaxed text-on-dark-brand">
                   Answer a few short questions. Our team will review your information
                   and help you find the right system.
                 </p>
               </div>
-              <Button to="/qualify" variant="on-green" className="flex-none">
+              <Button to="/qualify" variant="on-band" className="flex-none">
                 Check if you Qualify
                 <ArrowRight size={16} strokeWidth={2.2} />
               </Button>

@@ -3,7 +3,7 @@
   Poppins wordmark with the brand leaf accent above the letter "i".
 
   The leaf keeps the brand cyan in both themes. The rules and the "Diabetes"
-  line moved to the green system in the 2026-08-26 redesign.
+  line moved to the brand system in the 2026-08-26 redesign.
 */
 export default function Logo({ dark = false }: { dark?: boolean }) {
   const wordColour = dark ? "text-on-dark" : "text-ink";
@@ -28,15 +28,15 @@ export default function Logo({ dark = false }: { dark?: boolean }) {
         <span className={wordColour}>lle</span>
       </span>
       <span className="mt-0.5 flex items-center gap-1.5">
-        <span className="h-px w-4 bg-green-bright" aria-hidden="true" />
+        <span className="h-px w-4 bg-brand-bright" aria-hidden="true" />
         <span
           className={`text-[0.62rem] font-semibold uppercase tracking-[0.32em] ${
-            dark ? "text-on-dark-accent" : "text-green"
+            dark ? "text-on-dark-accent" : "text-brand"
           }`}
         >
           Diabetes
         </span>
-        <span className="h-px w-4 bg-green-bright" aria-hidden="true" />
+        <span className="h-px w-4 bg-brand-bright" aria-hidden="true" />
       </span>
     </span>
   );

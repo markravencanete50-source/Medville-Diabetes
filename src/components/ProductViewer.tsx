@@ -197,7 +197,7 @@ export default function ProductViewer({
           </div>
         </div>
 
-        <span className="pointer-events-none absolute left-4 top-4 rounded-full bg-canvas/90 px-3.5 py-1.5 text-caption font-semibold text-green shadow-[0_1px_2px_rgb(0_41_59/0.08)]">
+        <span className="pointer-events-none absolute left-4 top-4 rounded-full bg-canvas/90 px-3.5 py-1.5 text-caption font-semibold text-brand shadow-[0_1px_2px_rgb(0_41_59/0.08)]">
           {showingBack ? "Back" : "Front"}
         </span>
       </div>
@@ -220,7 +220,7 @@ export default function ProductViewer({
                   setAngle(thumb.targetBack ? 180 : 0);
                 }}
                 className={`h-20 w-20 overflow-hidden rounded-md border-2 p-1.5 transition-colors duration-(--duration-micro) ${
-                  active ? "border-green" : "border-line-filter hover:border-green-mint"
+                  active ? "border-brand" : "border-line-filter hover:border-brand-mint"
                 } ${tint}`}
               >
                 <img src={thumb.src} alt="" className="h-full w-full object-contain" />
@@ -262,7 +262,7 @@ function ViewerButton({ label, onClick, children }: {
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="flex h-10 w-10 items-center justify-center rounded-full border border-line-filter bg-surface-raised text-grey-dark shadow-soft transition-colors duration-(--duration-micro) hover:border-green hover:text-green"
+      className="flex h-10 w-10 items-center justify-center rounded-full border border-line-filter bg-surface-raised text-grey-dark shadow-soft transition-colors duration-(--duration-micro) hover:border-brand hover:text-brand"
     >
       {children}
     </button>

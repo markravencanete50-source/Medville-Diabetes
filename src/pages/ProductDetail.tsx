@@ -37,9 +37,9 @@ export default function ProductDetail() {
             aria-label="Breadcrumb"
             className="flex flex-wrap items-center gap-1.5 text-caption text-grey-muted"
           >
-            <Link to="/" className="transition-colors hover:text-green">Home</Link>
+            <Link to="/" className="transition-colors hover:text-brand">Home</Link>
             <ChevronRight size={13} aria-hidden="true" />
-            <Link to="/products" className="transition-colors hover:text-green">Our Products</Link>
+            <Link to="/products" className="transition-colors hover:text-brand">Our Products</Link>
             <ChevronRight size={13} aria-hidden="true" />
             <span className="text-grey-dark">{product.name}</span>
           </nav>
@@ -83,9 +83,9 @@ export default function ProductDetail() {
                   {product.keyFacts.map((fact) => (
                     <li
                       key={fact}
-                      className="inline-flex items-center gap-2 rounded-full border border-green-mint bg-green-tint px-4 py-2 text-caption font-medium text-grey-dark"
+                      className="inline-flex items-center gap-2 rounded-full border border-brand-mint bg-brand-tint px-4 py-2 text-caption font-medium text-grey-dark"
                     >
-                      <Check size={14} strokeWidth={2.4} className="flex-none text-green-bright" aria-hidden="true" />
+                      <Check size={14} strokeWidth={2.4} className="flex-none text-brand-bright" aria-hidden="true" />
                       {fact}
                     </li>
                   ))}
@@ -93,7 +93,7 @@ export default function ProductDetail() {
               </div>
 
               <div className="mt-7 flex flex-wrap gap-3">
-                <Button to="/qualify" variant="green">Check if you Qualify</Button>
+                <Button to="/qualify" variant="cta">Check if you Qualify</Button>
                 <Button to="/contact" variant="ghost">Ask us a question</Button>
               </div>
               <p className="mt-4 max-w-[56ch] text-caption leading-relaxed text-grey-muted">
@@ -106,7 +106,7 @@ export default function ProductDetail() {
       </section>
 
       {related.length > 0 && (
-        <section className="border-t border-line-green bg-grey-light py-14">
+        <section className="border-t border-line-brand bg-grey-light py-14">
           <Container wide>
             <h2 className="font-display text-h3 font-bold text-ink">
               More from {product.brand}

@@ -19,15 +19,15 @@ export function Grain({ opacity = 0.05 }: { opacity?: number }) {
   );
 }
 
-type BlobTone = "green" | "cyan";
+type BlobTone = "brand" | "cyan";
 
 const TONES: Record<BlobTone, string> = {
-  green: "rgba(47,169,124,",
-  cyan: "rgba(24,186,218,",
+  brand: "rgba(24,186,218,",
+  cyan: "rgba(11,124,157,",
 };
 
 export function Blob({
-  tone = "green",
+  tone = "brand",
   strength = 0.22,
   blur = 40,
   size = 460,
@@ -78,7 +78,7 @@ export function Eyebrow({
   return (
     <p
       className={`m-0 text-caption font-semibold uppercase tracking-[0.22em] ${
-        onDark ? "text-on-dark-accent" : "text-green"
+        onDark ? "text-on-dark-accent" : "text-brand"
       }`}
     >
       {children}

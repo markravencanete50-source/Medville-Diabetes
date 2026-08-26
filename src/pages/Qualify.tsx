@@ -137,7 +137,7 @@ export default function Qualify() {
 
   return (
     <section className="bg-wash relative overflow-hidden">
-      <Blob tone="green" strength={0.18} blur={40} size={420} className="-left-[120px] -top-[120px]" />
+      <Blob tone="brand" strength={0.18} blur={40} size={420} className="-left-[120px] -top-[120px]" />
       <Grain opacity={0.05} />
       <Container wide className="relative grid gap-10 py-12 md:py-16 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14">
         {/* left: what happens */}
@@ -153,11 +153,11 @@ export default function Qualify() {
           <ul className="mt-8 flex list-none flex-col gap-5 p-0">
             {STEPS.map((step, index) => (
               <li key={step.title} className="flex gap-4">
-                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-md bg-green-soft text-green">
+                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-md bg-brand-soft text-brand">
                   <step.icon size={20} strokeWidth={2} />
                 </span>
                 <div>
-                  <p className="m-0 text-caption font-bold tracking-[0.14em] text-green-bright">
+                  <p className="m-0 text-caption font-bold tracking-[0.14em] text-brand-bright">
                     STEP {index + 1}
                   </p>
                   <h2 className="m-0 mt-0.5 font-display text-body font-semibold text-ink">
@@ -169,8 +169,8 @@ export default function Qualify() {
             ))}
           </ul>
 
-          <div className="mt-8 flex items-start gap-3 rounded-lg border border-green-mint bg-green-tint p-5">
-            <LockKeyhole size={16} className="mt-0.5 flex-none text-green" aria-hidden="true" />
+          <div className="mt-8 flex items-start gap-3 rounded-lg border border-brand-mint bg-brand-tint p-5">
+            <LockKeyhole size={16} className="mt-0.5 flex-none text-brand" aria-hidden="true" />
             <p className="m-0 text-caption leading-relaxed text-grey-dark">
               Your information is sent over an encrypted connection and stored in a
               secure database. It is used only to review whether you qualify and to
@@ -224,8 +224,8 @@ export default function Qualify() {
                       }
                       className={`min-h-[46px] rounded-md border-[1.5px] font-display text-small font-semibold transition-all duration-(--duration-micro) ${
                         selected
-                          ? "border-green bg-green-soft text-green"
-                          : "border-line-input bg-surface-raised text-grey-dark hover:border-green"
+                          ? "border-brand bg-brand-soft text-brand"
+                          : "border-line-input bg-surface-raised text-grey-dark hover:border-brand"
                       }`}
                     >
                       {value === "yes" ? "Yes" : "No"}
@@ -245,7 +245,7 @@ export default function Qualify() {
               </div>
             )}
 
-            <Button type="submit" variant="green" disabled={status === "submitting"} className="w-full">
+            <Button type="submit" variant="cta" disabled={status === "submitting"} className="w-full">
               {status === "submitting" ? "Sending your answers…" : "Submit"}
             </Button>
 
@@ -282,7 +282,7 @@ function Field({ label, error, children }: {
 }
 
 function inputClass(hasError: boolean) {
-  return `w-full min-h-[46px] rounded-md border-[1.5px] bg-surface-raised px-4 py-2.5 text-body text-ink placeholder:text-grey-muted transition-colors duration-(--duration-micro) focus:border-green focus:outline-none ${
+  return `w-full min-h-[46px] rounded-md border-[1.5px] bg-surface-raised px-4 py-2.5 text-body text-ink placeholder:text-grey-muted transition-colors duration-(--duration-micro) focus:border-brand focus:outline-none ${
     hasError ? "border-danger" : "border-line-input"
   }`;
 }

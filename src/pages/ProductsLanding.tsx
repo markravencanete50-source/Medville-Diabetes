@@ -45,7 +45,7 @@ export default function ProductsLanding() {
     <div ref={revealRef}>
       {/* gradient hero */}
       <section className="bg-wash relative overflow-hidden">
-        <Blob tone="green" strength={0.18} blur={40} size={420} className="-left-[120px] -top-[140px]" />
+        <Blob tone="brand" strength={0.18} blur={40} size={420} className="-left-[120px] -top-[140px]" />
         <Grain opacity={0.05} />
         <Container wide className="relative py-12 md:py-20">
           <p className="rise-in m-0">
@@ -90,7 +90,7 @@ export default function ProductsLanding() {
                     />
                   </div>
                   <div className="flex flex-1 flex-col p-8">
-                    <p className="m-0 text-caption font-bold uppercase tracking-[0.14em] text-green-bright">
+                    <p className="m-0 text-caption font-bold uppercase tracking-[0.14em] text-brand-bright">
                       {count} {count === 1 ? "product" : "products"}
                     </p>
                     <h2 className="mt-2 font-display text-h3 font-bold text-ink">
@@ -99,7 +99,7 @@ export default function ProductsLanding() {
                     <p className="mt-2.5 text-body leading-relaxed text-grey-dark">
                       {entry.body}
                     </p>
-                    <span className="mt-auto inline-flex items-center gap-1.5 pt-5 text-small font-semibold text-green">
+                    <span className="mt-auto inline-flex items-center gap-1.5 pt-5 text-small font-semibold text-brand">
                       View products
                       <ArrowRight
                         size={15}

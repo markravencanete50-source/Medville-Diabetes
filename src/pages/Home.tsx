@@ -53,11 +53,11 @@ const FAQS: FaqItem[] = [
 const STEPS = [
   {
     icon: ClipboardList,
-    tone: "green" as const,
+    tone: "brand" as const,
     title: "Answer a short form",
     body: "Tell us your contact details and one question about your insulin use. It takes less than one minute.",
     image: "/home/step-1-short-form.webp",
-    alt: "A phone on a desk shows the short qualify form, with a green submit button.",
+    alt: "A phone on a desk shows the short qualify form, with a brand submit button.",
   },
   {
     icon: Headset,
@@ -69,7 +69,7 @@ const STEPS = [
   },
   {
     icon: Truck,
-    tone: "green" as const,
+    tone: "brand" as const,
     title: "Delivered to your door",
     body: "Your monitor and supplies arrive at your home. We stay available for questions in plain language.",
     image: "/home/step-3-delivery.webp",
@@ -80,7 +80,7 @@ const STEPS = [
 const WHY = [
   {
     icon: TrendingUp,
-    tone: "green" as const,
+    tone: "brand" as const,
     title: "See your level and where it is heading",
     body: "A continuous glucose monitor shows your current number and the direction it is moving, at any time of day or night.",
   },
@@ -92,7 +92,7 @@ const WHY = [
   },
   {
     icon: Users,
-    tone: "green" as const,
+    tone: "brand" as const,
     title: "Share your readings with people you trust",
     body: "You can share your data with family members, caregivers, and your care team, so the people around you can help.",
   },
@@ -178,7 +178,7 @@ export default function Home() {
     <div ref={revealRef}>
       {/* HERO */}
       <section className="bg-wash relative overflow-hidden">
-        <Blob tone="green" strength={0.22} blur={40} size={460} duration="14s" className="-left-[120px] -top-[140px]" />
+        <Blob tone="brand" strength={0.22} blur={40} size={460} duration="14s" className="-left-[120px] -top-[140px]" />
         <Blob tone="cyan" strength={0.18} blur={46} size={520} duration="18s" reverse className="-bottom-[160px] -right-[100px]" />
         <Grain opacity={0.05} />
         <div aria-hidden="true" className="pointer-events-none absolute bottom-0 left-0 right-0 h-[150px] opacity-55">
@@ -187,15 +187,15 @@ export default function Home() {
 
         <Container wide className="relative grid items-center gap-10 py-14 md:py-24 lg:grid-cols-2 lg:gap-16">
           <div>
-            <p className="rise-in m-0 inline-flex items-center gap-2 rounded-full border border-green/25 bg-canvas/70 px-4 py-1.5 text-caption font-semibold uppercase tracking-[0.08em] text-green">
-              <span className="h-[7px] w-[7px] rounded-full bg-green-bright" aria-hidden="true" />
+            <p className="rise-in m-0 inline-flex items-center gap-2 rounded-full border border-brand/25 bg-canvas/70 px-4 py-1.5 text-caption font-semibold uppercase tracking-[0.08em] text-brand">
+              <span className="h-[7px] w-[7px] rounded-full bg-brand-bright" aria-hidden="true" />
               Continuous Glucose Monitors
             </p>
             <h1
               className="rise-in mt-5 max-w-[15ch] font-display text-display font-bold leading-[1.05] text-ink"
               style={{ "--rise-delay": "80ms" } as React.CSSProperties}
             >
-              Know your glucose, <span className="text-green">every minute</span> of the day.
+              Know your glucose, <span className="text-brand">every minute</span> of the day.
             </h1>
             <p
               className="rise-in mt-5 max-w-[52ch] text-body-lg leading-relaxed text-grey-dark"
@@ -209,7 +209,7 @@ export default function Home() {
               className="rise-in mt-8 flex flex-wrap items-center gap-3.5"
               style={{ "--rise-delay": "240ms" } as React.CSSProperties}
             >
-              <Button to="/qualify" variant="green" className="min-h-[50px] px-8">
+              <Button to="/qualify" variant="cta" className="min-h-[50px] px-8">
                 Check if you Qualify
                 <ArrowRight size={16} strokeWidth={2.2} />
               </Button>
@@ -221,7 +221,7 @@ export default function Home() {
               className="rise-in mt-4.5 flex items-center gap-2 text-caption text-grey-muted"
               style={{ "--rise-delay": "320ms" } as React.CSSProperties}
             >
-              <Check size={14} strokeWidth={2.5} className="text-green-bright" />
+              <Check size={14} strokeWidth={2.5} className="text-brand-bright" />
               It takes less than one minute. There is no cost to check.
             </p>
           </div>
@@ -267,12 +267,12 @@ export default function Home() {
               >
                 <span
                   className={`inline-flex h-12 w-12 items-center justify-center rounded-md ${
-                    step.tone === "cyan" ? "bg-accent-soft text-accent-deep" : "bg-green-soft text-green"
+                    step.tone === "cyan" ? "bg-accent-soft text-accent-deep" : "bg-brand-soft text-brand"
                   }`}
                 >
                   <step.icon size={22} strokeWidth={2} />
                 </span>
-                <p className="mt-5 text-caption font-bold tracking-[0.14em] text-green-bright">
+                <p className="mt-5 text-caption font-bold tracking-[0.14em] text-brand-bright">
                   STEP {index + 1}
                 </p>
                 <h3 className="mt-1.5 font-display text-[1.15rem] font-semibold text-ink">
@@ -310,7 +310,7 @@ export default function Home() {
                 of the device, or open a quick view.
               </p>
             </div>
-            <Link to="/products" className="group inline-flex items-center gap-1.5 text-small font-semibold text-green">
+            <Link to="/products" className="group inline-flex items-center gap-1.5 text-small font-semibold text-brand">
               View all products
               <ArrowRight size={15} strokeWidth={2.2} className="transition-transform duration-(--duration-micro) group-hover:translate-x-0.5" />
             </Link>
@@ -344,7 +344,7 @@ export default function Home() {
                     className={`flex h-11 w-11 flex-none items-center justify-center rounded-full shadow-[0_1px_3px_rgb(0_41_59/0.1)] ${
                       item.tone === "cyan"
                         ? "bg-accent-soft text-accent-deep"
-                        : "bg-green-soft text-green"
+                        : "bg-brand-soft text-brand"
                     }`}
                   >
                     <item.icon size={19} strokeWidth={2.1} />
@@ -369,10 +369,10 @@ export default function Home() {
           </div>
         </Container>
         <Container className="relative">
-          <div className="mt-12 grid gap-6 border-t border-line-green pt-9 sm:grid-cols-3">
+          <div className="mt-12 grid gap-6 border-t border-line-brand pt-9 sm:grid-cols-3">
             {ASSURANCES.map((item, index) => (
               <div key={item.title} data-reveal={index * 130} className="flex items-start gap-3.5">
-                <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-surface-raised text-green shadow-[0_1px_3px_rgb(0_41_59/0.1)]">
+                <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-surface-raised text-brand shadow-[0_1px_3px_rgb(0_41_59/0.1)]">
                   <item.icon size={18} strokeWidth={2.1} />
                 </span>
                 <div>
@@ -399,9 +399,9 @@ export default function Home() {
               <figure
                 key={t.name}
                 data-reveal={index * 120}
-                className="m-0 flex flex-col gap-3.5 rounded-lg border border-line-green bg-surface-raised p-7"
+                className="m-0 flex flex-col gap-3.5 rounded-lg border border-line-brand bg-surface-raised p-7"
               >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="var(--color-green-mint)" aria-hidden="true">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="var(--color-brand-mint)" aria-hidden="true">
                   <path d="M11 7H6a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2v3l4-4V9a2 2 0 0 0-2-2Z" />
                   <path d="M20 7h-5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2v3l4-4V9a2 2 0 0 0-2-2Z" opacity="0.6" />
                 </svg>
@@ -421,7 +421,7 @@ export default function Home() {
       </section>
 
       {/* QUALIFY BAND */}
-      <section className="bg-green-band relative overflow-hidden">
+      <section className="bg-cta-band relative overflow-hidden">
         <Grain opacity={0.07} />
         <div aria-hidden="true" className="pointer-events-none absolute bottom-0 left-0 right-0 h-[120px] opacity-25">
           <GlucoseWave variant="onDark" animate={false} className="h-full" />
@@ -431,13 +431,13 @@ export default function Home() {
             <h2 className="m-0 max-w-[22ch] font-display text-h2 font-bold text-on-dark">
               Check if you qualify for a CGM.
             </h2>
-            <p className="mt-3.5 max-w-[56ch] text-[1.02rem] leading-relaxed text-on-dark-green">
+            <p className="mt-3.5 max-w-[56ch] text-[1.02rem] leading-relaxed text-on-dark-brand">
               Answer a few short questions and our team will review your information.
               It takes less than one minute, and there is no cost to check.
             </p>
           </div>
           <div data-reveal={120} className="flex flex-col gap-3 lg:justify-self-start">
-            <Button to="/qualify" variant="on-green" className="min-h-[54px] px-9 text-body">
+            <Button to="/qualify" variant="on-band" className="min-h-[54px] px-9 text-body">
               Check if you Qualify
               <ArrowRight size={17} strokeWidth={2.2} />
             </Button>
@@ -479,7 +479,7 @@ export default function Home() {
                     {guide.title}
                   </h3>
                   <p className="mt-2 text-small leading-relaxed text-grey-dark">{guide.body}</p>
-                  <span className="mt-3.5 inline-flex items-center gap-1.5 text-small font-semibold text-green">
+                  <span className="mt-3.5 inline-flex items-center gap-1.5 text-small font-semibold text-brand">
                     Read the guide
                     <ArrowRight size={15} strokeWidth={2.2} />
                   </span>

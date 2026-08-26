@@ -18,7 +18,7 @@ export function brandTint(brand: Product["brand"]) {
 }
 
 export function brandPillColour(brand: Product["brand"]) {
-  if (brand === "Dexcom") return "text-green";
+  if (brand === "Dexcom") return "text-brand";
   if (brand === "Tandem") return "text-ink";
   return "text-accent-deep";
 }
@@ -79,14 +79,14 @@ export default function ProductCard({
           <button
             type="button"
             onClick={() => onQuickView(product.slug)}
-            className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-full bg-green-soft px-5 py-2.5 font-display text-[0.84rem] font-semibold text-green transition-colors duration-(--duration-micro) hover:bg-green-mint"
+            className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-full bg-brand-soft px-5 py-2.5 font-display text-[0.84rem] font-semibold text-brand transition-colors duration-(--duration-micro) hover:bg-brand-mint"
           >
             <Eye size={15} />
             Quick view
           </button>
           <Link
             to={`/products/${product.slug}`}
-            className="group inline-flex items-center gap-1.5 text-small font-semibold text-green"
+            className="group inline-flex items-center gap-1.5 text-small font-semibold text-brand"
           >
             Learn more
             <ArrowRight

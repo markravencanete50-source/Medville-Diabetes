@@ -20,7 +20,7 @@ export default function Contact() {
 
   return (
     <div ref={revealRef} className="bg-wash relative overflow-hidden">
-      <Blob tone="green" strength={0.16} blur={42} size={420} className="-left-[130px] -top-[120px]" />
+      <Blob tone="brand" strength={0.16} blur={42} size={420} className="-left-[130px] -top-[120px]" />
       <Grain opacity={0.05} />
       <section className="relative py-14 md:py-20">
         <Container className="max-w-3xl">
@@ -43,14 +43,14 @@ export default function Contact() {
 
           <div className="mt-10 grid gap-4 sm:grid-cols-2">
             <ContactCard delay={0} icon={<Phone size={19} />} label="Phone">
-              <a href="tel:8770000000" className="font-semibold text-ink transition-colors hover:text-green">
+              <a href="tel:8770000000" className="font-semibold text-ink transition-colors hover:text-brand">
                 877-000-0000
               </a>
             </ContactCard>
             <ContactCard delay={100} icon={<Mail size={19} />} label="Email">
               <a
                 href="mailto:info@medvillediabetes.com"
-                className="font-semibold text-ink transition-colors hover:text-green"
+                className="font-semibold text-ink transition-colors hover:text-brand"
               >
                 info@medvillediabetes.com
               </a>
@@ -64,15 +64,15 @@ export default function Contact() {
             </ContactCard>
           </div>
 
-          {/* dark green qualify panel */}
-          <div data-reveal={0} className="bg-green-band relative mt-10 overflow-hidden rounded-[24px] p-7 sm:p-9">
+          {/* dark brand qualify panel */}
+          <div data-reveal={0} className="bg-cta-band relative mt-10 overflow-hidden rounded-[24px] p-7 sm:p-9">
             <Grain opacity={0.07} />
             <div className="relative">
-              <p className="m-0 max-w-[54ch] text-small leading-relaxed text-on-dark-green">
+              <p className="m-0 max-w-[54ch] text-small leading-relaxed text-on-dark-brand">
                 Looking for a monitor? The fastest way to start is our short
                 qualification form. It takes less than one minute.
               </p>
-              <Button to="/qualify" variant="on-green" className="mt-5">
+              <Button to="/qualify" variant="on-band" className="mt-5">
                 Check if you Qualify
                 <ArrowRight size={16} strokeWidth={2.2} />
               </Button>
@@ -92,7 +92,7 @@ function ContactCard({ icon, label, delay, children }: {
       data-reveal={delay}
       className="flex items-start gap-4 rounded-lg bg-surface-raised p-6 shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover"
     >
-      <span className="flex h-11 w-11 flex-none items-center justify-center rounded-md bg-green-soft text-green">
+      <span className="flex h-11 w-11 flex-none items-center justify-center rounded-md bg-brand-soft text-brand">
         {icon}
       </span>
       <div>

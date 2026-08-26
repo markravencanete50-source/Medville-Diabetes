@@ -27,7 +27,7 @@ export default function Faq({ items }: { items: FaqItem[] }) {
           <div
             key={item.question}
             className={`rounded-lg border transition-colors duration-(--duration-base) ${
-              isOpen ? "border-green-mint bg-green-tint" : "border-line-green bg-surface-raised"
+              isOpen ? "border-brand-mint bg-brand-tint" : "border-line-brand bg-surface-raised"
             }`}
           >
             <button
@@ -40,7 +40,7 @@ export default function Faq({ items }: { items: FaqItem[] }) {
               <ChevronDown
                 size={18}
                 strokeWidth={2.2}
-                className="flex-none text-green transition-transform duration-(--duration-slow) ease-(--ease-out-quart)"
+                className="flex-none text-brand transition-transform duration-(--duration-slow) ease-(--ease-out-quart)"
                 style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}
               />
             </button>

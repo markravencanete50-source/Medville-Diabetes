@@ -23,7 +23,7 @@ const MISSION_VISION = [
     title: "Our Mission",
     body: "To make diabetes management easier by giving people dependable access to the supplies they need and support they can count on. We help simplify the process, from understanding coverage to getting supplies on time, so managing diabetes takes up less of everyday life.",
     image: "/about/mission-bg.webp",
-    alt: "A family looks over green hills, with diabetes supplies and a plant in front.",
+    alt: "A family looks over brand hills, with diabetes supplies and a plant in front.",
   },
   {
     icon: Eye,
@@ -83,7 +83,7 @@ export default function About() {
     <div ref={revealRef}>
       {/* hero: copy on the left, product photograph bleeding off the right */}
       <section className="bg-wash relative overflow-hidden">
-        <Blob tone="green" strength={0.14} blur={44} size={420} className="-left-[160px] -top-[150px]" />
+        <Blob tone="brand" strength={0.14} blur={44} size={420} className="-left-[160px] -top-[150px]" />
         <Grain opacity={0.05} />
 
         <div className="relative">
@@ -101,7 +101,7 @@ export default function About() {
           <Container wide className="relative">
             <div className="grid lg:grid-cols-2">
               <div className="py-14 md:py-20 lg:py-24 lg:pr-10">
-                <span className="rise-in inline-flex items-center gap-2.5 rounded-full bg-green-soft px-5 py-2.5 text-body font-semibold text-green">
+                <span className="rise-in inline-flex items-center gap-2.5 rounded-full bg-brand-soft px-5 py-2.5 text-body font-semibold text-brand">
                   <HeartHandshake size={20} strokeWidth={2} />
                   About Us
                 </span>
@@ -110,7 +110,7 @@ export default function About() {
                   style={{ "--rise-delay": "80ms" } as React.CSSProperties}
                 >
                   Your best interest is our{" "}
-                  <span className="text-green">first concern.</span>
+                  <span className="text-brand">first concern.</span>
                 </h1>
                 <div
                   className="rise-in mt-7 flex items-center gap-2"
@@ -118,7 +118,7 @@ export default function About() {
                   aria-hidden="true"
                 >
                   <span className="h-px w-20 bg-line-strong" />
-                  <span className="h-[7px] w-[7px] rounded-full bg-green-bright" />
+                  <span className="h-[7px] w-[7px] rounded-full bg-brand-bright" />
                 </div>
                 <p
                   className="rise-in mt-7 max-w-[46ch] text-body-lg leading-relaxed text-grey-dark"
@@ -148,16 +148,16 @@ export default function About() {
         </div>
 
         <Container wide className="relative">
-          <ul className="m-0 grid list-none grid-cols-1 gap-y-6 border-t border-line-green p-0 py-8 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="m-0 grid list-none grid-cols-1 gap-y-6 border-t border-line-brand p-0 py-8 sm:grid-cols-2 lg:grid-cols-4">
             {HERO_PROMISES.map((promise, index) => (
               <li
                 key={promise.lines[1]}
                 data-reveal={index * 110}
                 className={`flex items-center gap-3.5 lg:px-6 ${
-                  index === 0 ? "lg:pl-0" : "lg:border-l lg:border-line-green"
+                  index === 0 ? "lg:pl-0" : "lg:border-l lg:border-line-brand"
                 }`}
               >
-                <promise.icon size={30} strokeWidth={1.7} className="flex-none text-green" />
+                <promise.icon size={30} strokeWidth={1.7} className="flex-none text-brand" />
                 <p className="m-0 text-body leading-snug text-grey-dark">
                   {promise.lines[0]}
                   <br />
@@ -192,7 +192,7 @@ export default function About() {
                   className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1200ms] ease-(--ease-out-quart) group-hover:scale-[1.04]"
                 />
                 <div className="relative m-4 mt-52 rounded-md bg-surface-raised/95 p-7 backdrop-blur-sm md:m-6 md:mt-60 md:p-8">
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-green-soft text-green">
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-brand-soft text-brand">
                     <item.icon size={22} strokeWidth={2} />
                   </span>
                   <h3 className="mt-4 font-display text-h3 font-bold text-ink">{item.title}</h3>
@@ -226,7 +226,7 @@ export default function About() {
           </div>
           <p
             data-reveal={200}
-            className="reveal-zoom mt-10 rounded-lg border-l-4 border-green bg-surface-raised px-8 py-6 font-display text-h3 font-semibold leading-snug text-green shadow-soft"
+            className="reveal-zoom mt-10 rounded-lg border-l-4 border-brand bg-surface-raised px-8 py-6 font-display text-h3 font-semibold leading-snug text-brand shadow-soft"
           >
             Reliable supplies. Dedicated support. More time for life.
           </p>
@@ -243,7 +243,7 @@ export default function About() {
                 data-reveal={index * 120}
                 className="group flex flex-col rounded-lg bg-surface-raised p-8 shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover"
               >
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-green-soft text-green">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-brand-soft text-brand">
                   <value.icon size={22} strokeWidth={2} />
                 </span>
                 <h2 className="mt-5 font-display text-h3 font-bold text-ink">{value.title}</h2>
@@ -265,8 +265,8 @@ export default function About() {
         </Container>
       </section>
 
-      {/* dark green call to action band */}
-      <section className="bg-green-band relative overflow-hidden py-16">
+      {/* dark brand call to action band */}
+      <section className="bg-cta-band relative overflow-hidden py-16">
         <Grain opacity={0.07} />
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-32 opacity-25">
           <GlucoseWave variant="onDark" className="h-full" />
@@ -275,12 +275,12 @@ export default function About() {
           <h2 data-reveal={0} className="max-w-[24ch] font-display text-h2 font-bold text-on-dark">
             Ready to see your glucose clearly?
           </h2>
-          <p data-reveal={80} className="mt-3 max-w-[52ch] text-body leading-relaxed text-on-dark-green">
+          <p data-reveal={80} className="mt-3 max-w-[52ch] text-body leading-relaxed text-on-dark-brand">
             Check whether you qualify in under one minute. There is no cost to
             check, and our team will guide you through every step after that.
           </p>
           <div data-reveal={160}>
-            <Button to="/qualify" variant="on-green" className="mt-7">
+            <Button to="/qualify" variant="on-band" className="mt-7">
               Check if you Qualify
               <ArrowRight size={16} strokeWidth={2.2} />
             </Button>

@@ -6,7 +6,7 @@ import { products } from "../data/products";
 /* Replace the placeholder contact details before launch. See CLAUDE.md. */
 
 const linkClass =
-  "text-small text-on-dark-green transition-colors duration-(--duration-micro) hover:text-on-dark";
+  "text-small text-on-dark-brand transition-colors duration-(--duration-micro) hover:text-on-dark";
 const headingClass =
   "m-0 font-display text-caption font-semibold uppercase tracking-[0.16em] text-on-dark-accent";
 
@@ -24,11 +24,11 @@ export default function Footer() {
         <svg viewBox="0 0 1440 64" preserveAspectRatio="none" className="block h-full w-full">
           <path
             d="M0,32 C240,64 480,0 720,16 C960,32 1200,64 1440,24 L1440,64 L0,64 Z"
-            fill="var(--color-green-abyss)"
+            fill="var(--color-brand-abyss)"
           />
           <path
             d="M0,40 C240,68 480,10 720,24 C960,38 1200,66 1440,32 L1440,64 L0,64 Z"
-            fill="var(--color-green-deep)"
+            fill="var(--color-brand-deep)"
             opacity="0.85"
           />
         </svg>
@@ -67,7 +67,7 @@ export default function Footer() {
               <li><Link to="/qualify" className={linkClass}>Check if you Qualify</Link></li>
               <li><Link to="/contact" className={linkClass}>Contact</Link></li>
               <li>
-                <span className="text-small text-on-dark-green/55">
+                <span className="text-small text-on-dark-brand/55">
                   Privacy Notice (document coming soon)
                 </span>
               </li>
@@ -77,16 +77,16 @@ export default function Footer() {
           <div>
             <h3 className={headingClass}>Contact Information</h3>
             <address className="mt-4.5 flex flex-col gap-2.5 not-italic">
-              <p className="m-0 text-small text-on-dark-green">[Street address to be provided]</p>
-              <p className="m-0 text-small text-on-dark-green">
+              <p className="m-0 text-small text-on-dark-brand">[Street address to be provided]</p>
+              <p className="m-0 text-small text-on-dark-brand">
                 <a href="mailto:info@medvillediabetes.com" className={linkClass}>
                   info@medvillediabetes.com
                 </a>
               </p>
-              <p className="m-0 text-small text-on-dark-green">
+              <p className="m-0 text-small text-on-dark-brand">
                 <a href="tel:8770000000" className={linkClass}>877-000-0000</a>
               </p>
-              <p className="m-0 text-small text-on-dark-green">
+              <p className="m-0 text-small text-on-dark-brand">
                 Monday to Friday, 8:30 AM to 5:00 PM Eastern Time
               </p>
             </address>

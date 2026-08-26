@@ -6,7 +6,7 @@
   Base palette is derived from brand/Medville_Brand.svg:
     navy #00293B · cyan #18BADA · orange #FF9E1B · Poppins.
 
-  The 2026-08-26 redesign adds a green and grey system on top of that brand
+  The 2026-08-26 redesign adds a brand and grey system on top of that brand
   base. Green now carries every call to action; cyan is demoted to data
   visuals only (the glucose wave lines and the Libre brand pill). Orange is
   kept as a token but is no longer used on any call to action.
@@ -39,18 +39,27 @@
   --color-line: #dae8ee;
   --color-line-strong: #b4cfda;
 
-  /* green system: primary action colour after the 2026-08-26 client decision */
-  --color-green-abyss: #062a20;
-  --color-green-deep: #0a3d2e;
-  --color-green: #0e6a4b;
-  --color-green-hover: #0a523a;
-  --color-green-bright: #2fa97c;
-  --color-green-soft: #e6f3ec;
-  --color-green-mint: #d2ead9;
-  --color-green-tint: #f7fbf9;
-  --color-line-green: #e2e9e6;
-  --color-line-input: #dbe4e0;
-  --color-line-filter: #d9e2de;
+  /*
+    Brand cyan system. The client's palette is cyan #18bada, navy #00293b and
+    orange #ff9e1b; the 2026-08-26 brand experiment is reverted, so cyan now
+    carries interface accent duty and brand survives only as the success
+    colour below.
+
+    Brand cyan itself only reaches 2.31:1 on white, so it is reserved for
+    fills, marks and data visuals. Text and controls use --color-brand
+    (5.89:1) and --color-brand-hover (7.10:1).
+  */
+  --color-brand-abyss: #001824;
+  --color-brand-deep: #00293b;
+  --color-brand: #0a6d8a;
+  --color-brand-hover: #086079;
+  --color-brand-bright: #18bada;
+  --color-brand-soft: #e2f5fa;
+  --color-brand-mint: #c3e8f3;
+  --color-brand-tint: #f4fbfd;
+  --color-line-brand: #dde9ed;
+  --color-line-input: #d9e3e7;
+  --color-line-filter: #d7e2e6;
 
   /* grey system */
   --color-grey-light: #f4f6f7;
@@ -58,21 +67,25 @@
   --color-grey-muted: #5c6b73;
   --color-grey-faint: #8a969c;
 
-  /* cyan: data visuals and the Libre brand pill only */
+  /* cyan aliases kept for data visuals and the Libre brand pill */
   --color-accent: #18bada;
   --color-accent-soft: #e2f5fa;
   --color-accent-deep: #0b7c9d;
 
-  /* retained brand orange. Not used on calls to action. */
+  /*
+    Brand orange, back on the qualify call to action only, per the original
+    palette. White on orange is 2.07:1 and unusable, so every orange control
+    carries navy text (--color-ink), which reads at 7.36:1.
+  */
   --color-cta: #ff9e1b;
-  --color-cta-hover: #ef8c05;
+  --color-cta-hover: #f08c00;
 
   /* on dark surfaces */
   --color-navy-raised: #0b3a52;
   --color-on-dark: #ffffff;
-  --color-on-dark-green: #c7dfd4;
-  --color-on-dark-muted: #a9cfc0;
-  --color-on-dark-accent: #7fc7a8;
+  --color-on-dark-brand: #c5e3ee;
+  --color-on-dark-muted: #a3c6d4;
+  --color-on-dark-accent: #6fc4e0;
 
   --color-success: #1d7a4f;
   --color-danger: #b03030;
@@ -92,7 +105,7 @@
   --shadow-soft: 0 1px 3px rgb(0 41 59 / 0.05), 0 12px 30px -18px rgb(0 41 59 / 0.18);
   --shadow-soft-hover: 0 2px 6px rgb(0 41 59 / 0.06), 0 20px 44px -18px rgb(0 41 59 / 0.25);
   --shadow-overlay: 0 2px 8px rgb(0 41 59 / 0.06), 0 30px 60px -24px rgb(0 41 59 / 0.28);
-  --shadow-green: 0 2px 6px rgb(10 61 46 / 0.18), 0 14px 30px -10px rgb(10 61 46 / 0.4);
+  --shadow-cta: 0 2px 6px rgb(150 88 0 / 0.2), 0 14px 30px -10px rgb(150 88 0 / 0.42);
   --shadow-pill: 0 2px 6px rgb(0 41 59 / 0.08), 0 12px 28px -12px rgb(0 41 59 / 0.25);
   --shadow-sheet: 0 -10px 50px rgb(0 20 12 / 0.35);
 
@@ -111,23 +124,23 @@
   utility classes below are the supported way to apply them.
 */
 :root {
-  --gradient-wash: linear-gradient(160deg, #ffffff 0%, #edf6f1 45%, #e4f1f5 100%);
-  --gradient-dark: linear-gradient(135deg, #00293b 0%, #0a3d2e 100%);
-  --gradient-green: linear-gradient(120deg, #0a3d2e 0%, #0e6a4b 55%, #00293b 100%);
-  --gradient-why: linear-gradient(180deg, #e6f3ec 0%, #eef6f1 100%);
-  --gradient-hero-fade: linear-gradient(90deg, #eef6f1 0%, rgb(238 246 241 / 0.92) 34%, rgb(238 246 241 / 0) 66%);
-  --overlay-wash: linear-gradient(180deg, rgb(238 246 241 / 0.9) 0%, rgb(238 246 241 / 0.62) 55%, rgb(238 246 241 / 0.85) 100%);
+  --gradient-wash: linear-gradient(160deg, #ffffff 0%, #eef8fb 45%, #e1f1f8 100%);
+  --gradient-dark: linear-gradient(135deg, #00293b 0%, #06405a 100%);
+  --gradient-cta-band: linear-gradient(120deg, #00293b 0%, #0a5a76 55%, #001824 100%);
+  --gradient-why: linear-gradient(180deg, #e2f5fa 0%, #eef8fb 100%);
+  --gradient-hero-fade: linear-gradient(90deg, #eef8fb 0%, rgb(238 248 251 / 0.92) 34%, rgb(238 248 251 / 0) 66%);
+  --overlay-wash: linear-gradient(180deg, rgb(238 248 251 / 0.9) 0%, rgb(238 248 251 / 0.62) 55%, rgb(238 248 251 / 0.85) 100%);
   /* fades the left edge of a right-hand hero photograph to nothing */
   --mask-fade-left: linear-gradient(90deg, transparent 0%, rgb(0 0 0 / 0.25) 18%, rgb(0 0 0 / 0.75) 42%, #000 66%);
   --gradient-tint-libre: linear-gradient(140deg, #f4f6f7 0%, #e9eef0 100%);
-  --gradient-tint-dexcom: linear-gradient(140deg, #e6f3ec 0%, #ddeee5 100%);
+  --gradient-tint-dexcom: linear-gradient(140deg, #e2f5fa 0%, #d4ecf5 100%);
   --gradient-tint-tandem: linear-gradient(140deg, #eef1f3 0%, #e3e8ec 100%);
   --grain: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22160%22 height=%22160%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%222%22/%3E%3C/filter%3E%3Crect width=%22160%22 height=%22160%22 filter=%22url(%23n)%22 opacity=%220.5%22/%3E%3C/svg%3E");
 }
 
 .bg-wash { background: var(--gradient-wash); }
 .bg-dark-band { background: var(--gradient-dark); }
-.bg-green-band { background: var(--gradient-green); }
+.bg-cta-band { background: var(--gradient-cta-band); }
 .bg-why-band { background: var(--gradient-why); }
 .bg-hero-fade { background: var(--gradient-hero-fade); }
 .bg-overlay-wash { background: var(--overlay-wash); }
@@ -167,12 +180,12 @@ h1, h2, h3, h4 {
 }
 
 ::selection {
-  background: var(--color-green-soft);
-  color: var(--color-green);
+  background: var(--color-brand-soft);
+  color: var(--color-brand);
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-green);
+  outline: 2px solid var(--color-brand);
   outline-offset: 2px;
   border-radius: 4px;
 }

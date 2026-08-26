@@ -34,7 +34,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-40">
-      {/* top strip: navy into green */}
+      {/* top strip: navy into brand */}
       <div className="bg-[linear-gradient(90deg,#00293b_0%,#0a3d2e_100%)]">
         <Container wide className="flex h-[38px] items-center justify-between gap-4">
           <a
@@ -66,7 +66,7 @@ export default function Header() {
                 end={l.to === "/"}
                 className={({ isActive }) =>
                   `relative py-1.5 text-small font-semibold transition-colors duration-(--duration-micro) ${
-                    isActive ? "text-green" : "text-grey-dark hover:text-green"
+                    isActive ? "text-brand" : "text-grey-dark hover:text-brand"
                   }`
                 }
               >
@@ -75,7 +75,7 @@ export default function Header() {
                     {l.label}
                     <span
                       aria-hidden="true"
-                      className="absolute bottom-0 left-0 h-0.5 w-full rounded-sm bg-green-bright transition-opacity duration-(--duration-micro)"
+                      className="absolute bottom-0 left-0 h-0.5 w-full rounded-sm bg-brand-bright transition-opacity duration-(--duration-micro)"
                       style={{ opacity: isActive ? 1 : 0 }}
                     />
                   </>
@@ -85,7 +85,7 @@ export default function Header() {
           </nav>
 
           <div className="hidden md:block">
-            <Button to="/qualify" variant="green" className="px-6 text-[0.875rem]">
+            <Button to="/qualify" variant="cta" className="px-6 text-[0.875rem]">
               Check if you Qualify
               <ArrowRight size={15} strokeWidth={2.2} />
             </Button>
@@ -118,7 +118,7 @@ export default function Header() {
             ref={panelRef}
             className="absolute right-0 top-0 flex h-full w-[84%] max-w-sm flex-col bg-canvas shadow-overlay"
           >
-            <div className="flex h-[72px] items-center justify-between border-b border-line-green px-5">
+            <div className="flex h-[72px] items-center justify-between border-b border-line-brand px-5">
               <Logo />
               <button
                 type="button"
@@ -138,7 +138,7 @@ export default function Header() {
                   onClick={() => setOpen(false)}
                   className={({ isActive }) =>
                     `rounded-md px-4 py-3.5 font-display text-body font-semibold ${
-                      isActive ? "bg-green-soft text-green" : "text-ink hover:bg-grey-light"
+                      isActive ? "bg-brand-soft text-brand" : "text-ink hover:bg-grey-light"
                     }`
                   }
                 >
@@ -146,8 +146,8 @@ export default function Header() {
                 </NavLink>
               ))}
             </nav>
-            <div className="mt-auto space-y-3 border-t border-line-green p-5">
-              <Button to="/qualify" variant="green" className="w-full">
+            <div className="mt-auto space-y-3 border-t border-line-brand p-5">
+              <Button to="/qualify" variant="cta" className="w-full">
                 Check if you Qualify
               </Button>
               <a

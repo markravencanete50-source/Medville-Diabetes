@@ -13,9 +13,9 @@ import { prefersReducedMotion } from "../lib/useReveal";
 */
 
 const CHIPS = [
-  { text: "New reading every minute", dot: "bg-green-bright", className: "-left-[4%] top-[6%]", duration: "6s", delay: "0s" },
+  { text: "New reading every minute", dot: "bg-brand-bright", className: "-left-[4%] top-[6%]", duration: "6s", delay: "0s" },
   { text: "Up to 14-day wear", dot: "bg-accent", className: "-left-[6%] bottom-[10%]", duration: "7s", delay: "0.8s" },
-  { text: "No routine finger sticks", dot: "bg-green", className: "-right-[4%] top-[38%]", duration: "8s", delay: "0.4s" },
+  { text: "No routine finger sticks", dot: "bg-brand", className: "-right-[4%] top-[38%]", duration: "8s", delay: "0.4s" },
 ];
 
 export default function HeroViewer({ product }: { product: Product }) {
@@ -97,7 +97,7 @@ export default function HeroViewer({ product }: { product: Product }) {
               />
             </div>
           </div>
-          <span className="pointer-events-none absolute left-4 top-4 rounded-full bg-green-soft px-3.5 py-1.5 text-caption font-semibold text-green">
+          <span className="pointer-events-none absolute left-4 top-4 rounded-full bg-brand-soft px-3.5 py-1.5 text-caption font-semibold text-brand">
             {showingBack ? "Back" : "Front"}
           </span>
           <span className="pointer-events-none absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-ink/75 px-3.5 py-1.5 text-[0.75rem] font-medium text-on-dark backdrop-blur-[4px]">
