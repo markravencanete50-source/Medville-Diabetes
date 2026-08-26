@@ -11,16 +11,22 @@ const VALUES = [
     icon: MessageCircle,
     title: "Plain answers",
     body: "Diabetes care comes with enough complexity. We explain your options in clear, simple language, and we tell you exactly what to expect.",
+    image: "/about/value-plain-answers.webp",
+    alt: "A clipboard with three completed checks, next to a speech bubble and a small plant.",
   },
   {
     icon: Star,
     title: "The leading brands",
     body: "We supply the continuous glucose monitoring systems people ask for by name, including the FreeStyle Libre family and the Dexcom family.",
+    image: "/about/value-leading-brands.webp",
+    alt: "A FreeStyle Libre box and a Dexcom box with their sensors in front.",
   },
   {
     icon: ShieldCheck,
     title: "Privacy by design",
     body: "Your information travels over an encrypted connection and is stored in a secure database. We use it only to serve you.",
+    image: "/about/value-privacy.webp",
+    alt: "A shield with a lock in front of a database and a cloud.",
   },
 ];
 
@@ -33,12 +39,18 @@ export default function About() {
 
   return (
     <div ref={revealRef}>
-      {/* gradient hero */}
+      {/* gradient hero with the banner photograph */}
       <section className="bg-wash relative overflow-hidden">
+        <img
+          src="/about/about-hero.webp"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 hidden h-full w-full object-cover object-[72%_center] md:block"
+        />
+        <div aria-hidden="true" className="bg-hero-fade absolute inset-0 hidden md:block" />
         <Blob tone="green" strength={0.2} blur={40} size={440} className="-left-[120px] -top-[140px]" />
-        <Blob tone="cyan" strength={0.14} blur={44} size={420} className="-bottom-[140px] -right-[120px]" />
         <Grain opacity={0.05} />
-        <Container className="relative py-14 md:py-20">
+        <Container className="relative py-14 md:py-24">
           <p className="rise-in m-0">
             <Eyebrow>About Us</Eyebrow>
           </p>
@@ -49,7 +61,7 @@ export default function About() {
             Your best interest is our first concern.
           </h1>
           <p
-            className="rise-in mt-5 max-w-[62ch] text-body-lg leading-relaxed text-grey-dark"
+            className="rise-in mt-5 max-w-[52ch] text-body-lg leading-relaxed text-grey-dark md:max-w-[46ch]"
             style={{ "--rise-delay": "160ms" } as React.CSSProperties}
           >
             Medville Diabetes supplies continuous glucose monitors from the leading
@@ -57,6 +69,13 @@ export default function About() {
             deliver your supplies to your door, and we answer your questions with
             real people, in plain language.
           </p>
+          <img
+            src="/about/about-hero.webp"
+            alt="A phone shows a glucose reading of 6.2 next to a sensor and a monitor box."
+            loading="lazy"
+            className="rise-in mt-8 w-full rounded-lg shadow-soft md:hidden"
+            style={{ "--rise-delay": "240ms" } as React.CSSProperties}
+          />
         </Container>
       </section>
 
@@ -68,13 +87,24 @@ export default function About() {
               <div
                 key={value.title}
                 data-reveal={index * 120}
-                className="rounded-lg bg-surface-raised p-8 shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover"
+                className="group flex flex-col rounded-lg bg-surface-raised p-8 shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover"
               >
                 <span className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-green-soft text-green">
                   <value.icon size={22} strokeWidth={2} />
                 </span>
                 <h2 className="mt-5 font-display text-h3 font-bold text-ink">{value.title}</h2>
                 <p className="mt-3 text-small leading-relaxed text-grey-dark">{value.body}</p>
+                <div
+                  data-reveal={index * 120 + 200}
+                  className="reveal-zoom reveal-slow mt-6 overflow-hidden rounded-md bg-grey-light"
+                >
+                  <img
+                    src={value.image}
+                    alt={value.alt}
+                    loading="lazy"
+                    className="aspect-[5/4] w-full object-cover transition-transform duration-[900ms] ease-(--ease-out-quart) group-hover:scale-[1.045]"
+                  />
+                </div>
               </div>
             ))}
           </div>
