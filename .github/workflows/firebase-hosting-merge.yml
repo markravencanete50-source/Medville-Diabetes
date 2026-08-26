@@ -8,19 +8,25 @@ on:
       - main
   workflow_dispatch:
 
-# Only the newest deploy may reach the live channel. A run that has been
-# sitting in the queue (GitHub's 2026-08-26 Actions incident left several
-# stranded for an hour) would otherwise publish its stale commit over a
-# newer one, which is exactly what happened to run 13. Grouping every run
-# here means a newer run supersedes any older run still pending.
+# Serialise deploys to the live channel. Runs are NOT cancelled in flight:
+# GitHub orders runs by start time, not by commit recency, so a delayed push
+# event for an older commit can start after a newer deploy and would cancel
+# it. Queueing instead is safe because the checkout below always takes the
+# tip of main, so whichever run goes last still publishes current content.
 concurrency:
   group: firebase-hosting-live
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     steps:
+      # Always deploy the tip of main rather than the commit that triggered
+      # this run. A run stranded in the queue then publishes current content
+      # instead of resurrecting whatever main looked like an hour ago, which
+      # is how run 13 rolled the live site back on 2026-08-26.
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - run: npm ci && npm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
