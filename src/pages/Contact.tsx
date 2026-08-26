@@ -60,7 +60,8 @@ export default function Contact() {
               <p className="m-0 text-small text-grey-dark">8:30 AM to 5:00 PM Eastern Time</p>
             </ContactCard>
             <ContactCard delay={300} icon={<MapPin size={19} />} label="Address">
-              <p className="m-0 font-semibold text-ink">[Street address to be provided]</p>
+              <p className="m-0 font-semibold text-ink">28863 Industry Dr</p>
+              <p className="m-0 text-small text-grey-dark">Valencia, CA 91355</p>
             </ContactCard>
           </div>
 

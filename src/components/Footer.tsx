@@ -74,7 +74,11 @@ export default function Footer() {
           <div>
             <h3 className={headingClass}>Contact Information</h3>
             <address className="mt-4.5 flex flex-col gap-2.5 not-italic">
-              <p className="m-0 text-small text-on-dark-brand">[Street address to be provided]</p>
+              <p className="m-0 text-small text-on-dark-brand">
+                28863 Industry Dr
+                <br />
+                Valencia, CA 91355
+              </p>
               <p className="m-0 text-small text-on-dark-brand">
                 <a href="mailto:info@medvillediabetes.com" className={linkClass}>
                   info@medvillediabetes.com
