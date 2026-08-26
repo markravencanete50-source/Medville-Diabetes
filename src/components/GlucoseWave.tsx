@@ -2,14 +2,14 @@
   The site's signature motif: a smooth glucose trend line over a shaded
   "in range" band. Derived from what the products actually do.
 
-  In the redesign the range band is brand (the calm, in-range colour) while
+  In the redesign the range band is the calm in-range cyan while
   the trend line stays cyan, which is now reserved for data visuals. The line
   draws itself in on first paint via the .wave-draw utility.
 
   Variants:
     chart   the framed card on the "why continuous monitoring" section
     hero    a wide, faint underlay at the bottom of a gradient hero
-    onDark  the pale line used inside the dark brand call to action bands
+    onDark  the pale line used inside the dark call to action bands
 */
 
 const TREND =

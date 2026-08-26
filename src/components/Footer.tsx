@@ -66,11 +66,8 @@ export default function Footer() {
               <li><Link to="/about" className={linkClass}>About Us</Link></li>
               <li><Link to="/qualify" className={linkClass}>Check if you Qualify</Link></li>
               <li><Link to="/contact" className={linkClass}>Contact</Link></li>
-              <li>
-                <span className="text-small text-on-dark-brand/55">
-                  Privacy Notice (document coming soon)
-                </span>
-              </li>
+              <li><Link to="/privacy-policy" className={linkClass}>Privacy Policy</Link></li>
+              <li><Link to="/terms-of-service" className={linkClass}>Terms of Service</Link></li>
             </ul>
           </nav>
 
@@ -84,7 +81,7 @@ export default function Footer() {
                 </a>
               </p>
               <p className="m-0 text-small text-on-dark-brand">
-                <a href="tel:8770000000" className={linkClass}>877-000-0000</a>
+                <a href="tel:+18885642595" className={linkClass}>888-564-2595</a>
               </p>
               <p className="m-0 text-small text-on-dark-brand">
                 Monday to Friday, 8:30 AM to 5:00 PM Eastern Time

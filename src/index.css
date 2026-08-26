@@ -69,6 +69,9 @@
 
   /* cyan aliases kept for data visuals and the Libre brand pill */
   --color-accent: #18bada;
+  /* display teal: heading accent words only. 3.34:1, which passes the 3:1
+     minimum for large bold text; never use it for body copy. */
+  --color-teal: #0d99bb;
   --color-accent-soft: #e2f5fa;
   --color-accent-deep: #0b7c9d;
 

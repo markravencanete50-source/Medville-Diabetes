@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -240,7 +241,7 @@ export default function Qualify() {
                 <AlertCircle size={18} className="mt-0.5 flex-none text-danger" aria-hidden="true" />
                 <p className="m-0 text-small text-ink">
                   Something went wrong and your form was not sent. Please try again.
-                  If the problem continues, call us at 877-000-0000.
+                  If the problem continues, call us at 888-564-2595.
                 </p>
               </div>
             )}
@@ -250,13 +251,35 @@ export default function Qualify() {
             </Button>
 
             {/*
-              LEGAL PLACEHOLDER: visible on purpose so it cannot be forgotten.
-              Replace with consent language written for Medville by its legal or
-              compliance reviewer. Do not copy consent text from any other website.
+              Consent language delivered by the client on 2026-08-26
+              (Medville_Diabetes__Consent_Language.docx), reproduced verbatim.
+              The policy references are linked to the site's legal pages.
+              Changes to this text must come from the client's reviewer.
             */}
             <p className="rounded-md bg-grey-light p-4 text-caption leading-relaxed text-grey-muted">
-              [Consent language will appear here. It must be provided by
-              Medville&rsquo;s legal or compliance reviewer before launch.]
+              By pressing the submit button, I certify that I personally entered my
+              own information, and I give express consent authorizing Medville
+              Diabetes (MD), and its marketing partners to contact me at the email
+              address and/or phone number provided (mobile phone as applicable)
+              which may include direct calls, auto-dialed calls, text messages, and
+              artificial or pre-recorded voice calls to discuss continuous glucose
+              monitors and related healthcare products/services; regardless of my
+              inclusion on any State or Federal Do Not Call list. I further certify
+              that I am the customary user of the telephone number I have provided
+              and am authorized to provide express consent to be contacted at this
+              number. MD may, with your verbal consent, transfer your call to a
+              third party for the purpose of offering other products and/or
+              services. MD may be compensated for the call transfer. Consent is not
+              a condition of purchase. By pressing the submit button you also
+              consent to{" "}
+              <Link to="/privacy-policy" className="font-semibold text-brand underline underline-offset-2">
+                MD Privacy Policy
+              </Link>{" "}
+              and{" "}
+              <Link to="/terms-of-service" className="font-semibold text-brand underline underline-offset-2">
+                MD Terms and Conditions
+              </Link>
+              .
             </p>
           </form>
         </div>

@@ -23,7 +23,7 @@ const MISSION_VISION = [
     title: "Our Mission",
     body: "To make diabetes management easier by giving people dependable access to the supplies they need and support they can count on. We help simplify the process, from understanding coverage to getting supplies on time, so managing diabetes takes up less of everyday life.",
     image: "/about/mission-bg.webp",
-    alt: "A family looks over brand hills, with diabetes supplies and a plant in front.",
+    alt: "A family looks over green hills, with diabetes supplies and a plant in front.",
   },
   {
     icon: Eye,
@@ -109,8 +109,7 @@ export default function About() {
                   className="rise-in mt-6 max-w-[19ch] font-display text-h1 font-bold leading-[1.08] text-ink"
                   style={{ "--rise-delay": "80ms" } as React.CSSProperties}
                 >
-                  Your best interest is our{" "}
-                  <span className="text-brand">first concern.</span>
+                  Your best interest is our first concern.
                 </h1>
                 <div
                   className="rise-in mt-7 flex items-center gap-2"

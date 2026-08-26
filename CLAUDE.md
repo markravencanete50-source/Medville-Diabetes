@@ -80,11 +80,14 @@ reference site.
 
 1. `npm install && npm run dev` — confirm the site runs, review all pages.
 2. Replace placeholders, searchable by these strings:
-   - `877-000-0000` (Header, Footer, Contact, Qualify error) — real phone
+   - Done 2026-08-26: real phone 888-564-2595 is in place (Footer, Contact,
+     Qualify error, Header drawer; the header top strip was removed).
+   - Done 2026-08-26: the client's consent language is live on Qualify, and
+     the client's Privacy Policy and Terms of Service pages are published at
+     /privacy-policy and /terms-of-service. That text is verbatim legal copy;
+     changes to it must come from the client.
    - `[Street address to be provided]` (Footer, Contact) — real address
    - `info@medvillediabetes.com` — confirm the real email
-   - `[Consent language will appear here...]` (Qualify) — text from the
-     client's legal reviewer. Do not copy consent text from another website.
    - `REPLACE-WITH-FINAL-DOMAIN` (robots.txt, sitemap.xml)
    - `REPLACE-WITH-CLIENT-GCP-PROJECT-ID` (.firebaserc)
 3. Replace placeholder product art with real supplier photos (front and back

@@ -43,8 +43,8 @@ export default function Contact() {
 
           <div className="mt-10 grid gap-4 sm:grid-cols-2">
             <ContactCard delay={0} icon={<Phone size={19} />} label="Phone">
-              <a href="tel:8770000000" className="font-semibold text-ink transition-colors hover:text-brand">
-                877-000-0000
+              <a href="tel:+18885642595" className="font-semibold text-ink transition-colors hover:text-brand">
+                888-564-2595
               </a>
             </ContactCard>
             <ContactCard delay={100} icon={<Mail size={19} />} label="Email">

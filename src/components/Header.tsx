@@ -5,9 +5,8 @@ import Container from "./Container";
 import Logo from "./Logo";
 import Button from "./Button";
 
-/* Replace the placeholder phone number before launch. See CLAUDE.md. */
-const PHONE_DISPLAY = "877-000-0000";
-const PHONE_TEL = "tel:8770000000";
+const PHONE_DISPLAY = "888-564-2595";
+const PHONE_TEL = "tel:+18885642595";
 
 const links = [
   { to: "/", label: "Home" },
@@ -34,23 +33,6 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-40">
-      {/* top strip: navy into brand */}
-      <div className="bg-[linear-gradient(90deg,#00293b_0%,#0a3d2e_100%)]">
-        <Container wide className="flex h-[38px] items-center justify-between gap-4">
-          <a
-            href={PHONE_TEL}
-            className="inline-flex items-center gap-2 text-caption font-medium text-on-dark-muted transition-colors duration-(--duration-micro) hover:text-on-dark"
-          >
-            <Phone size={13} strokeWidth={2.5} />
-            Call us today:{" "}
-            <span className="font-semibold text-on-dark">{PHONE_DISPLAY}</span>
-          </a>
-          <span className="hidden text-caption text-on-dark-muted sm:block">
-            Monday to Friday, 8:30 AM to 5:00 PM Eastern Time
-          </span>
-        </Container>
-      </div>
-
       {/* main bar: glass over whatever is scrolling beneath */}
       <div className="border-b border-ink/[0.08] bg-canvas/[0.86] backdrop-blur-[14px]">
         <Container wide className="flex h-[72px] items-center justify-between gap-6">

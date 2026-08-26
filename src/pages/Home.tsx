@@ -195,7 +195,7 @@ export default function Home() {
               className="rise-in mt-5 max-w-[15ch] font-display text-display font-bold leading-[1.05] text-ink"
               style={{ "--rise-delay": "80ms" } as React.CSSProperties}
             >
-              Know your glucose, <span className="text-brand">every minute</span> of the day.
+              Know your glucose, <span className="text-teal">every minute</span> of the day.
             </h1>
             <p
               className="rise-in mt-5 max-w-[52ch] text-body-lg leading-relaxed text-grey-dark"
