@@ -15,7 +15,7 @@ interface ProductViewerProps {
   back: string;
   alt: string;
   className?: string;
-  /* Brand tint class for the stage, from brandTint() in ProductCard. */
+  /* Tint class for the stage, from PRODUCT_TINT in ProductCard. */
   tint?: string;
   /* Front and back thumbnails under the stage, per the redesign. */
   thumbnails?: boolean;
@@ -29,7 +29,7 @@ export default function ProductViewer({
   back,
   alt,
   className = "",
-  tint = "tint-libre",
+  tint = "tint-product",
   thumbnails = false,
 }: ProductViewerProps) {
   const stageRef = useRef<HTMLDivElement>(null);

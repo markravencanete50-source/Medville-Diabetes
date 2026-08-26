@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, X } from "lucide-react";
 import type { Product } from "../data/products";
-import { brandTint } from "./ProductCard";
+import { PRODUCT_TINT } from "./ProductCard";
 import Button from "./Button";
 
 /*
@@ -93,7 +93,7 @@ export default function QuickView({
 
         <div className="grid gap-7 px-7 pb-8 pt-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))]">
           <div>
-            <div className={`relative rounded-well p-5 ${brandTint(product.brand)}`}>
+            <div className={`relative rounded-well p-5 ${PRODUCT_TINT}`}>
               <img
                 src={image}
                 alt={`${product.name}, ${face}`}

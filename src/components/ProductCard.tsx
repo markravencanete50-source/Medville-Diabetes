@@ -11,17 +11,13 @@ import type { Product } from "../data/products";
   Quick view button is the way to see the back, so nothing is lost.
 */
 
-export function brandTint(brand: Product["brand"]) {
-  if (brand === "Dexcom") return "tint-dexcom";
-  if (brand === "Tandem") return "tint-tandem";
-  return "tint-libre";
-}
-
-export function brandPillColour(brand: Product["brand"]) {
-  if (brand === "Dexcom") return "text-brand";
-  if (brand === "Tandem") return "text-ink";
-  return "text-accent-deep";
-}
+/*
+  Every product sits on the same tinted stage and its brand pill takes the
+  same colour. Tinting per brand left the grid looking mismatched, so the
+  cards now follow one treatment whatever the brand.
+*/
+export const PRODUCT_TINT = "tint-product";
+export const PRODUCT_PILL = "text-brand";
 
 export default function ProductCard({
   product,
@@ -41,7 +37,7 @@ export default function ProductCard({
       onMouseLeave={() => setShowBack(false)}
       className="flex flex-col overflow-hidden rounded-card bg-surface-raised shadow-raised transition-all duration-(--duration-slow) ease-(--ease-out-quart) hover:-translate-y-1.5 hover:shadow-raised-hover"
     >
-      <div className={`relative p-7 ${brandTint(product.brand)}`}>
+      <div className={`relative p-7 ${PRODUCT_TINT}`}>
         <div className="relative aspect-square w-full">
           <img
             src={product.imageFront}
@@ -59,7 +55,7 @@ export default function ProductCard({
           />
         </div>
         <span
-          className={`absolute left-4 top-4 rounded-full bg-canvas/90 px-3.5 py-1.5 text-caption font-semibold shadow-[0_1px_2px_rgb(0_41_59/0.08)] ${brandPillColour(product.brand)}`}
+          className={`absolute left-4 top-4 rounded-full bg-canvas/90 px-3.5 py-1.5 text-caption font-semibold shadow-[0_1px_2px_rgb(0_41_59/0.08)] ${PRODUCT_PILL}`}
         >
           {product.brand}
         </span>

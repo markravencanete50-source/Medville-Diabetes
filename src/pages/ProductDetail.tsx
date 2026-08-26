@@ -4,7 +4,7 @@ import { Check, ChevronRight } from "lucide-react";
 import Container from "../components/Container";
 import Button from "../components/Button";
 import ProductViewer from "../components/ProductViewer";
-import ProductCard, { brandTint, brandPillColour } from "../components/ProductCard";
+import ProductCard, { PRODUCT_TINT, PRODUCT_PILL } from "../components/ProductCard";
 import QuickView from "../components/QuickView";
 import { getProduct, products } from "../data/products";
 import { usePageMeta } from "../lib/usePageMeta";
@@ -50,7 +50,7 @@ export default function ProductDetail() {
               front={product.imageFront}
               back={product.imageBack}
               alt={product.name}
-              tint={brandTint(product.brand)}
+              tint={PRODUCT_TINT}
               thumbnails
               className="lg:sticky lg:top-32 lg:self-start"
             />
@@ -58,7 +58,7 @@ export default function ProductDetail() {
             {/* details */}
             <div>
               <span
-                className={`inline-flex rounded-full bg-grey-light px-3.5 py-1.5 text-caption font-semibold ${brandPillColour(product.brand)}`}
+                className={`inline-flex rounded-full bg-grey-light px-3.5 py-1.5 text-caption font-semibold ${PRODUCT_PILL}`}
               >
                 {product.brand} · {product.category}
               </span>
