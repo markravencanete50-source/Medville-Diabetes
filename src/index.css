@@ -381,17 +381,7 @@ h1, h2, h3, h4 {
   flex: none;
   border-radius: var(--radius-full);
   background: var(--color-accent);
-}
-
-.journey-eyebrow::after {
-  content: "";
-  width: 28px;
-  height: 1px;
-  flex: none;
-  background: repeating-linear-gradient(90deg, var(--color-accent-deep) 0 3px, transparent 3px 8px);
-}
-
-/* ---- hero ---- */
+}/* ---- hero ---- */
 
 .journey-hero {
   position: relative;
@@ -647,6 +637,61 @@ h1, h2, h3, h4 {
   height: 100% !important;
 }
 
+/*
+  Labels for the care cycle. These are drawn inside the 3D scene and pinned
+  to each object, so they track it exactly and can never sit on top of one
+  another the way a separately positioned overlay did.
+*/
+.journey-node {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  border-radius: var(--radius-full);
+  padding: 3px 9px;
+  background: rgb(255 255 255 / 0.82);
+  box-shadow: 0 1px 2px rgb(0 41 59 / 0.06);
+  backdrop-filter: blur(4px);
+  transition: color var(--duration-slow) var(--ease-out-quart),
+    background var(--duration-slow) var(--ease-out-quart);
+  user-select: none;
+}
+
+.journey-node.is-active {
+  color: var(--color-ink);
+  background: var(--color-cta);
+  box-shadow: 0 0 0 4px rgb(255 158 27 / 0.16);
+}
+
+.journey-core {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  white-space: nowrap;
+  text-align: center;
+  user-select: none;
+}
+
+.journey-core span {
+  color: var(--color-on-dark-accent);
+  font-family: var(--font-display);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.journey-core strong {
+  color: var(--color-on-dark);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
 .journey-cycle-loading .journey-cycle-canvas {
   display: grid;
   place-items: center;
@@ -656,160 +701,6 @@ h1, h2, h3, h4 {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-}
-
-/*
-  The labelled orbit sits above the canvas and carries the whole
-  explanation on its own, so the section still reads if WebGL is missing.
-*/
-.journey-orbit {
-  position: absolute;
-  z-index: 2;
-  inset: 13% 8%;
-  pointer-events: none;
-}
-
-.journey-orbit-ring {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 84%;
-  height: 64%;
-  border: 2px dashed rgb(24 186 218 / 0.74);
-  border-radius: 50%;
-  transform: translate(-50%, -50%) rotate(-11deg);
-  box-shadow: 0 0 0 17px rgb(24 186 218 / 0.035), inset 0 0 48px rgb(24 186 218 / 0.08);
-}
-
-.journey-orbit-ring::before {
-  position: absolute;
-  inset: 12%;
-  border: 1px solid rgb(0 41 59 / 0.13);
-  border-radius: 50%;
-  content: "";
-}
-
-.journey-orbit-signal {
-  position: absolute;
-  top: 4%;
-  left: 12%;
-  width: 19px;
-  height: 19px;
-  border: 4px solid var(--color-canvas);
-  border-radius: var(--radius-full);
-  background: var(--color-cta);
-  box-shadow: 0 0 0 7px rgb(255 158 27 / 0.16), var(--shadow-cta);
-}
-
-.journey-motion .journey-orbit-signal {
-  animation: journey-signal 18.75s linear infinite;
-}
-
-.journey-orbit-core {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  z-index: 1;
-  display: grid;
-  width: 116px;
-  height: 98px;
-  place-items: center;
-  border: 1px solid rgb(0 41 59 / 0.14);
-  border-radius: var(--radius-lg);
-  color: var(--color-on-dark);
-  background: var(--gradient-dark);
-  box-shadow: 14px 18px 0 rgb(24 186 218 / 0.14), var(--shadow-overlay);
-  transform: translate(-50%, -50%) perspective(320px) rotateX(15deg) rotateZ(-5deg);
-}
-
-.journey-orbit-core span {
-  color: var(--color-on-dark-accent);
-  font-family: var(--font-display);
-  font-size: 0.5rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.journey-orbit-core strong {
-  margin-top: -7px;
-  font-family: var(--font-display);
-  font-size: 1.1875rem;
-  line-height: 0.9;
-  text-align: center;
-  letter-spacing: -0.06em;
-}
-
-.journey-orbit-core i {
-  position: absolute;
-  bottom: 11px;
-  width: 25px;
-  height: 2px;
-  background: var(--color-cta);
-  box-shadow: 0 0 0 4px rgb(255 158 27 / 0.15);
-}
-
-.journey-orbit-node {
-  position: absolute;
-  display: grid;
-  justify-items: center;
-  gap: 5px;
-  color: var(--color-brand);
-  opacity: 0.86;
-  transition:
-    opacity var(--duration-slow) var(--ease-out-quart),
-    transform var(--duration-slow) var(--ease-out-quart);
-}
-
-.journey-orbit-node > span {
-  display: grid;
-  width: 47px;
-  height: 47px;
-  place-items: center;
-  border: 1px solid rgb(0 41 59 / 0.1);
-  border-radius: var(--radius-md);
-  color: var(--color-ink);
-  background: rgb(255 255 255 / 0.93);
-  box-shadow: var(--shadow-soft);
-  transform: perspective(180px) rotateX(8deg) rotateY(-8deg);
-}
-
-.journey-orbit-node small {
-  padding: 2px 5px;
-  border-radius: var(--radius-full);
-  background: rgb(255 255 255 / 0.68);
-  font-family: var(--font-display);
-  font-size: 0.5625rem;
-  font-weight: 700;
-}
-
-.journey-orbit-node.is-active {
-  color: var(--color-ink);
-  opacity: 1;
-  transform: scale(1.1);
-}
-
-.journey-orbit-node.is-active > span {
-  border-color: rgb(194 112 1 / 0.16);
-  background: var(--color-cta);
-  box-shadow: 0 0 0 5px rgb(255 158 27 / 0.15), var(--shadow-cta);
-}
-
-.journey-orbit-node-0 { top: 6%; left: 8%; }
-.journey-orbit-node-1 { top: -4%; left: 44%; }
-.journey-orbit-node-2 { top: 10%; right: 6%; }
-.journey-orbit-node-3 { right: 0; bottom: 19%; }
-.journey-orbit-node-4 { bottom: -4%; left: 51%; }
-.journey-orbit-node-5 { bottom: 8%; left: 5%; }
-
-@keyframes journey-signal {
-  0% { top: 4%; left: 12%; }
-  16% { top: -8%; left: 47%; }
-  33% { top: 11%; left: 90%; }
-  50% { top: 58%; left: 99%; }
-  67% { top: 93%; left: 54%; }
-  84% { top: 78%; left: 2%; }
-  100% { top: 4%; left: 12%; }
 }
 
 /* ---- the four stages ---- */
@@ -835,107 +726,14 @@ h1, h2, h3, h4 {
   line-height: 1.5;
 }
 
-/*
-  The rail sticks directly below the site header, which is a single 72px
-  bar, and stays under its z-40 so the mobile drawer always wins.
-*/
-.journey-rail-wrap {
-  position: sticky;
-  z-index: 16;
-  top: 72px;
-  margin-top: 46px;
-  border-top: 1px solid var(--color-line);
-  border-bottom: 1px solid var(--color-line);
-  background: rgb(255 255 255 / 0.94);
-  backdrop-filter: blur(12px);
-}
-
-.journey-rail {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 72px;
-  gap: 12px;
-}
-
-.journey-rail::before {
-  position: absolute;
-  top: 50%;
-  right: 6%;
-  left: 135px;
-  height: 1px;
-  background: repeating-linear-gradient(90deg, var(--color-brand-mint) 0 3px, transparent 3px 9px);
-  content: "";
-}
-
-.journey-rail-label {
-  position: relative;
-  z-index: 1;
-  flex: 0 0 auto;
-  margin-right: 11px;
-  color: var(--color-grey-muted);
-  background: var(--color-canvas);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.journey-rail button {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  border: 0;
-  padding: 7px;
-  color: var(--color-brand);
-  background: var(--color-canvas);
-  cursor: pointer;
-  transition:
-    color var(--duration-base) var(--ease-out-quart),
-    transform var(--duration-base) var(--ease-out-quart);
-}
-
-.journey-rail button:hover {
-  color: var(--color-ink);
-  transform: translateY(-2px);
-}
-
-.journey-rail button span {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border: 2px solid var(--color-canvas);
-  border-radius: var(--radius-full);
-  background: var(--color-brand-soft);
-  font-family: var(--font-display);
-  font-size: 0.5625rem;
-  font-weight: 700;
-}
-
-.journey-rail button.is-active span {
-  color: var(--color-ink);
-  background: var(--color-cta);
-  box-shadow: 0 0 0 5px rgb(255 158 27 / 0.15);
-}
-
-.journey-rail button i {
-  font-size: var(--text-caption);
-  font-style: normal;
-  font-weight: 700;
-}
-
 .journey-sequence {
-  padding-top: 20px;
+  padding-top: 28px;
 }
 
 .journey-stage {
   padding: 104px 0;
   background: var(--color-surface);
-  scroll-margin-top: 144px;
+  scroll-margin-top: 96px;
 }
 
 .journey-stage:nth-child(even) {
@@ -1051,57 +849,7 @@ h1, h2, h3, h4 {
   color: var(--color-grey-muted);
   font-size: var(--text-body-lg);
   line-height: 1.5;
-}
-
-.journey-stage-progress {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 3px;
-  align-items: center;
-  max-width: 290px;
-  margin-top: 27px;
-  padding: 9px 1px;
-}
-
-.journey-stage-progress::before {
-  position: absolute;
-  top: 50%;
-  right: 12%;
-  left: 12%;
-  height: 1px;
-  background: repeating-linear-gradient(90deg, var(--color-brand-mint) 0 3px, transparent 3px 8px);
-  content: "";
-}
-
-.journey-stage-progress i {
-  position: relative;
-  z-index: 1;
-  width: 11px;
-  height: 11px;
-  justify-self: center;
-  border: 2px solid var(--color-surface);
-  border-radius: var(--radius-full);
-  background: var(--color-accent);
-  box-shadow: 0 0 0 1px var(--color-brand-mint);
-}
-
-.journey-stage:nth-child(even) .journey-stage-progress i {
-  border-color: var(--color-canvas);
-}
-
-.journey-stage-progress i.is-past {
-  background: var(--color-navy-raised);
-}
-
-.journey-stage-progress i.is-here {
-  width: 16px;
-  height: 16px;
-  background: var(--color-cta);
-  box-shadow: 0 0 0 5px rgb(255 158 27 / 0.13);
-}
-
-.journey-step-list {
+}.journey-step-list {
   margin-top: 25px;
   padding-top: 20px;
   border-top: 1px solid var(--color-line);
@@ -1227,7 +975,6 @@ h1, h2, h3, h4 {
 .journey-motion .journey-stage-kicker,
 .journey-motion .journey-stage-copy h2,
 .journey-motion .journey-stage-summary,
-.journey-motion .journey-stage-progress,
 .journey-motion .journey-step-list {
   opacity: 0.18;
   transform: translateY(24px);
@@ -1239,7 +986,6 @@ h1, h2, h3, h4 {
 .journey-motion .journey-stage.is-revealed .journey-stage-kicker,
 .journey-motion .journey-stage.is-revealed .journey-stage-copy h2,
 .journey-motion .journey-stage.is-revealed .journey-stage-summary,
-.journey-motion .journey-stage.is-revealed .journey-stage-progress,
 .journey-motion .journey-stage.is-revealed .journey-step-list {
   opacity: 1;
   transform: none;
@@ -1247,8 +993,7 @@ h1, h2, h3, h4 {
 
 .journey-motion .journey-stage.is-revealed .journey-stage-copy h2 { transition-delay: 105ms; }
 .journey-motion .journey-stage.is-revealed .journey-stage-summary { transition-delay: 210ms; }
-.journey-motion .journey-stage.is-revealed .journey-stage-progress { transition-delay: 310ms; }
-.journey-motion .journey-stage.is-revealed .journey-step-list { transition-delay: 410ms; }
+.journey-motion .journey-stage.is-revealed .journey-step-list { transition-delay: 340ms; }
 
 /* ---- responsive ---- */
 
@@ -1260,7 +1005,6 @@ h1, h2, h3, h4 {
   .journey-cycle-canvas { height: 430px; max-width: 720px; width: 100%; margin: 0 auto; }
   .journey-stage-grid { gap: 45px; }
   .journey-stage-visual > img { min-height: 400px; }
-  .journey-rail button i { display: none; }
 }
 
 @media (max-width: 767px) {
@@ -1273,24 +1017,9 @@ h1, h2, h3, h4 {
   .journey-cycle { padding: 74px 0; }
   .journey-cycle-grid { gap: 30px; }
   .journey-cycle-canvas { height: 318px; border-radius: var(--radius-card); }
-  .journey-orbit { inset: 15% 5%; }
-  .journey-orbit-core { width: 92px; height: 78px; border-radius: var(--radius-md); }
-  .journey-orbit-core strong { font-size: 0.9375rem; }
-  .journey-orbit-node > span { width: 37px; height: 37px; border-radius: var(--radius-sm); }
-  .journey-orbit-node small { font-size: 0.4375rem; }
-  .journey-orbit-node-0 { left: 3%; }
-  .journey-orbit-node-2 { right: 1%; }
-  .journey-orbit-node-3 { right: -3%; }
-  .journey-orbit-node-5 { left: 0; }
   .journey-cycle-labels { gap: 7px; }
   .journey-stages { padding-top: 70px; }
-  .journey-rail-wrap { margin-top: 35px; }
-  .journey-rail { min-height: 62px; gap: 3px; }
-  .journey-rail::before { right: 6%; left: 25%; }
-  .journey-rail-label { margin-right: 3px; font-size: 0.5625rem; }
-  .journey-rail button { padding: 4px; }
-  .journey-rail button span { width: 30px; height: 30px; }
-  .journey-stage { padding: 72px 0; scroll-margin-top: 134px; }
+  .journey-stage { padding: 72px 0; scroll-margin-top: 88px; }
   .journey-stage-grid { display: flex; flex-direction: column; align-items: stretch; gap: 31px; }
   .journey-stage:nth-child(even) .journey-stage-copy,
   .journey-stage:nth-child(even) .journey-stage-visual { order: unset; }

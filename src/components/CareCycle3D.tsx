@@ -1,15 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { ContactShadows, Float, Line, RoundedBox } from "@react-three/drei";
-import { House, PackageCheck, PhoneCall, RefreshCw, ShieldCheck, Truck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { ContactShadows, Float, Html, Line, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 import Container from "./Container";
 import { prefersReducedMotion } from "../lib/useReveal";
 
 /*
   The Our Services care cycle: one contained live explainer, not a technical
-  backdrop. An orange signal travels the same route the copy describes, from
-  the first call through to resupply.
+  backdrop. A single orange signal travels the route the copy describes, from
+  the first call through to resupply, and the phase it is passing drives the
+  wording beside the canvas.
+
+  Everything a visitor sees lives inside the 3D scene, including the labels.
+  An earlier version drew a second route and a second signal over the canvas
+  in plain HTML, which read as two things moving at once and sat on top of
+  the models. Pinning the labels to their objects removes both problems.
 
   This component is lazy-loaded by the Services page, so a visitor only
   downloads the three.js chunk once the section approaches.
@@ -17,8 +22,8 @@ import { prefersReducedMotion } from "../lib/useReveal";
   The colours below are the one place in the codebase where brand values are
   written as literals rather than as tokens. A three.js material is painted
   on a canvas, not styled by CSS, so it cannot read a custom property. They
-  are the same four values as --color-ink, --color-accent, --color-brand-soft
-  and --color-cta; change them together.
+  are the same values as --color-ink, --color-accent, --color-brand-soft and
+  --color-cta; change them together.
 */
 const MEDVILLE = {
   navy: "#00293b",
@@ -28,48 +33,100 @@ const MEDVILLE = {
   paper: "#ffffff",
 };
 
-const PHASES = [
-  { label: "Calling", detail: "You tell us what you need." },
-  { label: "Verifying", detail: "We confirm care and coverage." },
-  { label: "Preparing", detail: "We organize the order and supplies." },
-  { label: "Delivering", detail: "Your package moves to your home." },
-  { label: "Received", detail: "Your supplies arrive at your door." },
-  { label: "Resupply", detail: "The cycle continues when you need more." },
-] as const;
+type Position = [number, number, number];
 
-const NODES = [
-  { icon: PhoneCall, label: "Call" },
-  { icon: ShieldCheck, label: "Verify" },
-  { icon: PackageCheck, label: "Prepare" },
-  { icon: Truck, label: "Deliver" },
-  { icon: House, label: "Receive" },
-  { icon: RefreshCw, label: "Resupply" },
-] as const;
-
-const POINTS = [
-  new THREE.Vector3(-2.55, 0.95, 0),
-  new THREE.Vector3(-0.7, 1.46, 0.12),
-  new THREE.Vector3(1.25, 0.9, 0),
-  new THREE.Vector3(2.22, -0.36, 0.1),
-  new THREE.Vector3(0.45, -1.38, 0),
-  new THREE.Vector3(-1.75, -0.82, 0.1),
+/* One list, so the route, the models, the labels and the copy cannot drift
+   apart. The order around the loop is the order of the process. */
+const PHASES: { label: string; detail: string; node: string; position: Position }[] = [
+  {
+    label: "Calling",
+    detail: "You tell us what you need.",
+    node: "Call",
+    position: [-2.5, 0.95, 0],
+  },
+  {
+    label: "Verifying",
+    detail: "We confirm care and coverage.",
+    node: "Verify",
+    position: [-0.7, 1.5, 0.15],
+  },
+  {
+    label: "Preparing",
+    detail: "We organize the order and supplies.",
+    node: "Prepare",
+    position: [1.3, 0.95, 0],
+  },
+  {
+    label: "Delivering",
+    detail: "Your package moves to your home.",
+    node: "Deliver",
+    position: [2.35, -0.4, 0.15],
+  },
+  {
+    label: "Received",
+    detail: "Your supplies arrive at your door.",
+    node: "Receive",
+    position: [0.5, -1.4, 0],
+  },
+  {
+    label: "Resupply",
+    detail: "The cycle continues when you need more.",
+    node: "Resupply",
+    position: [-1.8, -0.85, 0.15],
+  },
 ];
 
+const POINTS = PHASES.map((phase) => new THREE.Vector3(...phase.position));
+
+/* One curve drives both the drawn route and the signal that travels it, so
+   the dot can never appear to leave its own path. */
+const ROUTE = new THREE.CatmullRomCurve3(POINTS, true, "catmullrom", 0.15);
+const ROUTE_POINTS = ROUTE.getPoints(180);
+
+/* The label hangs below its object, far enough clear that the two never
+   touch while the object drifts on its float. */
+const LABEL_DROP = 0.68;
+
 type SceneProps = { reducedMotion: boolean; onPhaseChange: (index: number) => void };
-type Position = [number, number, number];
+
+function NodeLabel({
+  position,
+  text,
+  active,
+}: {
+  position: Position;
+  text: string;
+  active: boolean;
+}) {
+  return (
+    <Html
+      position={[position[0], position[1] - LABEL_DROP, position[2]]}
+      center
+      zIndexRange={[8, 0]}
+      style={{ pointerEvents: "none" }}
+    >
+      <span className={`journey-node ${active ? "is-active" : ""}`}>{text}</span>
+    </Html>
+  );
+}
 
 function Phone({ position }: { position: Position }) {
   return (
     <Float speed={1.4} rotationIntensity={0.12} floatIntensity={0.13}>
       <group position={position} rotation={[0.12, -0.26, 0.16]}>
-        <RoundedBox args={[0.42, 0.76, 0.14]} radius={0.08} smoothness={4}>
-          <meshStandardMaterial color={MEDVILLE.navy} roughness={0.42} />
+        <RoundedBox args={[0.46, 0.82, 0.15]} radius={0.085} smoothness={5} castShadow>
+          <meshStandardMaterial color={MEDVILLE.navy} roughness={0.36} metalness={0.15} />
         </RoundedBox>
-        <RoundedBox args={[0.31, 0.53, 0.03]} radius={0.045} smoothness={4} position={[0, 0, 0.08]}>
-          <meshStandardMaterial color={MEDVILLE.cyan} roughness={0.3} />
+        <RoundedBox args={[0.34, 0.58, 0.03]} radius={0.05} smoothness={5} position={[0, 0.02, 0.085]}>
+          <meshStandardMaterial
+            color={MEDVILLE.cyan}
+            roughness={0.18}
+            emissive={MEDVILLE.cyan}
+            emissiveIntensity={0.22}
+          />
         </RoundedBox>
-        <mesh position={[0, -0.28, 0.106]}>
-          <circleGeometry args={[0.032, 18]} />
+        <mesh position={[0, -0.32, 0.108]}>
+          <circleGeometry args={[0.034, 20]} />
           <meshStandardMaterial color={MEDVILLE.paper} />
         </mesh>
       </group>
@@ -81,15 +138,20 @@ function Verify({ position }: { position: Position }) {
   return (
     <Float speed={1.1} rotationIntensity={0.1} floatIntensity={0.1}>
       <group position={position} rotation={[0.12, 0.25, -0.08]}>
-        <RoundedBox args={[0.62, 0.48, 0.13]} radius={0.07} smoothness={4}>
-          <meshStandardMaterial color={MEDVILLE.paper} roughness={0.34} />
+        <RoundedBox args={[0.66, 0.52, 0.14]} radius={0.075} smoothness={5} castShadow>
+          <meshStandardMaterial color={MEDVILLE.paper} roughness={0.3} />
         </RoundedBox>
-        <mesh position={[0, 0.02, 0.085]}>
-          <circleGeometry args={[0.16, 5]} />
-          <meshStandardMaterial color={MEDVILLE.cyan} roughness={0.32} />
+        <mesh position={[0, 0.02, 0.09]}>
+          <circleGeometry args={[0.17, 5]} />
+          <meshStandardMaterial
+            color={MEDVILLE.cyan}
+            roughness={0.22}
+            emissive={MEDVILLE.cyan}
+            emissiveIntensity={0.18}
+          />
         </mesh>
-        <mesh position={[0, 0.02, 0.108]} scale={[0.45, 0.32, 1]}>
-          <circleGeometry args={[0.16, 5]} />
+        <mesh position={[0, 0.02, 0.112]} scale={[0.45, 0.32, 1]}>
+          <circleGeometry args={[0.17, 5]} />
           <meshStandardMaterial color={MEDVILLE.navy} />
         </mesh>
       </group>
@@ -101,16 +163,16 @@ function Package({ position }: { position: Position }) {
   return (
     <Float speed={0.9} rotationIntensity={0.08} floatIntensity={0.08}>
       <group position={position} rotation={[0.12, -0.24, 0]}>
-        <RoundedBox args={[0.7, 0.42, 0.42]} radius={0.045} smoothness={4}>
-          <meshStandardMaterial color={MEDVILLE.paper} roughness={0.52} />
+        <RoundedBox args={[0.72, 0.44, 0.44]} radius={0.05} smoothness={5} castShadow>
+          <meshStandardMaterial color={MEDVILLE.paper} roughness={0.46} />
         </RoundedBox>
-        <mesh position={[0, 0.22, 0]}>
-          <boxGeometry args={[0.72, 0.035, 0.44]} />
-          <meshStandardMaterial color={MEDVILLE.cyanSoft} roughness={0.55} />
+        <mesh position={[0, 0.23, 0]} castShadow>
+          <boxGeometry args={[0.74, 0.04, 0.46]} />
+          <meshStandardMaterial color={MEDVILLE.cyanSoft} roughness={0.5} />
         </mesh>
-        <mesh position={[0, 0.245, 0]}>
-          <boxGeometry args={[0.14, 0.02, 0.45]} />
-          <meshStandardMaterial color={MEDVILLE.cyan} />
+        <mesh position={[0, 0.255, 0]}>
+          <boxGeometry args={[0.15, 0.02, 0.47]} />
+          <meshStandardMaterial color={MEDVILLE.cyan} roughness={0.25} />
         </mesh>
       </group>
     </Float>
@@ -121,16 +183,32 @@ function DeliveryTruck({ position }: { position: Position }) {
   return (
     <Float speed={1.2} rotationIntensity={0.08} floatIntensity={0.1}>
       <group position={position} rotation={[0.1, -0.22, 0]}>
-        <RoundedBox args={[0.64, 0.26, 0.3]} radius={0.04} smoothness={3} position={[-0.08, 0.06, 0]}>
-          <meshStandardMaterial color={MEDVILLE.cyan} roughness={0.34} />
+        <RoundedBox
+          args={[0.66, 0.3, 0.32]}
+          radius={0.05}
+          smoothness={4}
+          position={[-0.09, 0.08, 0]}
+          castShadow
+        >
+          <meshStandardMaterial color={MEDVILLE.cyan} roughness={0.28} metalness={0.1} />
         </RoundedBox>
-        <RoundedBox args={[0.24, 0.33, 0.3]} radius={0.04} smoothness={3} position={[0.33, 0.02, 0]}>
-          <meshStandardMaterial color={MEDVILLE.paper} roughness={0.42} />
+        <RoundedBox
+          args={[0.26, 0.35, 0.32]}
+          radius={0.05}
+          smoothness={4}
+          position={[0.35, 0.04, 0]}
+          castShadow
+        >
+          <meshStandardMaterial color={MEDVILLE.paper} roughness={0.36} />
         </RoundedBox>
-        {[-0.25, 0.35].map((x) => (
-          <mesh key={x} position={[x, -0.13, 0.17]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.08, 0.08, 0.045, 16]} />
-            <meshStandardMaterial color={MEDVILLE.navy} />
+        <mesh position={[0.35, 0.12, 0.163]}>
+          <boxGeometry args={[0.16, 0.14, 0.02]} />
+          <meshStandardMaterial color={MEDVILLE.navy} roughness={0.2} />
+        </mesh>
+        {[-0.26, 0.36].map((x) => (
+          <mesh key={x} position={[x, -0.12, 0.17]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+            <cylinderGeometry args={[0.09, 0.09, 0.05, 20]} />
+            <meshStandardMaterial color={MEDVILLE.navy} roughness={0.5} />
           </mesh>
         ))}
       </group>
@@ -142,16 +220,27 @@ function HomeMarker({ position }: { position: Position }) {
   return (
     <Float speed={0.8} rotationIntensity={0.05} floatIntensity={0.08}>
       <group position={position} rotation={[0.08, 0.18, 0]}>
-        <RoundedBox args={[0.56, 0.43, 0.3]} radius={0.04} smoothness={3} position={[0, -0.14, 0]}>
-          <meshStandardMaterial color={MEDVILLE.paper} roughness={0.42} />
+        <RoundedBox
+          args={[0.58, 0.45, 0.32]}
+          radius={0.05}
+          smoothness={4}
+          position={[0, -0.13, 0]}
+          castShadow
+        >
+          <meshStandardMaterial color={MEDVILLE.paper} roughness={0.36} />
         </RoundedBox>
-        <mesh position={[0, 0.26, 0]} rotation={[0, 0, Math.PI / 4]}>
-          <coneGeometry args={[0.42, 0.54, 4]} />
-          <meshStandardMaterial color={MEDVILLE.navy} roughness={0.46} />
+        <mesh position={[0, 0.25, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+          <coneGeometry args={[0.46, 0.44, 4]} />
+          <meshStandardMaterial color={MEDVILLE.navy} roughness={0.42} />
         </mesh>
-        <mesh position={[0.12, -0.08, 0.16]}>
-          <boxGeometry args={[0.14, 0.18, 0.02]} />
-          <meshStandardMaterial color={MEDVILLE.cyan} />
+        <mesh position={[0, -0.14, 0.163]}>
+          <boxGeometry args={[0.16, 0.2, 0.02]} />
+          <meshStandardMaterial
+            color={MEDVILLE.cyan}
+            roughness={0.2}
+            emissive={MEDVILLE.cyan}
+            emissiveIntensity={0.2}
+          />
         </mesh>
       </group>
     </Float>
@@ -161,34 +250,67 @@ function HomeMarker({ position }: { position: Position }) {
 function Resupply({ position }: { position: Position }) {
   return (
     <Float speed={1.4} rotationIntensity={0.16} floatIntensity={0.13}>
-      <group position={position} rotation={[0.2, 0.1, -0.2]}>
-        <mesh>
-          <torusGeometry args={[0.26, 0.09, 14, 28]} />
-          <meshStandardMaterial color={MEDVILLE.cyan} roughness={0.28} />
+      <group position={position} rotation={[0.24, 0.1, -0.2]}>
+        <mesh castShadow>
+          <torusGeometry args={[0.27, 0.095, 18, 36]} />
+          <meshStandardMaterial color={MEDVILLE.cyan} roughness={0.22} metalness={0.12} />
         </mesh>
-        <mesh position={[0.23, -0.11, 0.05]}>
-          <sphereGeometry args={[0.085, 18, 18]} />
-          <meshStandardMaterial color={MEDVILLE.paper} />
+        <mesh position={[0.24, -0.11, 0.05]} castShadow>
+          <sphereGeometry args={[0.09, 20, 20]} />
+          <meshStandardMaterial color={MEDVILLE.paper} roughness={0.3} />
         </mesh>
       </group>
     </Float>
   );
 }
 
-/* The travelling signal. It also drives which phase the copy beside the
-   canvas is describing, so the words and the scene never disagree. */
+/* The centre of the cycle: a real slab set back behind the route, so the
+   scene has a focal point with depth rather than a card laid over it. */
+function Core() {
+  return (
+    <Float speed={0.7} rotationIntensity={0.05} floatIntensity={0.06}>
+      <group position={[0, 0, -0.8]} rotation={[0.16, -0.12, -0.04]}>
+        <RoundedBox args={[1.5, 1.05, 0.17]} radius={0.15} smoothness={5} castShadow>
+          <meshStandardMaterial color={MEDVILLE.navy} roughness={0.26} metalness={0.28} />
+        </RoundedBox>
+        <mesh position={[0, -0.33, 0.095]}>
+          <boxGeometry args={[0.34, 0.035, 0.02]} />
+          <meshStandardMaterial
+            color={MEDVILLE.orange}
+            emissive={MEDVILLE.orange}
+            emissiveIntensity={0.35}
+          />
+        </mesh>
+        <Html
+          position={[0, 0.08, 0.09]}
+          center
+          zIndexRange={[6, 0]}
+          style={{ pointerEvents: "none" }}
+        >
+          <span className="journey-core">
+            <span>Medville</span>
+            <strong>
+              Care
+              <br />
+              cycle
+            </strong>
+          </span>
+        </Html>
+      </group>
+    </Float>
+  );
+}
+
+/* The one moving signal, with a soft halo so it reads at a glance. */
 function MovingSignal({ reducedMotion, onPhaseChange }: SceneProps) {
-  const signal = useRef<THREE.Mesh>(null);
-  const curve = useMemo(() => new THREE.CatmullRomCurve3(POINTS, true, "catmullrom", 0.15), []);
+  const signal = useRef<THREE.Group>(null);
   const phase = useRef(-1);
 
   useFrame((state) => {
     const progress = reducedMotion ? 0.02 : (state.clock.getElapsedTime() * 0.032) % 1;
-    const position = curve.getPointAt(progress);
-    const currentSignal = signal.current;
-    if (!currentSignal) return;
-    currentSignal.position.copy(position);
-    if (!reducedMotion) currentSignal.rotation.y += 0.045;
+    const current = signal.current;
+    if (!current) return;
+    current.position.copy(ROUTE.getPointAt(progress));
     const nextPhase = Math.floor(progress * PHASES.length) % PHASES.length;
     if (nextPhase !== phase.current) {
       phase.current = nextPhase;
@@ -197,44 +319,81 @@ function MovingSignal({ reducedMotion, onPhaseChange }: SceneProps) {
   });
 
   return (
-    <mesh ref={signal} castShadow>
-      <sphereGeometry args={[0.13, 24, 24]} />
-      <meshStandardMaterial
-        color={MEDVILLE.orange}
-        emissive={MEDVILLE.orange}
-        emissiveIntensity={0.28}
-        roughness={0.25}
-      />
-    </mesh>
+    <group ref={signal}>
+      <mesh castShadow>
+        <sphereGeometry args={[0.15, 28, 28]} />
+        <meshStandardMaterial
+          color={MEDVILLE.orange}
+          emissive={MEDVILLE.orange}
+          emissiveIntensity={0.45}
+          roughness={0.2}
+        />
+      </mesh>
+      <mesh>
+        <sphereGeometry args={[0.28, 24, 24]} />
+        <meshBasicMaterial color={MEDVILLE.orange} transparent opacity={0.16} depthWrite={false} />
+      </mesh>
+      <pointLight color={MEDVILLE.orange} intensity={2.2} distance={2.4} />
+    </group>
   );
 }
 
-function CycleScene({ reducedMotion, onPhaseChange }: SceneProps) {
+/*
+  Scales the whole scene to the canvas, so the route, the models and their
+  labels always sit inside the panel at any width. The scene needs roughly
+  6.8 by 4.9 world units including the labels.
+*/
+function Fit({ children }: { children: React.ReactNode }) {
+  const viewport = useThree((state) => state.viewport);
+  const scale = Math.min(1, viewport.width / 6.8, viewport.height / 4.9);
+  return <group scale={scale}>{children}</group>;
+}
+
+function CycleScene({
+  reducedMotion,
+  onPhaseChange,
+  active,
+}: SceneProps & { active: number }) {
   return (
-    <group rotation={[-0.08, 0.12, 0]}>
-      <ambientLight intensity={1.3} />
-      <directionalLight position={[4, 5, 4]} intensity={2.3} castShadow />
-      <pointLight position={[-4, 2, 2]} color={MEDVILLE.cyan} intensity={1.25} />
-      <Line
-        points={[...POINTS, POINTS[0]]}
-        color={MEDVILLE.cyan}
-        lineWidth={1.25}
-        dashed
-        dashScale={9}
-        dashSize={0.55}
-        gapSize={0.35}
-        transparent
-        opacity={0.72}
-      />
-      <Phone position={[-2.55, 0.95, 0]} />
-      <Verify position={[-0.7, 1.46, 0.12]} />
-      <Package position={[1.25, 0.9, 0]} />
-      <DeliveryTruck position={[2.22, -0.36, 0.1]} />
-      <HomeMarker position={[0.45, -1.38, 0]} />
-      <Resupply position={[-1.75, -0.82, 0.1]} />
-      <MovingSignal reducedMotion={reducedMotion} onPhaseChange={onPhaseChange} />
-      <ContactShadows position={[0, -2.05, 0]} opacity={0.2} scale={6.4} blur={2.8} far={4} />
-    </group>
+    <Fit>
+      <group rotation={[-0.08, 0.12, 0]}>
+        <ambientLight intensity={0.95} />
+        <directionalLight position={[4, 5.5, 4]} intensity={2.1} castShadow />
+        <directionalLight position={[-3, 1, 3]} intensity={0.5} color={MEDVILLE.cyanSoft} />
+        <pointLight position={[-4.5, 2, 2.5]} color={MEDVILLE.cyan} intensity={1.1} />
+
+        <Line
+          points={ROUTE_POINTS}
+          color={MEDVILLE.cyan}
+          lineWidth={1.7}
+          dashed
+          dashSize={0.3}
+          gapSize={0.22}
+          transparent
+          opacity={0.72}
+        />
+
+        <Core />
+        <Phone position={PHASES[0].position} />
+        <Verify position={PHASES[1].position} />
+        <Package position={PHASES[2].position} />
+        <DeliveryTruck position={PHASES[3].position} />
+        <HomeMarker position={PHASES[4].position} />
+        <Resupply position={PHASES[5].position} />
+
+        {PHASES.map((phase, index) => (
+          <NodeLabel
+            key={phase.node}
+            position={phase.position}
+            text={phase.node}
+            active={active === index}
+          />
+        ))}
+
+        <MovingSignal reducedMotion={reducedMotion} onPhaseChange={onPhaseChange} />
+        <ContactShadows position={[0, -2.5, 0]} opacity={0.2} scale={7.5} blur={2.6} far={4.5} />
+      </group>
+    </Fit>
   );
 }
 
@@ -280,11 +439,11 @@ export default function CareCycle3D() {
         <div className="journey-cycle-copy">
           <p className="journey-eyebrow">The process at a glance</p>
           <h2 id="care-cycle-title">
-            One clear route. <em>Always moving forward.</em>
+            One simple process. <em>Every step coordinated.</em>
           </h2>
           <p className="journey-cycle-lede">
-            Before you read the detail, see the whole path from the first call to
-            recurring supplies.
+            Get a clear view of the journey, from your initial call through insurance
+            coordination and ongoing supply deliveries.
           </p>
           <div className="journey-cycle-active" aria-live="polite">
             <span>{String(active + 1).padStart(2, "0")}</span>
@@ -310,45 +469,13 @@ export default function CareCycle3D() {
         >
           <Canvas
             shadows
-            dpr={[1, 1.6]}
+            dpr={[1, 2]}
             camera={{ position: [0, 0, 7.2], fov: 35 }}
             gl={{ antialias: true, alpha: true }}
             frameloop={reducedMotion ? "demand" : "always"}
           >
-            <CycleScene reducedMotion={reducedMotion} onPhaseChange={setActive} />
+            <CycleScene reducedMotion={reducedMotion} onPhaseChange={setActive} active={active} />
           </Canvas>
-
-          {/* the labelled route, drawn in the DOM so it reads without WebGL */}
-          <div className="journey-orbit" aria-hidden="true">
-            <div className="journey-orbit-ring">
-              <span className="journey-orbit-signal" />
-            </div>
-            <div className="journey-orbit-core">
-              <span>Medville</span>
-              <strong>
-                Care
-                <br />
-                cycle
-              </strong>
-              <i />
-            </div>
-            {NODES.map((node, index) => {
-              const Icon = node.icon;
-              return (
-                <div
-                  key={node.label}
-                  className={`journey-orbit-node journey-orbit-node-${index} ${
-                    active === index ? "is-active" : ""
-                  }`}
-                >
-                  <span>
-                    <Icon size={17} strokeWidth={2.1} />
-                  </span>
-                  <small>{node.label}</small>
-                </div>
-              );
-            })}
-          </div>
         </div>
       </Container>
     </section>

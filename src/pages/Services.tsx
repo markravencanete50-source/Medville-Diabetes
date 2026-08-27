@@ -39,7 +39,6 @@ const STAGES = [
   {
     id: "stage-01",
     number: "01",
-    short: "Start",
     title: "Start your request.",
     copy: "Tell us what you need. A short conversation is enough to begin.",
     label: "Your first conversation",
@@ -57,7 +56,6 @@ const STAGES = [
   {
     id: "stage-02",
     number: "02",
-    short: "Confirm",
     title: "Confirm care and coverage.",
     copy: "We coordinate with your clinic and review the requirements that apply to your request.",
     label: "Clinic and eligibility",
@@ -80,7 +78,6 @@ const STAGES = [
   {
     id: "stage-03",
     number: "03",
-    short: "Approve",
     title: "Gather details and secure approval.",
     copy: "We collect the right records, check the paperwork, and work through insurance authorization.",
     label: "Records and authorization",
@@ -108,7 +105,6 @@ const STAGES = [
   {
     id: "stage-04",
     number: "04",
-    short: "Receive",
     title: "Receive supplies and ongoing support.",
     copy: "We prepare your order, deliver your supplies, and stay available for the next shipment.",
     label: "Delivery and resupply",
@@ -148,11 +144,11 @@ function CycleFallback() {
         <div className="journey-cycle-copy">
           <p className="journey-eyebrow">The process at a glance</p>
           <h2>
-            One clear route. <em>Always moving forward.</em>
+            One simple process. <em>Every step coordinated.</em>
           </h2>
           <p className="journey-cycle-lede">
-            From the first call to ongoing resupply, your Medville care path stays
-            connected.
+            Get a clear view of the journey, from your initial call through insurance
+            coordination and ongoing supply deliveries.
           </p>
         </div>
         <div className="journey-cycle-canvas">
@@ -169,7 +165,6 @@ export default function Services() {
     "See the ten steps Medville handles from your first conversation to ongoing CGM supplies.",
   );
 
-  const [active, setActive] = useState(0);
   const [revealed, setRevealed] = useState<Set<number>>(() => new Set([0]));
   const [motion, setMotion] = useState(false);
   const stages = useRef<(HTMLElement | null)[]>([]);
@@ -187,15 +182,12 @@ export default function Services() {
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries.filter((entry) => entry.isIntersecting);
-        const mostVisible = visible.sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (mostVisible) setActive(Number(mostVisible.target.getAttribute("data-stage")));
-        if (visible.length) {
-          setRevealed((previous) => {
-            const next = new Set(previous);
-            visible.forEach((entry) => next.add(Number(entry.target.getAttribute("data-stage"))));
-            return next.size === previous.size ? previous : next;
-          });
-        }
+        if (!visible.length) return;
+        setRevealed((previous) => {
+          const next = new Set(previous);
+          visible.forEach((entry) => next.add(Number(entry.target.getAttribute("data-stage"))));
+          return next.size === previous.size ? previous : next;
+        });
       },
       { threshold: [0.2, 0.45, 0.7], rootMargin: "-14% 0px -24% 0px" },
     );
@@ -220,11 +212,11 @@ export default function Services() {
           <div className="journey-hero-copy">
             <p className="journey-eyebrow">How the process works</p>
             <h1>
-              From your first call to <em>ongoing supplies.</em>
+              From your first call to <em>every supply delivery.</em>
             </h1>
             <p className="journey-hero-lede">
-              Medville coordinates the process between your doctor, your insurance,
-              and your door.
+              Medville handles the coordination with your doctor and insurance
+              provider, making the process simple from start to finish.
             </p>
             <div className="journey-hero-actions">
               <Button variant="ghost" onClick={() => goToStage(0)}>
@@ -262,34 +254,14 @@ export default function Services() {
           <div className="journey-stages-intro">
             <p className="journey-eyebrow">The detailed process</p>
             <h2>
-              Four clear stages. <em>All ten steps visible.</em>
+              Four clear stages. <em>Every step, clearly explained.</em>
             </h2>
             <p className="journey-stages-lede">
-              Each stage holds the work our team completes to move your CGM supplies
-              forward.
+              Each stage outlines the work our team completes to keep your CGM
+              supplies moving forward.
             </p>
           </div>
         </Container>
-
-        <div className="journey-rail-wrap">
-          <Container wide>
-            <nav className="journey-rail" aria-label="Care process stages">
-              <span className="journey-rail-label">Your path</span>
-              {STAGES.map((stage, index) => (
-                <button
-                  key={stage.number}
-                  type="button"
-                  onClick={() => goToStage(index)}
-                  aria-current={active === index ? "step" : undefined}
-                  className={active === index ? "is-active" : ""}
-                >
-                  <span>{stage.number}</span>
-                  <i>{stage.short}</i>
-                </button>
-              ))}
-            </nav>
-          </Container>
-        </div>
 
         <div className="journey-sequence">
           {STAGES.map((stage, index) => {
@@ -323,16 +295,6 @@ export default function Services() {
                     </p>
                     <h2>{stage.title}</h2>
                     <p className="journey-stage-summary">{stage.copy}</p>
-                    <div className="journey-stage-progress" aria-label={`Stage ${index + 1} of 4`}>
-                      {STAGES.map((_, progressIndex) => (
-                        <i
-                          key={progressIndex}
-                          className={`${progressIndex < index ? "is-past" : ""} ${
-                            progressIndex === index ? "is-here" : ""
-                          }`}
-                        />
-                      ))}
-                    </div>
                     <div className="journey-step-list">
                       <strong>Detailed steps in this stage</strong>
                       {stage.steps.map((step) => (
