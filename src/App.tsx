@@ -8,6 +8,7 @@ import ProductDetail from "./pages/ProductDetail";
 import Qualify from "./pages/Qualify";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
+import Services from "./pages/Services";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/products/cgm" element={<Products line="cgm" />} />
           <Route path="/products/insulin-pumps" element={<Products line="insulin-pump" />} />
           <Route path="/products/:slug" element={<ProductDetail />} />
+          <Route path="/services" element={<Services />} />
           <Route path="/qualify" element={<Qualify />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />

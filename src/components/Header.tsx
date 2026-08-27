@@ -11,6 +11,7 @@ const PHONE_TEL = "tel:+18885642595";
 const links = [
   { to: "/", label: "Home" },
   { to: "/products", label: "Our Products" },
+  { to: "/services", label: "Our Services" },
   { to: "/about", label: "About Us" },
   { to: "/contact", label: "Contact" },
 ];

@@ -63,6 +63,7 @@ export default function Footer() {
           <nav aria-label="Company">
             <h3 className={headingClass}>Quick Links</h3>
             <ul className="mt-4.5 flex list-none flex-col gap-2.5 p-0">
+              <li><Link to="/services" className={linkClass}>Our Services</Link></li>
               <li><Link to="/about" className={linkClass}>About Us</Link></li>
               <li><Link to="/qualify" className={linkClass}>Check if you Qualify</Link></li>
               <li><Link to="/contact" className={linkClass}>Contact</Link></li>

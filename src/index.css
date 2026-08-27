@@ -287,6 +287,139 @@ h1, h2, h3, h4 {
   behind the page, or resolving from a soft blur. Variants only shape the
   starting state; the shared .reveal-in transition brings everything home.
 */
+/* ---- Our Services: the journey rail, sensor visual, and resupply loop ---- */
+
+/*
+  The rail is a vertical line the visitor's scroll illuminates. --jp is set
+  on .journey by useJourneyProgress (0 to 1). The fill scales rather than
+  resizing, and the puck rides the tip. On large screens the rail moves in
+  from the edge and the cards clear it.
+*/
+.journey { --jp: 0; }
+
+.journey-rail {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 21px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--color-line-brand);
+}
+
+.journey-rail-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--color-brand) 0%, var(--color-brand-bright) 100%);
+  transform: scaleY(var(--jp));
+  transform-origin: top;
+}
+
+.journey-puck {
+  position: absolute;
+  top: calc(var(--jp) * 100%);
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.journey-phase { padding-left: 64px; }
+
+.journey-node {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  display: inline-flex;
+  height: 44px;
+  width: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--color-canvas);
+  color: var(--color-grey-muted);
+  border: 2px solid var(--color-line-brand);
+  transition:
+    color var(--duration-slow) var(--ease-out-quart),
+    border-color var(--duration-slow) var(--ease-out-quart),
+    box-shadow var(--duration-slow) var(--ease-out-quart),
+    transform var(--duration-slow) var(--ease-out-quart);
+}
+
+/* a phase's node lights up when its card has revealed */
+.journey-phase.reveal-in .journey-node {
+  color: var(--color-brand);
+  border-color: var(--color-brand-bright);
+  box-shadow: 0 0 0 5px rgb(24 186 218 / 0.16);
+  transform: scale(1.06);
+}
+
+@media (min-width: 768px) {
+  .journey-rail { left: 29px; }
+  .journey-phase { padding-left: 88px; }
+  .journey-node { height: 60px; width: 60px; top: 10px; }
+}
+
+/* hero sensor: two breathing rings and one slow orbiting reading */
+.sensor-stage { height: 240px; width: 240px; }
+
+.sensor-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  border: 1.5px solid var(--color-brand-bright);
+}
+
+.sensor-ring-a { opacity: 0.5; animation: sensor-breathe 5s ease-in-out infinite; }
+.sensor-ring-b { inset: -28px; opacity: 0.25; animation: sensor-breathe 5s ease-in-out 1.2s infinite; }
+
+.sensor-orbit {
+  position: absolute;
+  inset: -28px;
+  border-radius: 999px;
+  animation: sensor-orbit 14s linear infinite;
+}
+
+.sensor-orbit-dot {
+  position: absolute;
+  left: 50%;
+  top: -5px;
+  height: 10px;
+  width: 10px;
+  border-radius: 999px;
+  background: var(--color-brand-bright);
+  transform: translateX(-50%);
+}
+
+@keyframes sensor-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes sensor-orbit {
+  to { transform: rotate(360deg); }
+}
+
+/* delivery, support, resupply: the loop that continues */
+.loop-ring {
+  position: absolute;
+  inset: 12%;
+  border-radius: 999px;
+  border: 2.5px dashed var(--color-brand-mint);
+  animation: sensor-orbit 40s linear infinite;
+}
+
+/* the operational chips ghosted behind the "we handle" headline fade out
+   near the centre so the headline stays clean */
+.ghost-steps {
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, transparent 28%, #000 72%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, transparent 28%, #000 72%);
+}
+
+.loop-stop { position: absolute; }
+.loop-stop-a { top: 2%; left: 50%; transform: translateX(-50%); }
+.loop-stop-b { bottom: 8%; left: 8%; }
+.loop-stop-c { bottom: 8%; right: 8%; }
+
 .reveal-start.reveal-left { transform: translateX(-40px); }
 .reveal-start.reveal-right { transform: translateX(40px); }
 .reveal-start.reveal-zoom { transform: translateY(14px) scale(0.93); }
@@ -317,7 +450,13 @@ h1, h2, h3, h4 {
   .floaty2,
   .blob-drift,
   .wave-draw,
+  .sensor-ring-a,
+  .sensor-ring-b,
+  .sensor-orbit,
+  .loop-ring,
   .sheet-up { animation: none; }
+  .journey { --jp: 1; }
+  .journey-puck { display: none; }
   .wave-dot::after { animation: none; opacity: 0; }
   .reveal-start { opacity: 1; transform: none; filter: none; }
 }
