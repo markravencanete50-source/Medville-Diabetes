@@ -408,12 +408,15 @@ h1, h2, h3, h4 {
   animation: sensor-orbit 40s linear infinite;
 }
 
-/* the operational chips ghosted behind the "we handle" headline fade out
-   near the centre so the headline stays clean */
-.ghost-steps {
-  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, transparent 28%, #000 72%);
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, transparent 28%, #000 72%);
+/* the processing engine: two calm rings turning at different paces */
+.engine-ring {
+  position: absolute;
+  border-radius: 999px;
+  border: 2px dashed var(--color-brand-mint);
 }
+
+.engine-ring-a { inset: 17%; animation: sensor-orbit 60s linear infinite; }
+.engine-ring-b { inset: 26%; opacity: 0.6; animation: sensor-orbit 45s linear infinite reverse; }
 
 .loop-stop { position: absolute; }
 .loop-stop-a { top: 2%; left: 50%; transform: translateX(-50%); }
@@ -454,6 +457,8 @@ h1, h2, h3, h4 {
   .sensor-ring-b,
   .sensor-orbit,
   .loop-ring,
+  .engine-ring-a,
+  .engine-ring-b,
   .sheet-up { animation: none; }
   .journey { --jp: 1; }
   .journey-puck { display: none; }

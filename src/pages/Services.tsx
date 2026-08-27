@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowRight,
+  User,
   FileText,
   Handshake,
   MessagesSquare,
@@ -139,21 +140,39 @@ const PHASES: Phase[] = [
   },
 ];
 
-/* The ten operational stages, shown when the visitor flips the toggle. */
-const HANDLED = [
-  "Information Collection",
-  "Doctor Verification",
-  "Qualification",
-  "Documentation",
-  "Compliance Review",
-  "Insurance Verification",
-  "Order Processing",
-  "Shipping",
-  "Support",
-  "Resupply",
+/*
+  The processing engine behind "What We Handle". You feed the engine; these
+  are the steps working inside it. One word per token, and the explanation
+  appears only when a token is selected, so the view reveals complexity
+  without becoming a process chart.
+*/
+const ENGINE_TOKENS = [
+  { word: "Verify", icon: Stethoscope, copy: "We verify your information with your healthcare provider." },
+  { word: "Qualify", icon: UserCheck, copy: "We evaluate clinical and insurance information for applicable CGM coverage requirements." },
+  { word: "Document", icon: FileText, copy: "We request the required medical records, prescription, and supporting documentation." },
+  { word: "Review", icon: Search, copy: "We review documentation for completeness, accuracy, and payer requirements." },
+  { word: "Insure", icon: ShieldCheck, copy: "We verify insurance coverage and obtain authorization or additional information when required." },
+  { word: "Order", icon: Package, copy: "Your appropriate CGM and supplies are processed once requirements are met." },
+  { word: "Deliver", icon: Truck, copy: "Your CGM is shipped directly to you." },
+  { word: "Support", icon: MessagesSquare, copy: "We are here for questions, concerns, or issues with your equipment and supplies." },
+  { word: "Resupply", icon: RefreshCw, copy: "Your supplies continue through the recurring resupply process." },
 ];
 
-const HERO_PATH = ["Start", "Approval", "Delivery", "Ongoing support"];
+/* Token positions on the engine circle, precomputed so the render is pure. */
+const ENGINE_POSITIONS = ENGINE_TOKENS.map((_, index) => {
+  const angle = ((-90 + index * (360 / ENGINE_TOKENS.length)) * Math.PI) / 180;
+  return {
+    left: `${(50 + 44 * Math.cos(angle)).toFixed(2)}%`,
+    top: `${(50 + 44 * Math.sin(angle)).toFixed(2)}%`,
+  };
+});
+
+/*
+  The hero path mirrors the four phase names so the promise and the journey
+  read as one. If the client prefers to stay closer to the source wording,
+  swap "Get Approved" for "Eligibility" here and in PHASES.
+*/
+const HERO_PATH = ["Get Started", "Get Approved", "Get Your CGM", "Stay Supported"];
 
 /*
   Scroll progress for the journey rail. Progress runs from the moment the
@@ -223,6 +242,7 @@ export default function Services() {
   const journeyRef = useJourneyProgress<HTMLDivElement>();
   const [view, setView] = useState<"journey" | "handled">("journey");
   const [openStage, setOpenStage] = useState<string | null>(null);
+  const [engineToken, setEngineToken] = useState<number | null>(null);
 
   return (
     <div ref={revealRef}>
@@ -254,13 +274,15 @@ export default function Services() {
               We help guide the process from initial information and verification
               through delivery, support, and ongoing resupply.
             </p>
-            <p
-              className="rise-in mt-7 inline-flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-canvas/70 px-5 py-4 font-display text-[1.05rem] font-semibold text-ink shadow-soft"
+            <div
+              className="rise-in mt-8 flex flex-wrap items-center gap-3.5"
               style={{ "--rise-delay": "260ms" } as React.CSSProperties}
             >
-              Your focus is on managing your diabetes.
-              <span className="text-brand">We handle the process.</span>
-            </p>
+              <Button to="/qualify" variant="cta" className="min-h-[50px] px-8">
+                Start Your Journey
+                <ArrowRight size={16} strokeWidth={2.2} />
+              </Button>
+            </div>
           </div>
 
           {/* sensor visual with the four-stop mini path */}
@@ -297,78 +319,6 @@ export default function Services() {
         </Container>
       </section>
 
-      {/* ---- your journey vs what we handle ---- */}
-      <section className="py-14 md:py-20">
-        <Container>
-          <div data-reveal={0} className="mx-auto max-w-[620px] text-center">
-            <h2 className="m-0 font-display text-h2 font-bold text-ink">
-              One simple journey
-            </h2>
-            <p className="mt-3 text-body leading-relaxed text-grey-dark">
-              You see four easy phases. Behind them, our team works through every
-              operational step. You do not have to navigate the complexity alone.
-            </p>
-          </div>
-
-          <div data-reveal={120} className="mt-8 flex justify-center">
-            <div role="tablist" aria-label="Journey view" className="inline-flex rounded-full bg-grey-light p-1.5">
-              {(
-                [
-                  ["journey", "Your Journey"],
-                  ["handled", "What We Handle"],
-                ] as const
-              ).map(([key, label]) => (
-                <button
-                  key={key}
-                  role="tab"
-                  aria-selected={view === key}
-                  onClick={() => setView(key)}
-                  className={`rounded-full px-6 py-2.5 font-display text-small font-semibold transition-all duration-(--duration-base) ease-(--ease-out-quart) ${
-                    view === key
-                      ? "bg-brand text-on-dark shadow-pill"
-                      : "text-grey-muted hover:text-brand"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-10">
-            {view === "journey" ? (
-              <ol className="fade-in m-0 flex list-none flex-wrap items-center justify-center gap-3 p-0">
-                <li className="rounded-full bg-ink px-5 py-2.5 font-display text-small font-bold uppercase tracking-[0.1em] text-on-dark">
-                  You
-                </li>
-                {PHASES.map((phase) => (
-                  <li key={phase.title} className="flex items-center gap-3">
-                    <ArrowRight size={16} strokeWidth={2.4} className="text-brand-bright" aria-hidden="true" />
-                    <span className="inline-flex items-center gap-2.5 rounded-full bg-brand-soft px-5 py-2.5 font-display text-small font-semibold text-brand">
-                      <phase.icon size={16} strokeWidth={2.2} aria-hidden="true" />
-                      {phase.title}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <ol className="fade-in m-0 flex list-none flex-wrap items-center justify-center gap-y-3 p-0">
-                {HANDLED.map((step, index) => (
-                  <li key={step} className="flex items-center">
-                    {index > 0 && (
-                      <ArrowRight size={13} strokeWidth={2.4} className="mx-2 text-brand-bright/70" aria-hidden="true" />
-                    )}
-                    <span className="rounded-full border border-line-brand bg-canvas px-3.5 py-1.5 text-caption font-semibold text-grey-dark">
-                      {step}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </div>
-        </Container>
-      </section>
-
       {/* ---- the journey rail ---- */}
       <section className="bg-why-band relative overflow-hidden py-16 md:py-24">
         <Grain opacity={0.04} />
@@ -376,7 +326,7 @@ export default function Services() {
           <div data-reveal={0} className="max-w-[560px]">
             <Eyebrow>The journey</Eyebrow>
             <h2 className="mt-3 font-display text-h2 font-bold text-ink">
-              Four phases. One path.
+              One journey. We handle the details.
             </h2>
             <p className="mt-3 text-body leading-relaxed text-grey-dark">
               Follow the path. Select any phase to see the steps our team handles
@@ -447,40 +397,126 @@ export default function Services() {
         </Container>
       </section>
 
-      {/* ---- you focus, we handle ---- */}
-      <section className="bg-dark-band relative overflow-hidden py-16 md:py-24">
-        <Grain opacity={0.06} />
-        {/* the operational work, ghosted behind the simple journey */}
-        <div aria-hidden="true" className="ghost-steps pointer-events-none absolute inset-0 flex flex-wrap content-center items-center justify-center gap-4 p-8 opacity-[0.15]">
-          {HANDLED.map((step) => (
-            <span key={step} className="rounded-full border border-on-dark-muted px-5 py-2 font-display text-body font-semibold text-on-dark">
-              {step}
-            </span>
-          ))}
-        </div>
-        <Container className="relative">
+      {/* ---- you focus, we handle: the processing engine ---- */}
+      <section className="py-16 md:py-24">
+        <Container>
           <div data-reveal={0} className="mx-auto max-w-[640px] text-center">
-            <h2 className="m-0 font-display text-h2 font-bold text-on-dark">
+            <h2 className="m-0 font-display text-h2 font-bold text-ink">
               You focus on your diabetes.
               <br />
-              We handle the process.
+              <span className="text-brand">We handle the process.</span>
             </h2>
+            <p className="mt-3 text-body leading-relaxed text-grey-dark">
+              You do not have to navigate the complexity alone.
+            </p>
           </div>
-          <div data-reveal={140} className="reveal-zoom mx-auto mt-9 flex max-w-[560px] flex-wrap items-center justify-center gap-3 rounded-lg bg-canvas/95 p-6 shadow-overlay backdrop-blur-sm">
-            <span className="rounded-full bg-ink px-5 py-2.5 font-display text-small font-bold uppercase tracking-[0.1em] text-on-dark">
-              Patient
-            </span>
-            <ArrowRight size={16} strokeWidth={2.4} className="text-brand-bright" aria-hidden="true" />
-            <span className="inline-flex items-center gap-2.5 rounded-full bg-brand-soft px-5 py-2.5 font-display text-small font-semibold text-brand">
-              <SensorPuck size={22} glow={false} />
-              One simple journey
-            </span>
+
+          <div data-reveal={120} className="mt-8 flex justify-center">
+            <div role="tablist" aria-label="Journey view" className="inline-flex rounded-full bg-grey-light p-1.5">
+              {(
+                [
+                  ["journey", "Your Journey"],
+                  ["handled", "What We Handle"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  role="tab"
+                  aria-selected={view === key}
+                  onClick={() => setView(key)}
+                  className={`rounded-full px-6 py-2.5 font-display text-small font-semibold transition-all duration-(--duration-base) ease-(--ease-out-quart) ${
+                    view === key
+                      ? "bg-brand text-on-dark shadow-pill"
+                      : "text-grey-muted hover:text-brand"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {view === "journey" ? (
+            /* the simple view: you, then four phases */
+            <ol className="fade-in m-0 mt-10 flex list-none flex-wrap items-center justify-center gap-3 p-0">
+              <li className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 font-display text-small font-bold uppercase tracking-[0.1em] text-on-dark">
+                <User size={15} strokeWidth={2.4} aria-hidden="true" />
+                You
+              </li>
+              {PHASES.map((phase) => (
+                <li key={phase.title} className="flex items-center gap-3">
+                  <ArrowRight size={16} strokeWidth={2.4} className="text-brand-bright" aria-hidden="true" />
+                  <span className="inline-flex items-center gap-2.5 rounded-full bg-brand-soft px-5 py-2.5 font-display text-small font-semibold text-brand">
+                    <phase.icon size={16} strokeWidth={2.2} aria-hidden="true" />
+                    {phase.title}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            /* the engine: you feed it, the steps work inside it */
+            <div className="fade-in mt-10">
+              <div className="flex flex-col items-center gap-1.5">
+                <span className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 font-display text-small font-bold uppercase tracking-[0.1em] text-on-dark">
+                  <User size={15} strokeWidth={2.4} aria-hidden="true" />
+                  You
+                </span>
+                <ArrowDown size={18} strokeWidth={2.2} className="text-brand-bright" aria-hidden="true" />
+              </div>
+              <div className="engine relative mx-auto mt-2 aspect-square w-full max-w-[460px]">
+                <span aria-hidden="true" className="engine-ring engine-ring-a" />
+                <span aria-hidden="true" className="engine-ring engine-ring-b" />
+                <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
+                  <SensorPuck size={92} glow={false} />
+                  <span className="text-caption font-bold uppercase tracking-[0.16em] text-brand">
+                    Medville
+                  </span>
+                </div>
+                {ENGINE_TOKENS.map((token, index) => {
+                  const active = engineToken === index;
+                  return (
+                    <button
+                      key={token.word}
+                      aria-pressed={active}
+                      onClick={() => setEngineToken(active ? null : index)}
+                      style={ENGINE_POSITIONS[index]}
+                      className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1"
+                    >
+                      <span
+                        className={`inline-flex h-12 w-12 items-center justify-center rounded-full transition-all duration-(--duration-base) ease-(--ease-out-quart) ${
+                          active
+                            ? "scale-110 bg-brand text-on-dark shadow-pill"
+                            : "bg-surface-raised text-brand shadow-soft hover:scale-105 hover:bg-brand-soft"
+                        }`}
+                      >
+                        <token.icon size={19} strokeWidth={2.1} aria-hidden="true" />
+                      </span>
+                      <span
+                        className={`rounded-full bg-canvas/90 px-2 py-0.5 text-caption font-semibold ${
+                          active ? "text-brand" : "text-ink"
+                        }`}
+                      >
+                        {token.word}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div
+                aria-live="polite"
+                className="mx-auto mt-6 flex min-h-[72px] max-w-[480px] items-center justify-center rounded-lg bg-brand-tint px-6 py-4 text-center text-small leading-relaxed text-grey-dark"
+              >
+                {engineToken === null
+                  ? "Select a step to see what happens inside."
+                  : ENGINE_TOKENS[engineToken].copy}
+              </div>
+            </div>
+          )}
         </Container>
       </section>
 
       {/* ---- the loop that does not end ---- */}
-      <section className="relative overflow-hidden py-16 md:py-24">
+      <section className="bg-why-band relative overflow-hidden py-16 md:py-24">
         <Container className="grid items-center gap-12 lg:grid-cols-2">
           <div data-reveal={0}>
             <Eyebrow>After delivery</Eyebrow>
