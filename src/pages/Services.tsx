@@ -38,13 +38,34 @@ const PHASES = [
   { label: "Stay supported", range: "09–10", title: "Support keeps going", copy: "We help now and with future refills." },
 ] as const;
 
+/*
+  The client's rendered 3D artwork, one file per step, produced in their
+  Canva account. A null entry means no clean render exists yet; that step
+  keeps the icon card until the file lands here, and a failed load falls
+  back the same way so the stage never shows a broken image.
+*/
+const STEP_IMAGES: (string | null)[] = [
+  "/services/step-01-reach-out.webp",
+  "/services/step-02-doctor-check.webp",
+  "/services/step-03-qualify.webp",
+  "/services/step-04-records.webp",
+  "/services/step-05-review.webp",
+  "/services/step-06-insurance.webp",
+  "/services/step-07-order.webp",
+  null,
+  "/services/step-09-support.webp",
+  null,
+];
+
+const missingStepImages = new Set<string>();
+
 function HeroDepthVisual() {
   return (
     <div className="services-hero-visual relative mx-auto w-full max-w-[560px]" aria-label="A Medville patient journey from conversation to delivery">
       <div className="services-hero-glow absolute inset-[12%_8%] rounded-full" aria-hidden="true" />
       <div className="services-hero-depth relative overflow-hidden rounded-sheet shadow-overlay">
         <img
-          src="/services/services-hero.png"
+          src="/services/services-hero.webp"
           alt="A woman at home checks her phone while wearing a continuous glucose monitor."
           className="aspect-[4/3] w-full object-cover"
         />
@@ -146,30 +167,51 @@ function StepList({ active, onSelect }: { active: number; onSelect: (index: numb
 function StageVisual({ stepIndex }: { stepIndex: number }) {
   const step = STEPS[stepIndex];
   const Icon = step.icon;
+  const image = STEP_IMAGES[stepIndex];
+  const [failed, setFailed] = useState(() => (image ? missingStepImages.has(image) : true));
+  const showImage = image !== null && !failed;
   return (
     <div className="services-stage-scene relative min-h-[340px] overflow-hidden rounded-sheet bg-brand-tint p-5 sm:min-h-[400px] md:p-8">
       <div className="services-stage-photo absolute inset-0" aria-hidden="true">
-        <img src="/services/services-spotlight.png" alt="" className="h-full w-full object-cover" />
+        <img src="/services/services-spotlight.webp" alt="" className="h-full w-full object-cover" />
       </div>
       <div className="services-stage-overlay absolute inset-0" aria-hidden="true" />
       <div className="services-stage-ring services-stage-ring-one absolute rounded-full border border-on-dark/30" aria-hidden="true" />
       <div className="services-stage-ring services-stage-ring-two absolute rounded-full border border-brand-bright/55" aria-hidden="true" />
-      <div className="services-stage-kit absolute left-1/2 top-1/2 w-[72%] max-w-[285px] -translate-x-1/2 -translate-y-1/2">
-        <div className="services-stage-kit-inner rounded-sheet border border-on-dark/40 bg-ink/85 p-5 text-on-dark shadow-overlay backdrop-blur-md sm:p-6">
-          <div className="flex items-center justify-between gap-3">
-            <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-brand-bright text-ink">
-              <Icon size={22} strokeWidth={2.1} aria-hidden="true" />
-            </span>
-            <span className="text-caption font-semibold uppercase tracking-[0.16em] text-on-dark-accent">Step {String(stepIndex + 1).padStart(2, "0")}</span>
-          </div>
-          <p className="mt-6 font-display text-[1.5rem] font-semibold leading-tight">{step.label}</p>
-          <div className="mt-5 h-px bg-on-dark/20" />
-          <div className="mt-4 flex items-center justify-between gap-3 text-caption text-on-dark-muted">
-            <span>Medville handoff</span>
-            <span className="flex items-center gap-1.5 text-on-dark-brand"><Check size={14} strokeWidth={2.4} /> In progress</span>
+      {showImage ? (
+        /* the step's rendered 3D artwork is the stage's subject */
+        <div className="absolute left-1/2 top-1/2 w-[78%] max-w-[330px] -translate-x-1/2 -translate-y-1/2">
+          <img
+            src={image}
+            alt={step.caption}
+            className="w-full rounded-sheet border border-on-dark/30 shadow-overlay"
+            onError={() => {
+              missingStepImages.add(image);
+              setFailed(true);
+            }}
+          />
+          <span className="absolute right-3 top-3 rounded-full bg-ink/80 px-3 py-1.5 text-caption font-semibold text-on-dark backdrop-blur-md">
+            Step {String(stepIndex + 1).padStart(2, "0")}
+          </span>
+        </div>
+      ) : (
+        <div className="services-stage-kit absolute left-1/2 top-1/2 w-[72%] max-w-[285px] -translate-x-1/2 -translate-y-1/2">
+          <div className="services-stage-kit-inner rounded-sheet border border-on-dark/40 bg-ink/85 p-5 text-on-dark shadow-overlay backdrop-blur-md sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-brand-bright text-ink">
+                <Icon size={22} strokeWidth={2.1} aria-hidden="true" />
+              </span>
+              <span className="text-caption font-semibold uppercase tracking-[0.16em] text-on-dark-accent">Step {String(stepIndex + 1).padStart(2, "0")}</span>
+            </div>
+            <p className="mt-6 font-display text-[1.5rem] font-semibold leading-tight">{step.label}</p>
+            <div className="mt-5 h-px bg-on-dark/20" />
+            <div className="mt-4 flex items-center justify-between gap-3 text-caption text-on-dark-muted">
+              <span>Medville handoff</span>
+              <span className="flex items-center gap-1.5 text-on-dark-brand"><Check size={14} strokeWidth={2.4} /> In progress</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
       <div className="services-stage-chip absolute bottom-5 left-5 rounded-full bg-surface-raised px-3.5 py-2 text-caption font-semibold text-ink shadow-pill sm:bottom-7 sm:left-7">
         Your part: a quick answer
       </div>
