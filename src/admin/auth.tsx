@@ -13,6 +13,7 @@ import {
 } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
+import { firebaseConfig } from "../lib/firebaseConfig";
 
 /*
   Administrator authentication.
@@ -63,16 +64,8 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
-const config = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string | undefined,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string | undefined,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID as string | undefined,
-};
-
 export function isAdminConfigured() {
-  return Boolean(config.apiKey && config.authDomain && config.projectId);
+  return Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId);
 }
 
 let app: FirebaseApp | null = null;
@@ -81,7 +74,7 @@ let dbInstance: Firestore | null = null;
 let storageInstance: FirebaseStorage | null = null;
 
 function ensureApp() {
-  if (!app) app = initializeApp(config as Required<typeof config>);
+  if (!app) app = initializeApp(firebaseConfig);
   return app;
 }
 

@@ -10,3 +10,8 @@ dist
 .agents/
 .claude/skills/
 skills-lock.json
+
+# Service account keys are real credentials, unlike the web config.
+# Never commit one.
+*serviceAccount*.json
+*-firebase-adminsdk-*.json

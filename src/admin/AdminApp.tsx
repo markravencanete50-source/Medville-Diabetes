@@ -133,10 +133,21 @@ function SignIn() {
     setError("");
     try {
       await signIn(email, password);
-    } catch {
-      /* One message for every failure. Saying which half was wrong tells an
-         attacker which addresses are real. */
-      setError("That email address and password did not match.");
+    } catch (problem) {
+      /*
+        One message for every wrong credential. Saying which half was wrong
+        tells an attacker which addresses are real.
+
+        A project that is not finished being set up is a different thing
+        entirely, and reporting it as a bad password would send the client
+        hunting for a typo that does not exist.
+      */
+      const code = (problem as { code?: string })?.code ?? "";
+      setError(
+        code === "auth/operation-not-allowed" || code === "auth/configuration-not-found"
+          ? "Sign-in is not switched on for this project yet. Enable the email and password provider in Identity Platform. See ADMIN-SETUP.md."
+          : "That email address and password did not match.",
+      );
     } finally {
       setBusy(false);
     }

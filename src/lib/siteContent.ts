@@ -23,9 +23,10 @@
 import { defaultsFor, type PageId, type PageValues, type SiteContent } from "../content/schema";
 import type { Product } from "../data/products";
 import { products as builtInProducts } from "../data/products";
+import { firebaseConfig } from "./firebaseConfig";
 
-const PROJECT_ID = import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined;
-const API_KEY = import.meta.env.VITE_FIREBASE_API_KEY as string | undefined;
+const PROJECT_ID = firebaseConfig.projectId;
+const API_KEY = firebaseConfig.apiKey;
 
 /* Content changes rarely and a stale minute is harmless, so one fetch per tab
    session is plenty. This also keeps Firestore reads far inside the free tier
