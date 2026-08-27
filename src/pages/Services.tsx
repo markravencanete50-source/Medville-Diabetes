@@ -1,36 +1,26 @@
-import { useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowRight, Pause, Play } from "lucide-react";
 import Container from "../components/Container";
 import Button from "../components/Button";
 import { usePageMeta } from "../lib/usePageMeta";
-import { useReveal } from "../lib/useReveal";
+import { useReveal, prefersReducedMotion } from "../lib/useReveal";
 
 /*
-  Our Services: the customer journey as one flowing path.
+  Our Services: the customer journey told as an animated story.
 
-  The factual source is the ten-stage Medville DME customer journey
-  document. The page tells it as four illustrated chapters joined by a
-  single organic line that draws itself as the visitor scrolls; the ten
-  operational stages are quiet interactive points that reveal one sentence
-  each. Nothing here promises approval, coverage, or delivery times.
+  The factual source is the ten-stage Medville DME customer journey document.
+  The client asked for almost no reading: the page should let a visitor
+  understand the whole process in seconds, through motion and cards rather
+  than paragraphs.
 
-  Design rules for this page: one visual metaphor (the path), one
-  illustration system (round-capped strokes over soft tinted shapes),
-  sentence-case type, generous whitespace, no cards, no chips, no
-  continuous motion.
+  The signature element is the journey player. It plays the ten steps like a
+  story: each step has its own animated scene, a one-line caption, and a
+  story-style progress bar. It advances by itself, pauses on hover or focus,
+  and any step card jumps straight to that step. Reduced-motion visitors get
+  a click-through version with no autoplay and finished artwork.
+
+  Nothing on this page promises approval, coverage, or delivery times.
 */
-
-type Stage = { name: string; copy: string; icon: React.ReactNode };
-
-type Chapter = {
-  numeral: string;
-  title: string;
-  copy: string;
-  illustration: React.ReactNode;
-  stages: Stage[];
-};
-
-/* ---- the illustration system: 3px round strokes over soft shapes ---- */
 
 const STROKE = {
   fill: "none",
@@ -39,406 +29,573 @@ const STROKE = {
   strokeLinejoin: "round" as const,
 };
 
-/* a filled, unmistakably human silhouette: head resting on shoulders */
-function GlyphPerson({ x, y, tone, scale = 1 }: { x: number; y: number; tone: string; scale?: number }) {
+/* ---------------------------------------------------------------- glyphs */
+
+/*
+  Pop places artwork and animates its arrival. The position lives on the
+  outer group and the scene-pop animation on an inner group, because the
+  animation's transform keyframes would otherwise override the positioning
+  transform attribute and collapse the artwork onto the origin.
+*/
+function Pop({ x = 0, y = 0, scale = 1, i = 0, children }: { x?: number; y?: number; scale?: number; i?: number; children: React.ReactNode }) {
   return (
-    <g transform={`translate(${x} ${y}) scale(${scale})`} stroke={tone} {...STROKE}>
-      <circle cx="0" cy="-30" r="14" fill="var(--color-canvas)" />
-      <path d="M -24 28 C -24 0 -12 -10 0 -10 C 12 -10 24 0 24 28 Z" fill="var(--color-canvas)" />
+    <g transform={`translate(${x} ${y}) scale(${scale})`}>
+      <g className="scene-pop" style={{ "--i": i } as React.CSSProperties}>
+        {children}
+      </g>
     </g>
   );
 }
 
-/* 01 - two people, one connection */
-function IlloGetStarted() {
+/* a filled, unmistakably human silhouette: head resting on shoulders */
+function GlyphPerson({ x, y, tone, scale = 1, i = 0 }: { x: number; y: number; tone: string; scale?: number; i?: number }) {
   return (
-    <svg viewBox="0 0 260 220" role="img" aria-label="Two people joined by a line of care." className="w-full max-w-[300px]">
-      <circle cx="130" cy="112" r="96" fill="var(--color-brand-soft)" />
-      <path d="M 92 74 C 112 52 148 52 168 74" stroke="var(--color-brand-bright)" strokeDasharray="1 9" {...STROKE} />
-      <path
-        d="M 130 52 c -3 -5 -10 -5 -10 1 c 0 5 10 10 10 10 c 0 0 10 -5 10 -10 c 0 -6 -7 -6 -10 -1 Z"
-        fill="var(--color-brand-bright)"
-        stroke="none"
-      />
-      <GlyphPerson x={92} y={144} tone="var(--color-ink)" />
-      <GlyphPerson x={168} y={148} tone="var(--color-brand)" scale={0.92} />
-    </svg>
+    <Pop x={x} y={y} scale={scale} i={i}>
+      <g stroke={tone} {...STROKE}>
+        <circle cx="0" cy="-30" r="14" fill="var(--color-canvas)" />
+        <path d="M -24 28 C -24 0 -12 -10 0 -10 C 12 -10 24 0 24 28 Z" fill="var(--color-canvas)" />
+      </g>
+    </Pop>
   );
 }
 
-/* 02 - a document under a shield */
-function IlloGetApproved() {
+/* a sheet of paper with text lines */
+function GlyphDoc({ x, y, scale = 1, i = 0 }: { x: number; y: number; scale?: number; i?: number }) {
   return (
-    <svg viewBox="0 0 260 220" role="img" aria-label="A document with a shield of verification." className="w-full max-w-[300px]">
-      <circle cx="130" cy="112" r="96" fill="var(--color-brand-soft)" />
+    <Pop x={x} y={y} scale={scale} i={i}>
       <g stroke="var(--color-ink)" {...STROKE}>
-        <path d="M 88 48 h 62 l 22 22 v 92 a 8 8 0 0 1 -8 8 h -76 a 8 8 0 0 1 -8 -8 v -106 a 8 8 0 0 1 8 -8 Z" fill="var(--color-canvas)" />
-        <path d="M 150 48 v 22 h 22" />
+        <path d="M -28 -38 h 40 l 16 16 v 54 a 6 6 0 0 1 -6 6 h -50 a 6 6 0 0 1 -6 -6 v -64 a 6 6 0 0 1 6 -6 Z" fill="var(--color-canvas)" />
+        <path d="M 12 -38 v 16 h 16" />
       </g>
       <g stroke="var(--color-line-strong)" {...STROKE}>
-        <path d="M 96 92 h 52" />
-        <path d="M 96 110 h 60" />
-        <path d="M 96 128 h 40" />
+        <path d="M -22 -6 h 36" />
+        <path d="M -22 8 h 40" />
+        <path d="M -22 22 h 28" />
       </g>
-      <g transform="translate(168 138)">
+    </Pop>
+  );
+}
+
+/* the shield of verification with its check */
+function GlyphShield({ x, y, scale = 1, i = 0 }: { x: number; y: number; scale?: number; i?: number }) {
+  return (
+    <Pop x={x} y={y} scale={scale} i={i}>
+      <path d="M 0 -30 L 26 -19 V 3 C 26 21 0 32 0 32 C 0 32 -26 21 -26 3 V -19 Z" fill="var(--color-brand)" stroke="none" />
+      <path d="M -10 1 l 8 9 l 14 -16" stroke="var(--color-on-dark)" {...STROKE} />
+    </Pop>
+  );
+}
+
+/* the CGM sensor: two rings and a centre */
+function GlyphSensor({ x, y, scale = 1, i = 0 }: { x: number; y: number; scale?: number; i?: number }) {
+  return (
+    <Pop x={x} y={y} scale={scale} i={i}>
+      <circle r="26" fill="var(--color-canvas)" stroke="var(--color-ink)" strokeWidth="3" />
+      <circle r="16" fill="none" stroke="var(--color-brand-mint)" strokeWidth="3" />
+      <circle r="4" fill="var(--color-brand)" />
+    </Pop>
+  );
+}
+
+/* a house with a pitched roof */
+function GlyphHome({ x, y, scale = 1, i = 0 }: { x: number; y: number; scale?: number; i?: number }) {
+  return (
+    <Pop x={x} y={y} scale={scale} i={i}>
+      <g stroke="var(--color-brand)" {...STROKE}>
+        <path d="M -20 4 l 20 -17 l 20 17 v 22 h -40 Z" fill="var(--color-canvas)" />
+        <path d="M -5 26 v -12 h 10 v 12" />
+      </g>
+    </Pop>
+  );
+}
+
+/* a small check badge that lands on top of other artwork */
+function GlyphCheck({ x, y, i = 0 }: { x: number; y: number; i?: number }) {
+  return (
+    <Pop x={x} y={y} i={i}>
+      <circle r="16" fill="var(--color-brand-bright)" />
+      <path d="M -7 0 l 5 6 l 9 -11" stroke="var(--color-ink)" {...STROKE} />
+    </Pop>
+  );
+}
+
+/* a dashed connector whose dashes crawl, so hand-off reads as movement */
+function FlowPath({ d }: { d: string }) {
+  return (
+    <path
+      d={d}
+      className="dash-flow"
+      stroke="var(--color-brand-bright)"
+      strokeDasharray="1 9"
+      {...STROKE}
+    />
+  );
+}
+
+/* every scene sits on the same soft circular stage */
+function Scene({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <svg viewBox="0 0 280 220" role="img" aria-label={label} className="w-full max-w-[340px]">
+      <circle cx="140" cy="110" r="92" fill="var(--color-brand-soft)" />
+      {children}
+    </svg>
+  );
+}
+
+/* ---------------------------------------------------------------- scenes */
+
+/* 1 - two people, one conversation */
+function SceneReachOut() {
+  return (
+    <Scene label="Two people joined by a line of conversation.">
+      <FlowPath d="M 100 78 C 120 54 160 54 180 78" />
+      <GlyphPerson x={100} y={146} tone="var(--color-ink)" i={0} />
+      <GlyphPerson x={180} y={150} tone="var(--color-brand)" scale={0.92} i={1} />
+      <Pop x={140} y={52} i={3}>
         <path
-          d="M 0 -26 L 24 -16 V 4 C 24 20 0 30 0 30 C 0 30 -24 20 -24 4 V -16 Z"
-          fill="var(--color-brand)"
-          stroke="none"
+          d="M 0 0 c -3 -5 -10 -5 -10 1 c 0 5 10 10 10 10 c 0 0 10 -5 10 -10 c 0 -6 -7 -6 -10 -1 Z"
+          fill="var(--color-brand-bright)"
         />
-        <path d="M -9 1 l 7 8 l 13 -15" stroke="var(--color-on-dark)" {...STROKE} />
-      </g>
-    </svg>
+      </Pop>
+    </Scene>
   );
 }
 
-/* 03 - a sensor leaving the box for home */
-function IlloGetCgm() {
+/* 2 - the clinic confirms the patient's care */
+function SceneDoctorCheck() {
   return (
-    <svg viewBox="0 0 260 220" role="img" aria-label="A sensor beside its delivery box, on the way to a home." className="w-full max-w-[300px]">
-      <circle cx="130" cy="112" r="96" fill="var(--color-brand-soft)" />
-      <g stroke="var(--color-ink)" {...STROKE}>
-        <path d="M 62 104 l 44 -18 l 44 18 v 48 l -44 18 l -44 -18 Z" fill="var(--color-canvas)" />
-        <path d="M 62 104 l 44 16 l 44 -16" />
-        <path d="M 106 120 v 50" />
+    <Scene label="A clinic building confirming a patient's care.">
+      <g className="scene-pop" stroke="var(--color-ink)" {...STROKE}>
+        <path d="M 74 160 v -66 l 34 -22 l 34 22 v 66 Z" fill="var(--color-canvas)" />
+        <path d="M 108 92 v 16 M 100 100 h 16" stroke="var(--color-brand)" />
+        <path d="M 98 160 v -20 h 20 v 20" />
       </g>
-      <g>
-        <circle cx="172" cy="84" r="26" fill="var(--color-canvas)" stroke="var(--color-ink)" strokeWidth="3" />
-        <circle cx="172" cy="84" r="16" fill="none" stroke="var(--color-brand-mint)" strokeWidth="3" />
-        <circle cx="172" cy="84" r="4" fill="var(--color-brand)" />
-      </g>
-      <path d="M 196 106 C 216 120 220 134 216 150" stroke="var(--color-brand-bright)" strokeDasharray="1 9" {...STROKE} />
-      <g stroke="var(--color-brand)" {...STROKE}>
-        <path d="M 200 168 l 16 -13 l 16 13 v 18 h -32 Z" fill="var(--color-canvas)" />
-      </g>
-    </svg>
+      <FlowPath d="M 148 108 C 172 92 186 96 200 112" />
+      <GlyphPerson x={206} y={158} tone="var(--color-brand)" scale={0.9} i={1} />
+      <GlyphCheck x={206} y={100} i={3} />
+    </Scene>
   );
 }
 
-/* 04 - conversation that keeps circling back */
-function IlloStaySupported() {
+/* 3 - coverage requirements are checked */
+function SceneQualify() {
   return (
-    <svg viewBox="0 0 260 220" role="img" aria-label="A conversation bubble inside a circle of renewal." className="w-full max-w-[300px]">
-      <circle cx="130" cy="112" r="96" fill="var(--color-brand-soft)" />
+    <Scene label="A checklist reviewed against coverage requirements.">
+      <GlyphDoc x={122} y={110} i={0} />
       <g stroke="var(--color-brand)" {...STROKE}>
-        <path d="M 130 34 A 78 78 0 0 1 205 92" />
-        <path d="M 198 74 l 7 18 l -19 6" />
-        <path d="M 130 190 A 78 78 0 0 1 55 132" />
-        <path d="M 62 150 l -7 -18 l 19 -6" />
+        <path className="scene-draw" style={{ "--i": 1 } as React.CSSProperties} pathLength={1} d="M 92 104 l 5 6 l 9 -10" />
+        <path className="scene-draw" style={{ "--i": 2 } as React.CSSProperties} pathLength={1} d="M 92 118 l 5 6 l 9 -10" />
       </g>
-      <g stroke="var(--color-ink)" {...STROKE}>
+      <GlyphShield x={186} y={130} i={3} />
+    </Scene>
+  );
+}
+
+/* 4 - records travel from the clinic to Medville */
+function SceneRecords() {
+  return (
+    <Scene label="Medical records travelling from the clinic.">
+      <GlyphDoc x={104} y={116} scale={0.85} i={0} />
+      <GlyphDoc x={130} y={104} scale={0.85} i={1} />
+      <FlowPath d="M 162 130 C 180 138 190 138 206 130" />
+      <Pop x={196} y={96} i={2}>
+        <g stroke="var(--color-brand)" {...STROKE}>
+          <rect x="-24" y="-18" width="48" height="36" rx="6" fill="var(--color-canvas)" />
+          <path d="M -24 -12 L 0 6 L 24 -12" />
+        </g>
+      </Pop>
+    </Scene>
+  );
+}
+
+/* 5 - everything is read closely */
+function SceneReview() {
+  return (
+    <Scene label="A magnifying glass reading a document closely.">
+      <GlyphDoc x={124} y={110} i={0} />
+      <g className="scene-pop" style={{ "--i": 2 } as React.CSSProperties}>
+        <circle cx="176" cy="130" r="24" fill="var(--color-brand-soft)" fillOpacity="0.9" stroke="var(--color-brand)" strokeWidth="3" />
+        <path d="M 193 147 L 210 164" stroke="var(--color-brand)" {...STROKE} strokeWidth={5} />
+        <path d="M 168 130 l 6 7 l 11 -13" stroke="var(--color-brand)" {...STROKE} />
+      </g>
+    </Scene>
+  );
+}
+
+/* 6 - coverage is verified */
+function SceneInsurance() {
+  return (
+    <Scene label="An insurance card protected by a shield.">
+      <Pop x={118} y={112}>
+        <g stroke="var(--color-ink)" {...STROKE}>
+          <rect x="-38" y="-26" width="76" height="52" rx="8" fill="var(--color-canvas)" />
+          <path d="M -38 -10 h 76" />
+          <path d="M -26 8 h 24" stroke="var(--color-line-strong)" />
+        </g>
+      </Pop>
+      <GlyphShield x={184} y={126} i={2} />
+    </Scene>
+  );
+}
+
+/* 7 - the order comes together */
+function SceneOrder() {
+  return (
+    <Scene label="A sensor placed into its delivery box.">
+      <g className="scene-pop" stroke="var(--color-ink)" {...STROKE}>
+        <path d="M 96 118 l 44 -18 l 44 18 v 44 l -44 18 l -44 -18 Z" fill="var(--color-canvas)" />
+        <path d="M 96 118 l 44 16 l 44 -16" />
+        <path d="M 140 134 v 46" />
+      </g>
+      <GlyphSensor x={140} y={70} scale={0.9} i={2} />
+      <FlowPath d="M 140 92 v 16" />
+    </Scene>
+  );
+}
+
+/* 8 - straight to the door */
+function SceneDelivery() {
+  return (
+    <Scene label="A delivery van driving toward a home.">
+      <Pop x={104} y={120}>
+        <g stroke="var(--color-ink)" {...STROKE}>
+          <rect x="-38" y="-24" width="52" height="34" rx="4" fill="var(--color-canvas)" />
+          <path d="M 14 -14 h 16 l 12 12 v 12 h -28 Z" fill="var(--color-canvas)" />
+          <circle cx="-20" cy="14" r="7" fill="var(--color-canvas)" />
+          <circle cx="26" cy="14" r="7" fill="var(--color-canvas)" />
+        </g>
+      </Pop>
+      <FlowPath d="M 150 152 C 170 160 186 160 204 150" />
+      <GlyphHome x={210} y={116} i={2} />
+    </Scene>
+  );
+}
+
+/* 9 - a conversation that stays open */
+function SceneSupport() {
+  return (
+    <Scene label="A conversation bubble with a reply on the way.">
+      <g className="scene-pop" stroke="var(--color-ink)" {...STROKE}>
         <path
-          d="M 92 88 h 76 a 10 10 0 0 1 10 10 v 34 a 10 10 0 0 1 -10 10 h -40 l -20 16 v -16 h -16 a 10 10 0 0 1 -10 -10 v -34 a 10 10 0 0 1 10 -10 Z"
+          d="M 102 74 h 76 a 10 10 0 0 1 10 10 v 34 a 10 10 0 0 1 -10 10 h -40 l -20 16 v -16 h -16 a 10 10 0 0 1 -10 -10 v -34 a 10 10 0 0 1 10 -10 Z"
           fill="var(--color-canvas)"
         />
       </g>
       <g fill="var(--color-brand-bright)">
-        <circle cx="114" cy="115" r="4" />
-        <circle cx="130" cy="115" r="4" />
-        <circle cx="146" cy="115" r="4" />
+        {[0, 1, 2].map((i) => (
+          <circle key={i} className="dot-pulse" style={{ "--i": i } as React.CSSProperties} cx={124 + i * 16} cy={101} r="4" />
+        ))}
       </g>
-    </svg>
+      <GlyphPerson x={140} y={186} tone="var(--color-brand)" scale={0.7} i={1} />
+    </Scene>
   );
 }
 
-/* the hero: one still, premium sensor */
-function IlloHero() {
+/* 10 - the loop that keeps going */
+function SceneResupply() {
   return (
-    <svg viewBox="0 0 320 300" role="img" aria-label="A continuous glucose monitor sensor." className="w-full max-w-[360px]">
-      <circle cx="160" cy="146" r="120" fill="var(--color-brand-soft)" />
-      <ellipse cx="160" cy="190" rx="86" ry="30" fill="var(--color-brand-mint)" opacity="0.55" />
-      <circle cx="160" cy="138" r="62" fill="var(--color-canvas)" stroke="var(--color-ink)" strokeWidth="3" />
-      <circle cx="160" cy="138" r="40" fill="none" stroke="var(--color-brand-mint)" strokeWidth="3" />
-      <circle cx="160" cy="138" r="7" fill="var(--color-brand)" />
-      <path d="M 236 84 a 44 44 0 0 1 12 26" stroke="var(--color-brand-bright)" strokeDasharray="1 9" {...STROKE} />
-      <path d="M 72 190 a 44 44 0 0 0 12 26" stroke="var(--color-brand-bright)" strokeDasharray="1 9" {...STROKE} />
-    </svg>
+    <Scene label="A box inside a circle of renewal.">
+      <g className="spin-slow">
+        <circle
+          cx="140"
+          cy="110"
+          r="66"
+          fill="none"
+          stroke="var(--color-brand-bright)"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray="1 12"
+        />
+      </g>
+      <Pop x={140} y={110} i={1}>
+        <g stroke="var(--color-ink)" {...STROKE}>
+          <path d="M -30 -8 l 30 -13 l 30 13 v 30 l -30 13 l -30 -13 Z" fill="var(--color-canvas)" />
+          <path d="M -30 -8 l 30 11 l 30 -11" />
+          <path d="M 0 3 v 32" />
+        </g>
+      </Pop>
+      <GlyphCheck x={196} y={62} i={3} />
+    </Scene>
   );
 }
 
-/* stage marks reuse the same stroke language at a small size */
-function markPath(d: string) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[22px] w-[22px]" stroke="currentColor" {...STROKE} strokeWidth={2.2}>
-      {d.split("|").map((part) => (
-        <path key={part} d={part} fill="none" />
-      ))}
-    </svg>
-  );
-}
+/* ------------------------------------------------------------ the story */
 
-const CHAPTERS: Chapter[] = [
-  {
-    numeral: "01",
-    title: "Get started",
-    copy: "We begin by gathering the information needed to start your CGM journey.",
-    illustration: <IlloGetStarted />,
-    stages: [
-      {
-        name: "Connect",
-        icon: markPath("M12 3a4 4 0 1 0 0 8 a4 4 0 0 0 0-8|M4 21c0-4.4 16-4.4 16 0"),
-        copy: "We collect your information and introduce the CGM process.",
-      },
-      {
-        name: "Verify",
-        icon: markPath("M6 3v5a6 6 0 0 0 12 0V3|M12 14v3a4 4 0 0 0 8 0v-1|M20 13a2 2 0 1 0 0 4"),
-        copy: "We verify your information with your healthcare provider.",
-      },
-    ],
-  },
-  {
-    numeral: "02",
-    title: "Get approved",
-    copy: "We work through the clinical, documentation, and insurance requirements.",
-    illustration: <IlloGetApproved />,
-    stages: [
-      {
-        name: "Qualify",
-        icon: markPath("M9 3a4 4 0 1 0 0 8 a4 4 0 0 0 0-8|M2 21c0-4.4 14-4.4 14 0|M16 10l2.5 2.5L23 8"),
-        copy: "We evaluate clinical and insurance information for applicable CGM coverage requirements.",
-      },
-      {
-        name: "Documentation",
-        icon: markPath("M6 2h9l4 4v16H6z|M15 2v4h4|M9 12h6|M9 16h4"),
-        copy: "We request the required medical records, prescription, and supporting documentation.",
-      },
-      {
-        name: "Review",
-        icon: markPath("M10 3a7 7 0 1 0 0 14 a7 7 0 0 0 0-14|M15 15l6 6"),
-        copy: "We review documentation for completeness, accuracy, and payer requirements.",
-      },
-      {
-        name: "Insurance",
-        icon: markPath("M12 2l8 3.5V12c0 5-8 9-8 9s-8-4-8-9V5.5z|M8.5 11.5l2.5 2.5 4.5-5"),
-        copy: "We verify insurance coverage and obtain authorization or additional information when required.",
-      },
-    ],
-  },
-  {
-    numeral: "03",
-    title: "Get your CGM",
-    copy: "Once requirements are met, we move your order through processing and delivery.",
-    illustration: <IlloGetCgm />,
-    stages: [
-      {
-        name: "Order",
-        icon: markPath("M3 8l9-4 9 4v9l-9 4-9-4z|M3 8l9 4 9-4|M12 12v9"),
-        copy: "Your appropriate CGM and supplies are processed once requirements are met.",
-      },
-      {
-        name: "Delivery",
-        icon: markPath("M2 6h12v11H2z|M14 10h4l4 4v3h-8|M6 20a2 2 0 1 0 0-4 a2 2 0 0 0 0 4|M17 20a2 2 0 1 0 0-4 a2 2 0 0 0 0 4"),
-        copy: "Your CGM is shipped directly to you.",
-      },
-    ],
-  },
-  {
-    numeral: "04",
-    title: "Stay supported",
-    copy: "Our relationship continues after delivery.",
-    illustration: <IlloStaySupported />,
-    stages: [
-      {
-        name: "Support",
-        icon: markPath("M4 5h16v11H9l-5 4z|M8.5 10.5h.01|M12 10.5h.01|M15.5 10.5h.01"),
-        copy: "We are here for questions, concerns, or issues with your equipment and supplies.",
-      },
-      {
-        name: "Resupply",
-        icon: markPath("M20 12a8 8 0 1 1-3-6.2|M17 2l1 4-4 1"),
-        copy: "Your supplies continue through the recurring resupply process.",
-      },
-    ],
-  },
+type Stage = {
+  name: string;
+  caption: string;
+  scene: () => React.ReactNode;
+};
+
+const STAGES: Stage[] = [
+  { name: "Reach out", caption: "A short conversation starts everything.", scene: SceneReachOut },
+  { name: "Doctor check", caption: "We confirm your care with your clinic.", scene: SceneDoctorCheck },
+  { name: "Qualify", caption: "We check CGM coverage requirements.", scene: SceneQualify },
+  { name: "Records", caption: "We collect records from your provider.", scene: SceneRecords },
+  { name: "Review", caption: "We make sure everything is complete.", scene: SceneReview },
+  { name: "Insurance", caption: "We verify coverage and authorization.", scene: SceneInsurance },
+  { name: "Order", caption: "We prepare your CGM and supplies.", scene: SceneOrder },
+  { name: "Delivery", caption: "Your CGM ships to your door.", scene: SceneDelivery },
+  { name: "Support", caption: "We help with questions and supplies.", scene: SceneSupport },
+  { name: "Resupply", caption: "Refills continue on a regular schedule.", scene: SceneResupply },
 ];
 
-const HERO_TRAIL = ["Get started", "Eligibility", "Delivery", "Ongoing support"];
+/* the four phases group the ten steps for the first glance */
+const PHASES = [
+  { title: "Get started", steps: "Steps 1 – 2", copy: "We reach out and confirm your care.", start: 0 },
+  { title: "Get approved", steps: "Steps 3 – 6", copy: "We handle records and insurance.", start: 2 },
+  { title: "Get your CGM", steps: "Steps 7 – 8", copy: "We prepare and ship your order.", start: 6 },
+  { title: "Stay supported", steps: "Steps 9 – 10", copy: "We answer, and refills continue.", start: 8 },
+];
+
+const STAGE_MS = 4200;
 
 /*
-  The connector between chapters: one S-curve that continues the same line
-  down the page. It draws itself when it enters the viewport, so scrolling
-  develops the path. Mirrored on alternate chapters so the line flows from
-  the illustration just passed toward the next one.
+  The journey player. One CSS animation on the active progress bar is the
+  clock: when its fill completes, the page advances one stage. Pausing sets
+  animation-play-state instead of tearing the bar down, so the fill freezes
+  in place. Reduced-motion visitors get no autoplay and no moving fill.
 */
-function FlowConnector({ mirrored }: { mirrored?: boolean }) {
+function JourneyPlayer() {
+  const reduced = prefersReducedMotion();
+  const [active, setActive] = useState(0);
+  const [playing, setPlaying] = useState(!reduced);
+  const [hoverPause, setHoverPause] = useState(false);
+  const [inView, setInView] = useState(false);
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const running = playing && inView && !hoverPause && !reduced;
+
+  /* the story only plays while the player is on screen */
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setInView(entry.isIntersecting),
+      { threshold: 0.3 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  /* keep the active card centred in the track on small screens */
+  useEffect(() => {
+    const track = trackRef.current;
+    const card = cardRefs.current[active];
+    if (!track || !card || track.scrollWidth <= track.clientWidth) return;
+    track.scrollTo({
+      left: card.offsetLeft - track.clientWidth / 2 + card.clientWidth / 2,
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
+  }, [active]);
+
+  const stage = STAGES[active];
+
   return (
-    <div data-reveal={0} aria-hidden="true" className="mx-auto hidden h-[150px] w-full max-w-4xl lg:block">
-      <svg viewBox="0 0 100 30" preserveAspectRatio="none" className="h-full w-full">
-        <path
-          d={mirrored ? "M 27 0 C 27 16 73 14 73 30" : "M 73 0 C 73 16 27 14 27 30"}
-          pathLength={1}
-          className="flow-line"
-          fill="none"
-          stroke="var(--color-brand-mint)"
-          strokeWidth="0.5"
-          strokeLinecap="round"
-        />
-      </svg>
+    <div
+      ref={sectionRef}
+      onMouseEnter={() => setHoverPause(true)}
+      onMouseLeave={() => setHoverPause(false)}
+      onFocusCapture={() => setHoverPause(true)}
+      onBlurCapture={() => setHoverPause(false)}
+      className="rounded-sheet bg-surface-raised p-6 shadow-raised md:p-10"
+    >
+      <div className="grid items-center gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14">
+        {/* the animated scene; key remounts it so each stage draws itself */}
+        <div key={active} className="scene-swap order-2 mx-auto lg:order-1">
+          {stage.scene()}
+        </div>
+
+        <div className="order-1 lg:order-2">
+          <p aria-hidden="true" className="m-0 font-display text-[4rem] font-bold leading-none text-brand-soft md:text-[5.5rem]">
+            {String(active + 1).padStart(2, "0")}
+          </p>
+          <div key={`copy-${active}`} className="scene-swap">
+            <h3 className="mt-1 font-display text-h2 font-bold text-ink">{stage.name}</h3>
+            <p className="mt-3 max-w-[36ch] text-body-lg leading-relaxed text-grey-dark">{stage.caption}</p>
+          </div>
+          {!reduced && (
+            <button
+              onClick={() => setPlaying((value) => !value)}
+              aria-label={playing ? "Pause the journey" : "Play the journey"}
+              className="mt-6 flex min-h-[44px] min-w-[44px] items-center gap-2.5 rounded-full bg-brand-soft px-5 font-display text-small font-semibold text-brand transition-colors duration-(--duration-base) hover:bg-brand-mint"
+            >
+              {playing ? <Pause size={16} strokeWidth={2.2} /> : <Play size={16} strokeWidth={2.2} />}
+              {playing ? "Pause" : "Play"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* the ten step cards with story-style progress bars */}
+      <div
+        ref={trackRef}
+        className="scrollbar-none -mx-6 mt-8 flex snap-x gap-2.5 overflow-x-auto px-6 pb-1 md:mx-0 md:px-0 lg:grid lg:grid-cols-10"
+      >
+        {STAGES.map((step, index) => {
+          const isActive = index === active;
+          return (
+            <button
+              key={step.name}
+              ref={(el) => { cardRefs.current[index] = el; }}
+              onClick={() => setActive(index)}
+              aria-current={isActive ? "step" : undefined}
+              className={`group relative min-w-[104px] shrink-0 snap-center rounded-md border p-3 text-left transition-all duration-(--duration-base) ease-(--ease-out-quart) lg:min-w-0 ${
+                isActive
+                  ? "border-brand bg-brand-soft"
+                  : "border-line bg-canvas hover:-translate-y-0.5 hover:border-line-strong"
+              }`}
+            >
+              <span className={`block font-display text-caption font-bold ${isActive ? "text-brand" : "text-grey-faint"}`}>
+                {index + 1}
+              </span>
+              <span className={`mt-0.5 block text-caption font-semibold leading-tight ${isActive ? "text-ink" : "text-grey-dark"}`}>
+                {step.name}
+              </span>
+              <span className="sr-only">{step.caption}</span>
+              {/* progress: past steps full, future empty, active one filling */}
+              <span className="mt-2.5 block h-1 overflow-hidden rounded-full bg-line">
+                {index < active && <span className="block h-full w-full bg-brand" />}
+                {isActive && !reduced && (
+                  <span
+                    key={`bar-${active}`}
+                    onAnimationEnd={() => setActive((value) => (value + 1) % STAGES.length)}
+                    className={`story-bar block h-full w-full bg-brand ${running ? "" : "story-bar-paused"}`}
+                    style={{ "--story-ms": `${STAGE_MS}ms` } as React.CSSProperties}
+                  />
+                )}
+                {isActive && reduced && <span className="block h-full w-full bg-brand" />}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------- the page */
+
+/* the hero's one-line journey: a dot travels the path while you read */
+function HeroJourneyLine() {
+  const stops = [
+    { x: 48, y: 112, label: "Start" },
+    { x: 172, y: 62, label: "Approve" },
+    { x: 296, y: 112, label: "Deliver" },
+    { x: 420, y: 62, label: "Support" },
+  ];
+  const path = "M 48 112 C 96 112 124 62 172 62 C 220 62 248 112 296 112 C 344 112 372 62 420 62";
+  return (
+    <svg viewBox="0 0 470 160" role="img" aria-label="The journey: start, approve, deliver, support." className="w-full max-w-[560px]">
+      <path d={path} className="dash-flow" stroke="var(--color-brand-mint)" strokeDasharray="1 10" {...STROKE} />
+      {stops.map((stop, index) => (
+        <Pop key={stop.label} x={stop.x} y={stop.y} i={index}>
+          <circle r="17" fill="var(--color-brand-soft)" />
+          <circle r="7" fill={index === 0 ? "var(--color-cta)" : "var(--color-brand)"} />
+          <text y="40" textAnchor="middle" fontSize="14" fontWeight="600" fill="var(--color-ink)" fontFamily="var(--font-display)">
+            {stop.label}
+          </text>
+        </Pop>
+      ))}
+      {/* the traveller rides the same path via CSS motion path; the
+          reduced-motion media rule stops it with everything else */}
+      <circle
+        r="6"
+        fill="var(--color-brand-bright)"
+        className="journey-traveler"
+        style={{ offsetPath: `path("${path}")` } as React.CSSProperties}
+      />
+    </svg>
   );
 }
 
 export default function Services() {
   usePageMeta(
     "Our Services | Medville Diabetes",
-    "Your journey with Medville, from getting started to staying supplied: approval, delivery, support, and ongoing resupply.",
+    "Watch the Medville journey: we reach out, handle approval and insurance, ship your CGM, and keep your supplies coming.",
   );
 
   const revealRef = useReveal<HTMLDivElement>();
-  const [openStage, setOpenStage] = useState<string | null>(null);
+  const playerRef = useRef<HTMLDivElement | null>(null);
+
+  const goToPlayer = () => {
+    playerRef.current?.scrollIntoView({
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+      block: "start",
+    });
+  };
 
   return (
     <div ref={revealRef}>
-      {/* ---- hero: quiet, spacious, one still illustration ---- */}
+      {/* ---- hero: one sentence, then the journey drawn as a line ---- */}
       <section className="bg-wash relative overflow-hidden">
-        <Container wide className="relative grid items-center gap-14 py-16 md:py-24 lg:grid-cols-[1.05fr_0.95fr]">
-          <div>
-            <h1
-              className="rise-in m-0 max-w-[14ch] font-display text-h1 font-bold leading-[1.08] text-ink"
-            >
-              Your Journey with Medville
-            </h1>
-            <p
-              className="rise-in mt-5 font-display text-h3 font-medium text-brand"
-              style={{ "--rise-delay": "90ms" } as React.CSSProperties}
-            >
-              From getting started to staying supplied.
-            </p>
-            <p
-              className="rise-in mt-5 max-w-[46ch] text-body-lg leading-relaxed text-grey-dark"
-              style={{ "--rise-delay": "180ms" } as React.CSSProperties}
-            >
-              We help guide the process from initial information and verification
-              through delivery, support, and ongoing resupply.
-            </p>
-            <div
-              className="rise-in mt-9 flex flex-wrap items-center gap-3.5"
-              style={{ "--rise-delay": "260ms" } as React.CSSProperties}
-            >
-              <Button to="/qualify" variant="cta" className="min-h-[50px] px-8">
-                Get Started
-                <ArrowRight size={16} strokeWidth={2.2} />
-              </Button>
-              <Button to="/contact" variant="ghost" className="min-h-[50px]">
-                Contact Us
-              </Button>
-            </div>
-            {/* the journey in one quiet line */}
-            <p
-              className="rise-in mt-12 flex flex-wrap items-center gap-x-3 gap-y-2 text-small text-grey-muted"
-              style={{ "--rise-delay": "340ms" } as React.CSSProperties}
-            >
-              {HERO_TRAIL.map((stop, index) => (
-                <span key={stop} className="flex items-center gap-3">
-                  {index > 0 && <span aria-hidden="true" className="h-px w-6 bg-line-strong" />}
-                  <span className={index === 0 ? "font-semibold text-brand" : ""}>{stop}</span>
-                </span>
-              ))}
-            </p>
+        <Container wide className="relative py-16 text-center md:py-24">
+          <h1 className="rise-in mx-auto m-0 max-w-[18ch] font-display text-h1 font-bold leading-[1.08] text-ink">
+            From first call to your front door.
+          </h1>
+          <p
+            className="rise-in mx-auto mt-5 max-w-[38ch] text-body-lg leading-relaxed text-grey-dark"
+            style={{ "--rise-delay": "90ms" } as React.CSSProperties}
+          >
+            Ten steps. We handle all of them.
+          </p>
+          <div
+            className="rise-in mx-auto mt-10 flex justify-center"
+            style={{ "--rise-delay": "180ms" } as React.CSSProperties}
+          >
+            <HeroJourneyLine />
           </div>
           <div
-            className="rise-in mx-auto"
-            style={{ "--rise-delay": "200ms" } as React.CSSProperties}
+            className="rise-in mt-10 flex flex-wrap items-center justify-center gap-3.5"
+            style={{ "--rise-delay": "260ms" } as React.CSSProperties}
           >
-            <IlloHero />
+            <Button to="/qualify" variant="cta" className="min-h-[50px] px-8">
+              Get Started
+              <ArrowRight size={16} strokeWidth={2.2} />
+            </Button>
+            <Button variant="ghost" className="min-h-[50px]" onClick={goToPlayer}>
+              Watch the journey
+            </Button>
           </div>
         </Container>
       </section>
 
-      {/* ---- the journey: four chapters on one line ---- */}
-      <section className="overflow-hidden py-20 md:py-28">
+      {/* ---- the four phases, for the first glance ---- */}
+      <section className="py-16 md:py-20">
+        <Container>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {PHASES.map((phase, index) => (
+              <button
+                key={phase.title}
+                data-reveal={index * 80}
+                onClick={goToPlayer}
+                className="group rounded-card border border-line bg-surface-raised p-6 text-left shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover"
+              >
+                <span className="block font-display text-caption font-bold text-brand">{phase.steps}</span>
+                <span className="mt-2 block font-display text-h3 font-bold text-ink">{phase.title}</span>
+                <span className="mt-2 block text-small leading-relaxed text-grey-muted">{phase.copy}</span>
+                <span className="mt-4 flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-brand transition-transform duration-(--duration-base) group-hover:translate-x-1">
+                  <ArrowRight size={16} strokeWidth={2.2} />
+                </span>
+              </button>
+            ))}
+          </div>
+        </Container>
+      </section>
+
+      {/* ---- the journey player: the whole process, played as a story ---- */}
+      <section ref={playerRef} className="scroll-mt-24 pb-20 md:pb-28">
         <Container>
           <div data-reveal={0} className="mx-auto max-w-[560px] text-center">
-            <h2 className="m-0 font-display text-h2 font-bold text-ink">
-              Your journey, made simple.
-            </h2>
-            <p className="mt-4 text-body-lg leading-relaxed text-grey-dark">
-              Four phases. We handle the details inside each one.
+            <h2 className="m-0 font-display text-h2 font-bold text-ink">Watch how it works.</h2>
+            <p className="mt-3 text-body-lg leading-relaxed text-grey-dark">
+              Tap any step, or let it play.
             </p>
           </div>
-
-          <div className="mt-16 md:mt-20">
-            {CHAPTERS.map((chapter, index) => {
-              const mirrored = index % 2 === 1;
-              return (
-                <article key={chapter.title}>
-                  {index > 0 && <FlowConnector mirrored={!mirrored} />}
-                  <div
-                    className={`grid items-center gap-10 py-10 md:py-14 lg:grid-cols-2 lg:gap-20 ${
-                      mirrored ? "" : ""
-                    }`}
-                  >
-                    <div data-reveal={0} className={mirrored ? "lg:order-2" : ""}>
-                      <p
-                        aria-hidden="true"
-                        className="m-0 font-display text-[4.5rem] font-bold leading-none text-brand-soft md:text-[6rem]"
-                      >
-                        {chapter.numeral}
-                      </p>
-                      <h3 className="mt-1 font-display text-h2 font-bold text-ink">
-                        {chapter.title}
-                      </h3>
-                      <p className="mt-4 max-w-[44ch] text-body-lg leading-relaxed text-grey-dark">
-                        {chapter.copy}
-                      </p>
-
-                      {/* the stages: quiet points that open one line each */}
-                      <div className="mt-8">
-                        <div className="flex flex-wrap gap-x-8 gap-y-5">
-                          {chapter.stages.map((stage) => {
-                            const id = `${chapter.numeral}-${stage.name}`;
-                            const open = openStage === id;
-                            return (
-                              <button
-                                key={id}
-                                aria-expanded={open}
-                                aria-controls={`${chapter.numeral}-panel`}
-                                onClick={() => setOpenStage(open ? null : id)}
-                                className="group flex min-h-[44px] flex-col items-center gap-2"
-                              >
-                                <span
-                                  className={`flex h-[52px] w-[52px] items-center justify-center rounded-full transition-all duration-(--duration-base) ease-(--ease-out-quart) ${
-                                    open
-                                      ? "scale-105 bg-brand text-on-dark"
-                                      : "bg-brand-soft text-brand group-hover:scale-105 group-hover:bg-brand-mint"
-                                  }`}
-                                >
-                                  {stage.icon}
-                                </span>
-                                <span
-                                  className={`text-small font-semibold ${
-                                    open ? "text-brand" : "text-grey-dark"
-                                  }`}
-                                >
-                                  {stage.name}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <div id={`${chapter.numeral}-panel`} aria-live="polite" className="mt-4 min-h-[52px] max-w-[46ch]">
-                          {chapter.stages.map((stage) => {
-                            const id = `${chapter.numeral}-${stage.name}`;
-                            if (openStage !== id) return null;
-                            return (
-                              <p key={id} className="fade-in m-0 border-l-2 border-brand-bright pl-4 text-body leading-relaxed text-grey-dark">
-                                {stage.copy}
-                              </p>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                    <div
-                      data-reveal={140}
-                      className={`reveal-slow mx-auto ${mirrored ? "lg:order-1 reveal-left" : "reveal-right"}`}
-                    >
-                      {chapter.illustration}
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+          <div data-reveal={120} className="mt-10">
+            <JourneyPlayer />
           </div>
         </Container>
       </section>
@@ -447,12 +604,8 @@ export default function Services() {
       <section className="bg-why-band py-20 md:py-28">
         <Container>
           <div data-reveal={0} className="mx-auto max-w-[560px] text-center">
-            <h2 className="m-0 font-display text-h2 font-bold text-ink">
-              You focus on your diabetes.
-            </h2>
-            <p className="mt-1 font-display text-h2 font-bold text-brand">
-              We handle the process.
-            </p>
+            <h2 className="m-0 font-display text-h2 font-bold text-ink">You focus on your diabetes.</h2>
+            <p className="mt-1 font-display text-h2 font-bold text-brand">We handle the process.</p>
           </div>
 
           <div className="mx-auto mt-14 grid max-w-3xl items-center gap-12 md:grid-cols-[1fr_auto_1fr]">
@@ -475,14 +628,12 @@ export default function Services() {
             </div>
 
             <figure data-reveal={220} className="m-0 flex flex-col items-center gap-4 text-center">
-              <div className="relative">
-                <svg viewBox="0 0 120 120" role="img" aria-label="Medville." className="w-[104px]">
-                  <circle cx="60" cy="60" r="54" fill="var(--color-brand)" />
-                  <circle cx="60" cy="60" r="26" fill="var(--color-canvas)" />
-                  <circle cx="60" cy="60" r="16" fill="none" stroke="var(--color-brand-mint)" strokeWidth="3" />
-                  <circle cx="60" cy="60" r="4" fill="var(--color-brand)" />
-                </svg>
-              </div>
+              <svg viewBox="0 0 120 120" role="img" aria-label="Medville." className="w-[104px]">
+                <circle cx="60" cy="60" r="54" fill="var(--color-brand)" />
+                <circle cx="60" cy="60" r="26" fill="var(--color-canvas)" />
+                <circle cx="60" cy="60" r="16" fill="none" stroke="var(--color-brand-mint)" strokeWidth="3" />
+                <circle cx="60" cy="60" r="4" fill="var(--color-brand)" />
+              </svg>
               <figcaption className="font-display text-body font-semibold text-ink">Medville</figcaption>
               <ul className="m-0 flex max-w-[280px] list-none flex-wrap justify-center gap-x-4 gap-y-1.5 p-0 text-caption text-grey-muted">
                 {["Verify", "Document", "Review", "Insurance", "Order", "Deliver", "Support", "Resupply"].map((word) => (
@@ -494,58 +645,23 @@ export default function Services() {
         </Container>
       </section>
 
-      {/* ---- the loop after delivery ---- */}
-      <section className="py-20 md:py-28">
-        <Container className="grid items-center gap-14 lg:grid-cols-2">
-          <div data-reveal={0}>
-            <h2 className="m-0 max-w-[18ch] font-display text-h2 font-bold text-ink">
-              And it does not stop at delivery.
-            </h2>
-            <p className="mt-4 max-w-[42ch] text-body-lg leading-relaxed text-grey-dark">
-              We are here throughout your journey.
-            </p>
-            <div className="mt-9 flex flex-wrap items-center gap-3.5">
-              <Button to="/qualify" variant="cta" className="min-h-[50px] px-8">
-                Get Started
-                <ArrowRight size={16} strokeWidth={2.2} />
-              </Button>
-              <Button to="/contact" variant="ghost" className="min-h-[50px]">
-                Contact Us
-              </Button>
-            </div>
-          </div>
-
-          <div data-reveal={140} className="reveal-slow mx-auto w-full max-w-[340px]">
-            <svg viewBox="0 0 300 320" role="img" aria-label="Delivery leads to support, support leads to resupply, and resupply continues.">
-              <path
-                d="M 150 66 C 236 66 236 130 214 178 C 198 212 120 250 96 220 C 74 192 92 96 150 66"
-                fill="none"
-                stroke="var(--color-brand-mint)"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeDasharray="1 10"
-                pathLength={100}
-              />
-              {(
-                [
-                  ["Delivery", 150, 52, "M-9 -4h8v8h-8z|M-1 -1h4l3 3v2h-7z|M-6 6a1.6 1.6 0 1 0 0.1 0|M2 6a1.6 1.6 0 1 0 0.1 0"],
-                  ["Support", 216 , 186, "M-8 -6h16v9h-9l-4 4v-4h-3z"],
-                  ["Resupply", 96, 226, "M7 0a7 7 0 1 1-2.5-5.4|M4.5 -7l1 3.5-3.5 1"],
-                ] as const
-              ).map(([label, cx, cy, d]) => (
-                <g key={label} transform={`translate(${cx} ${cy})`}>
-                  <circle r="30" fill="var(--color-canvas)" stroke="var(--color-line-brand)" strokeWidth="2" />
-                  <g stroke="var(--color-brand)" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" transform="scale(1.6)">
-                    {d.split("|").map((part) => (
-                      <path key={part} d={part} />
-                    ))}
-                  </g>
-                  <text y="50" textAnchor="middle" fontSize="15" fontWeight="600" fill="var(--color-ink)" fontFamily="var(--font-display)">
-                    {label}
-                  </text>
-                </g>
-              ))}
-            </svg>
+      {/* ---- closing call to action ---- */}
+      <section className="bg-cta-band relative overflow-hidden py-20 md:py-24">
+        <Container className="relative text-center">
+          <h2 data-reveal={0} className="m-0 font-display text-h2 font-bold text-on-dark">
+            Ready for step one?
+          </h2>
+          <p data-reveal={80} className="mx-auto mt-3 max-w-[38ch] text-body-lg leading-relaxed text-on-dark-muted">
+            It starts with a short conversation.
+          </p>
+          <div data-reveal={160} className="mt-8 flex flex-wrap items-center justify-center gap-3.5">
+            <Button to="/qualify" variant="on-band" className="min-h-[50px] px-8">
+              Get Started
+              <ArrowRight size={16} strokeWidth={2.2} />
+            </Button>
+            <Button to="/contact" variant="ghost-dark" className="min-h-[50px]">
+              Contact Us
+            </Button>
           </div>
         </Container>
       </section>

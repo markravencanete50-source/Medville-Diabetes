@@ -287,22 +287,97 @@ h1, h2, h3, h4 {
   behind the page, or resolving from a soft blur. Variants only shape the
   starting state; the shared .reveal-in transition brings everything home.
 */
-/* ---- Our Services: the flowing journey line ---- */
+/* ---- Our Services: the animated journey player ---- */
 
 /*
-  The connector between chapters draws itself when it reveals. pathLength
-  is normalised to 1 in the markup, so dashoffset 1 hides the line and 0
-  completes it. Reduced-motion visitors get the finished line immediately.
+  Scene strokes draw themselves when a stage mounts. pathLength is
+  normalised to 1 in the markup, so dashoffset 1 hides the stroke and 0
+  completes it. --i staggers siblings without raw numbers in the markup.
 */
-.flow-line {
+@keyframes scene-draw-in {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.scene-draw {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  transition: stroke-dashoffset 1100ms var(--ease-out-quart);
+  animation: scene-draw-in 800ms var(--ease-out-quart) both;
+  animation-delay: calc(var(--i, 0) * 140ms);
 }
 
-[data-reveal].reveal-in .flow-line {
-  stroke-dashoffset: 0;
+@keyframes scene-pop-in {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: none; }
 }
+.scene-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: scene-pop-in 500ms var(--ease-out-quart) both;
+  animation-delay: calc(var(--i, 0) * 140ms);
+}
+
+/* the hero's traveller rides its offset-path from start to support */
+@keyframes journey-travel {
+  from { offset-distance: 0%; }
+  to { offset-distance: 100%; }
+}
+.journey-traveler {
+  animation: journey-travel 7s linear infinite;
+}
+
+/* dashes crawl along a connector so a hand-off reads as movement */
+@keyframes dash-crawl {
+  to { stroke-dashoffset: -10; }
+}
+.dash-flow { animation: dash-crawl 1.1s linear infinite; }
+
+@keyframes spin-slow-kf {
+  to { transform: rotate(360deg); }
+}
+.spin-slow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: spin-slow-kf 16s linear infinite;
+}
+
+@keyframes dot-pulse-kf {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+.dot-pulse {
+  animation: dot-pulse-kf 1.2s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 160ms);
+}
+
+/*
+  The story player's progress bar fills over one stage's duration; the page
+  advances the stage when the fill completes. Pausing freezes the fill in
+  place instead of resetting it.
+*/
+@keyframes story-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.story-bar {
+  transform-origin: left;
+  animation: story-fill var(--story-ms, 4200ms) linear both;
+}
+.story-bar-paused { animation-play-state: paused; }
+
+/* the step track scrolls on small screens without showing a scrollbar */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* the scene panel rises softly between stages */
+@keyframes scene-swap-kf {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.scene-swap { animation: scene-swap-kf 360ms var(--ease-out-quart) both; }
 
 .reveal-start.reveal-left { transform: translateX(-40px); }
 .reveal-start.reveal-right { transform: translateX(40px); }
@@ -334,8 +409,15 @@ h1, h2, h3, h4 {
   .floaty2,
   .blob-drift,
   .wave-draw,
-  .sheet-up { animation: none; }
-  .flow-line { stroke-dashoffset: 0; }
+  .sheet-up,
+  .scene-pop,
+  .journey-traveler,
+  .dash-flow,
+  .spin-slow,
+  .dot-pulse,
+  .story-bar,
+  .scene-swap { animation: none; }
+  .scene-draw { animation: none; stroke-dashoffset: 0; }
   .wave-dot::after { animation: none; opacity: 0; }
   .reveal-start { opacity: 1; transform: none; filter: none; }
 }
