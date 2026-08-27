@@ -349,21 +349,6 @@ h1, h2, h3, h4 {
   animation-delay: calc(var(--i, 0) * 160ms);
 }
 
-/*
-  The story player's progress bar fills over one stage's duration; the page
-  advances the stage when the fill completes. Pausing freezes the fill in
-  place instead of resetting it.
-*/
-@keyframes story-fill {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
-}
-.story-bar {
-  transform-origin: left;
-  animation: story-fill var(--story-ms, 4200ms) linear both;
-}
-.story-bar-paused { animation-play-state: paused; }
-
 /* the step track scrolls on small screens without showing a scrollbar */
 .scrollbar-none {
   scrollbar-width: none;
@@ -415,7 +400,6 @@ h1, h2, h3, h4 {
   .dash-flow,
   .spin-slow,
   .dot-pulse,
-  .story-bar,
   .scene-swap { animation: none; }
   .scene-draw { animation: none; stroke-dashoffset: 0; }
   .wave-dot::after { animation: none; opacity: 0; }
