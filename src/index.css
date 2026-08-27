@@ -405,3 +405,184 @@ h1, h2, h3, h4 {
   .wave-dot::after { animation: none; opacity: 0; }
   .reveal-start { opacity: 1; transform: none; filter: none; }
 }
+
+
+/* ---- Our Services: photo-led care path and lightweight 3D depth ---- */
+.services-hero-visual {
+  perspective: 1400px;
+}
+
+.services-hero-depth {
+  transform: rotateY(-4deg) rotateX(2deg) translateZ(0);
+  transform-style: preserve-3d;
+  animation: services-hero-float 8s ease-in-out infinite;
+}
+
+.services-hero-depth::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgb(255 255 255 / 0.34);
+  border-radius: var(--radius-sheet);
+  pointer-events: none;
+}
+
+.services-hero-glow {
+  background: radial-gradient(circle, rgb(24 186 218 / 0.28) 0%, transparent 70%);
+  filter: blur(30px);
+}
+
+.services-hero-wash {
+  background: linear-gradient(135deg, rgb(0 41 59 / 0.04) 18%, transparent 58%, rgb(0 41 59 / 0.36) 100%);
+}
+
+.services-hero-card {
+  transform: translateZ(42px) rotateY(3deg);
+  transform-style: preserve-3d;
+}
+
+.services-hero-chip {
+  position: absolute;
+  z-index: 2;
+  animation: services-chip-float 6s ease-in-out infinite;
+}
+
+.services-hero-chip-one { left: -3%; top: 13%; }
+.services-hero-chip-two { bottom: 10%; right: -3%; animation-delay: -2.5s; }
+
+.services-phase-line {
+  position: absolute;
+  top: 25px;
+  left: 12%;
+  right: 12%;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--color-brand-mint) 0 3px, transparent 3px 10px);
+  pointer-events: none;
+}
+
+.services-phase-bead {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-cta);
+  box-shadow: 0 0 0 7px rgb(255 158 27 / 0.13);
+  animation: services-track-travel 9s var(--ease-out-quart) infinite;
+}
+
+.services-stage-scene {
+  isolation: isolate;
+}
+
+.services-stage-photo,
+.services-stage-overlay {
+  z-index: -2;
+}
+
+.services-stage-photo img {
+  filter: saturate(0.82) contrast(0.95);
+  transform: scale(1.06);
+}
+
+.services-stage-overlay {
+  background: linear-gradient(125deg, rgb(0 41 59 / 0.88) 0%, rgb(0 41 59 / 0.58) 44%, rgb(24 186 218 / 0.18) 100%);
+}
+
+.services-stage-ring {
+  z-index: -1;
+  pointer-events: none;
+}
+
+.services-stage-ring-one {
+  width: 380px;
+  height: 380px;
+  left: -110px;
+  top: -140px;
+  animation: services-ring-drift 12s ease-in-out infinite;
+}
+
+.services-stage-ring-two {
+  width: 260px;
+  height: 260px;
+  right: -90px;
+  bottom: -120px;
+  animation: services-ring-drift 10s ease-in-out -3s infinite reverse;
+}
+
+.services-stage-kit {
+  perspective: 900px;
+}
+
+.services-stage-kit-inner {
+  transform: rotateY(-7deg) rotateX(3deg) translateZ(35px);
+  transform-style: preserve-3d;
+  animation: services-kit-float 6.5s ease-in-out infinite;
+}
+
+.services-stage-chip {
+  animation: services-chip-float 7s ease-in-out -1.5s infinite;
+}
+
+.services-stage-swap {
+  animation: services-stage-swap-in 420ms var(--ease-out-quart) both;
+}
+
+@keyframes services-hero-float {
+  0%, 100% { transform: rotateY(-4deg) rotateX(2deg) translateY(0); }
+  50% { transform: rotateY(-1deg) rotateX(3deg) translateY(-8px); }
+}
+
+@keyframes services-chip-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes services-track-travel {
+  0% { transform: translateX(0); }
+  45%, 55% { transform: translateX(calc((100vw - 24vw) * 0.45)); }
+  100% { transform: translateX(calc((100vw - 24vw) * 0.88)); }
+}
+
+@keyframes services-ring-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0.7; }
+  50% { transform: translate3d(18px, -12px, 0) rotate(12deg); opacity: 1; }
+}
+
+@keyframes services-kit-float {
+  0%, 100% { transform: rotateY(-7deg) rotateX(3deg) translate3d(0, 0, 35px); }
+  50% { transform: rotateY(-2deg) rotateX(5deg) translate3d(0, -8px, 35px); }
+}
+
+@keyframes services-stage-swap-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 1023px) {
+  .services-phase-line { display: none; }
+}
+
+@media (max-width: 639px) {
+  .services-hero-chip { display: none; }
+  .services-hero-depth { transform: none; }
+  .services-stage-kit-inner { transform: rotateY(-3deg) rotateX(2deg) translateZ(20px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .services-hero-depth,
+  .services-hero-chip,
+  .services-phase-bead,
+  .services-stage-ring,
+  .services-stage-kit-inner,
+  .services-stage-chip,
+  .services-stage-swap {
+    animation: none;
+  }
+  .services-hero-depth,
+  .services-hero-card,
+  .services-stage-kit-inner {
+    transform: none;
+  }
+}
