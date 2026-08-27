@@ -44,7 +44,7 @@ function HeroDepthVisual() {
       <div className="services-hero-glow absolute inset-[12%_8%] rounded-full" aria-hidden="true" />
       <div className="services-hero-depth relative overflow-hidden rounded-sheet shadow-overlay">
         <img
-          src="/services/services-hero.jpg"
+          src="/services/services-hero.png"
           alt="A woman at home checks her phone while wearing a continuous glucose monitor."
           className="aspect-[4/3] w-full object-cover"
         />
@@ -149,7 +149,7 @@ function StageVisual({ stepIndex }: { stepIndex: number }) {
   return (
     <div className="services-stage-scene relative min-h-[340px] overflow-hidden rounded-sheet bg-brand-tint p-5 sm:min-h-[400px] md:p-8">
       <div className="services-stage-photo absolute inset-0" aria-hidden="true">
-        <img src="/services/services-spotlight.jpg" alt="" className="h-full w-full object-cover" />
+        <img src="/services/services-spotlight.png" alt="" className="h-full w-full object-cover" />
       </div>
       <div className="services-stage-overlay absolute inset-0" aria-hidden="true" />
       <div className="services-stage-ring services-stage-ring-one absolute rounded-full border border-on-dark/30" aria-hidden="true" />
