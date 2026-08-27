@@ -9,10 +9,10 @@ import { Blob, Eyebrow, Grain } from "../components/Decor";
 import {
   brands,
   getProduct,
-  lineProducts,
   type Brand,
   type ProductLine,
 } from "../data/products";
+import { useLineProducts } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
 import { useReveal } from "../lib/useReveal";
 
@@ -49,7 +49,7 @@ export default function Products({ line }: { line: ProductLine }) {
   const [filter, setFilter] = useState<Filter>("All products");
   const [quickView, setQuickView] = useState<string | null>(null);
 
-  const catalogue = lineProducts(line);
+  const catalogue = useLineProducts(line);
   const visible =
     filter === "All products" ? catalogue : catalogue.filter((p) => p.brand === filter);
   /* Brand pills only earn their place when there is more than one brand. */

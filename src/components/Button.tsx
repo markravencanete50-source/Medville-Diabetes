@@ -27,6 +27,7 @@ const styles: Record<Variant, string> = {
 
 export default function Button({
   to,
+  state,
   href,
   variant = "cta",
   children,
@@ -36,6 +37,9 @@ export default function Button({
   onClick,
 }: {
   to?: string;
+  /* Router state, used to carry a product slug to the qualify form without
+     putting it in the URL. */
+  state?: unknown;
   href?: string;
   variant?: Variant;
   children: React.ReactNode;
@@ -48,7 +52,7 @@ export default function Button({
     "inline-flex min-h-[46px] items-center justify-center gap-2.5 rounded-full px-7 py-3 font-display text-small font-semibold transition-all duration-(--duration-base) ease-(--ease-out-quart) disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 " +
     `${styles[variant]} ${className}`;
 
-  if (to) return <Link to={to} className={base}>{children}</Link>;
+  if (to) return <Link to={to} state={state} className={base}>{children}</Link>;
   if (href) return <a href={href} className={base}>{children}</a>;
   return (
     <button type={type ?? "button"} disabled={disabled} onClick={onClick} className={base}>

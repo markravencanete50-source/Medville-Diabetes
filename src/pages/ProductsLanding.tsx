@@ -2,7 +2,8 @@ import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import Container from "../components/Container";
 import { Blob, Eyebrow, Grain } from "../components/Decor";
-import { lineProducts, type ProductLine } from "../data/products";
+import type { ProductLine } from "../data/products";
+import { useProducts } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
 import { useReveal } from "../lib/useReveal";
 
@@ -40,6 +41,7 @@ export default function ProductsLanding() {
     "Browse our continuous glucose monitors and insulin pumps. Pick a product type to see everything we supply.",
   );
   const revealRef = useReveal<HTMLDivElement>();
+  const catalogue = useProducts();
 
   return (
     <div ref={revealRef}>
@@ -71,7 +73,7 @@ export default function ProductsLanding() {
         <Container wide>
           <div className="grid gap-6 md:grid-cols-2">
             {LINES.map((entry, index) => {
-              const count = lineProducts(entry.line).length;
+              const count = catalogue.filter((p) => p.line === entry.line).length;
               return (
                 <Link
                   key={entry.line}

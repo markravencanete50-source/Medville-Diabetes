@@ -1,0 +1,40 @@
+rules_version = '2';
+
+/*
+  Medville Diabetes — Cloud Storage security rules.
+
+  Only marketing imagery lives here: product photography, page pictures and
+  the logo. No Protected Health Information is ever written to Storage. If a
+  future feature needs to store a document belonging to a patient, it does
+  not go under site/, and it is not publicly readable.
+
+  Uploads are restricted to signed-in administrators holding a content role,
+  capped at 5 MB, and limited to image content types. The cap matters: hosting
+  and storage bandwidth is the one line item that can push the client past the
+  0 to 5 USD per month ceiling in Section 7.3 of the agreement.
+*/
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function role() {
+      return request.auth != null ? request.auth.token.get('role', '') : '';
+    }
+
+    function canEditContent() {
+      return role() == 'owner' || role() == 'editor';
+    }
+
+    match /site/{allPaths=**} {
+      allow read: if true;
+      allow write: if canEditContent()
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if canEditContent();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

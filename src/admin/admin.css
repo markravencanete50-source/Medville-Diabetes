@@ -1,0 +1,380 @@
+/*
+  Dashboard styling.
+
+  This file is imported only by the lazy-loaded dashboard, so Vite emits it as
+  its own stylesheet and no marketing visitor downloads a byte of it.
+
+  The dashboard has its own palette rather than reusing the marketing tokens.
+  The website is a fixed brand surface the client can tint; this is a working
+  tool that has to be readable at 7am and at 11pm, so it carries a light and a
+  dark theme of its own. Every colour below is a variable, and the dark theme
+  redefines the same names, so no component ever writes a colour twice.
+
+  The theme is chosen by the `data-admin-theme` attribute on the shell, set
+  from the person's saved preference or from their operating system.
+*/
+
+.admin {
+  --a-bg: #f4f6f8;
+  --a-surface: #ffffff;
+  --a-surface-2: #f8fafb;
+  --a-line: #e2e8ec;
+  --a-line-strong: #cbd6dd;
+  --a-text: #0d2430;
+  --a-text-muted: #5a6b76;
+  --a-text-faint: #8695a0;
+  --a-brand: #0a6d8a;
+  --a-brand-soft: #e2f5fa;
+  --a-brand-text: #075366;
+  --a-accent: #18bada;
+  --a-warn: #b26a00;
+  --a-warn-soft: #fdf1dc;
+  --a-danger: #b03030;
+  --a-danger-soft: #fbeaea;
+  --a-ok: #1d7a4f;
+  --a-ok-soft: #e6f4ec;
+  /* The data mark. Computed against the light surface, not picked by eye:
+     the brand blue fails the chroma floor and reads as grey in a chart. */
+  --a-chart: #0e86a8;
+  --a-shadow: 0 1px 2px rgb(13 36 48 / 0.05), 0 8px 24px -14px rgb(13 36 48 / 0.28);
+  --a-radius: 12px;
+  --a-radius-sm: 8px;
+
+  color: var(--a-text);
+  background: var(--a-bg);
+  font-family: var(--font-body);
+  min-height: 100vh;
+}
+
+.admin[data-admin-theme="dark"] {
+  --a-bg: #0b1418;
+  --a-surface: #121e24;
+  --a-surface-2: #16242b;
+  --a-line: #22333c;
+  --a-line-strong: #32474f;
+  --a-text: #e6eef2;
+  --a-text-muted: #9db0ba;
+  --a-text-faint: #6d838e;
+  --a-brand: #4bc6e2;
+  --a-brand-soft: #10323d;
+  --a-brand-text: #8ddcef;
+  --a-accent: #18bada;
+  --a-warn: #f0b45e;
+  --a-warn-soft: #33260f;
+  --a-danger: #f08a8a;
+  --a-danger-soft: #341a1a;
+  --a-ok: #63c795;
+  --a-ok-soft: #102c20;
+  /* Its own step for the dark surface, chosen the same way. A dark theme is
+     selected, never an automatic flip of the light one. */
+  --a-chart: #1f9cbe;
+  --a-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 28px -16px rgb(0 0 0 / 0.7);
+}
+
+/* ---- layout ---- */
+
+.admin-shell {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.admin-side {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-right: 1px solid var(--a-line);
+  background: var(--a-surface);
+  padding: 18px 14px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.admin-main {
+  min-width: 0;
+  padding: 26px clamp(16px, 3vw, 34px) 64px;
+}
+
+.admin-topbar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--a-line);
+  background: var(--a-surface);
+  padding: 10px 14px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+/* ---- navigation ---- */
+
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 8px 16px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.admin-brand small {
+  display: block;
+  color: var(--a-text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.admin-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--a-radius-sm);
+  padding: 9px 11px;
+  color: var(--a-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.admin-nav-link:hover {
+  background: var(--a-surface-2);
+  color: var(--a-text);
+}
+
+.admin-nav-link[aria-current="page"] {
+  background: var(--a-brand-soft);
+  color: var(--a-brand-text);
+}
+
+.admin-nav-group {
+  margin: 14px 8px 4px;
+  color: var(--a-text-faint);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* ---- surfaces ---- */
+
+.admin-card {
+  border: 1px solid var(--a-line);
+  border-radius: var(--a-radius);
+  background: var(--a-surface);
+  box-shadow: var(--a-shadow);
+}
+
+.admin-card-pad {
+  padding: clamp(14px, 2vw, 20px);
+}
+
+.admin-page-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 1.1rem + 1vw, 1.85rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.admin-page-lede {
+  margin-top: 5px;
+  color: var(--a-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 66ch;
+}
+
+/* ---- controls ---- */
+
+.admin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: var(--a-radius-sm);
+  padding: 0 15px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, opacity 150ms ease;
+}
+
+.admin-btn:disabled { cursor: not-allowed; opacity: 0.55; }
+
+.admin-btn-primary { background: var(--a-brand); color: #ffffff; }
+.admin-btn-primary:hover:not(:disabled) { background: var(--a-brand-text); }
+.admin[data-admin-theme="dark"] .admin-btn-primary { color: #04222b; }
+
+.admin-btn-quiet {
+  border-color: var(--a-line-strong);
+  background: var(--a-surface);
+  color: var(--a-text);
+}
+.admin-btn-quiet:hover:not(:disabled) { background: var(--a-surface-2); }
+
+.admin-btn-danger { background: var(--a-danger-soft); color: var(--a-danger); }
+
+.admin-input,
+.admin-select,
+.admin-textarea {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--a-line-strong);
+  border-radius: var(--a-radius-sm);
+  padding: 9px 11px;
+  color: var(--a-text);
+  background: var(--a-surface);
+  font: inherit;
+  font-size: 14px;
+}
+
+.admin-textarea { min-height: 96px; resize: vertical; line-height: 1.5; }
+
+.admin-input:focus-visible,
+.admin-select:focus-visible,
+.admin-textarea:focus-visible {
+  outline: 2px solid var(--a-brand);
+  outline-offset: 1px;
+}
+
+.admin-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-help {
+  margin-top: 5px;
+  color: var(--a-text-faint);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* ---- table ---- */
+
+.admin-table-wrap { overflow-x: auto; }
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.admin-table th {
+  border-bottom: 1px solid var(--a-line);
+  padding: 10px 12px;
+  color: var(--a-text-faint);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.admin-table td {
+  border-bottom: 1px solid var(--a-line);
+  padding: 11px 12px;
+  vertical-align: middle;
+}
+
+.admin-table tbody tr:hover { background: var(--a-surface-2); }
+
+/* ---- small parts ---- */
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.admin-badge-new { background: var(--a-brand-soft); color: var(--a-brand-text); }
+.admin-badge-ok { background: var(--a-ok-soft); color: var(--a-ok); }
+.admin-badge-warn { background: var(--a-warn-soft); color: var(--a-warn); }
+.admin-badge-danger { background: var(--a-danger-soft); color: var(--a-danger); }
+.admin-badge-quiet { background: var(--a-surface-2); color: var(--a-text-muted); }
+
+.admin-stat {
+  display: grid;
+  gap: 3px;
+}
+
+.admin-stat b {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.admin-stat span {
+  color: var(--a-text-faint);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.admin-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--a-line);
+  border-radius: var(--a-radius-sm);
+  padding: 11px 13px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.admin-banner-warn { border-color: var(--a-warn); background: var(--a-warn-soft); color: var(--a-warn); }
+.admin-banner-danger { border-color: var(--a-danger); background: var(--a-danger-soft); color: var(--a-danger); }
+.admin-banner-info { background: var(--a-brand-soft); border-color: transparent; color: var(--a-brand-text); }
+
+.admin-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgb(4 14 18 / 0.55);
+}
+
+/* ---- responsive ---- */
+
+@media (max-width: 900px) {
+  .admin-shell { grid-template-columns: minmax(0, 1fr); }
+  .admin-topbar { display: flex; }
+  .admin-side {
+    position: fixed;
+    z-index: 50;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 264px;
+    height: 100dvh;
+    transform: translateX(-100%);
+    transition: transform 220ms cubic-bezier(0.25, 1, 0.5, 1);
+    box-shadow: var(--a-shadow);
+  }
+  .admin-side[data-open="true"] { transform: none; }
+  .admin-main { padding: 18px 14px 56px; }
+  .admin-table { white-space: normal; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-side { transition: none; }
+}

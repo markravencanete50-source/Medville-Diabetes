@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import Container from "./Container";
 import Logo from "./Logo";
-import { products } from "../data/products";
+import { useProducts } from "../lib/useSiteData";
 
 /* Replace the placeholder contact details before launch. See CLAUDE.md. */
 
@@ -11,6 +11,7 @@ const headingClass =
   "m-0 font-display text-caption font-semibold uppercase tracking-[0.16em] text-on-dark-accent";
 
 export default function Footer() {
+  const products = useProducts();
   const footerProducts = products.filter((p) => p.category === "System").slice(0, 6);
 
   return (

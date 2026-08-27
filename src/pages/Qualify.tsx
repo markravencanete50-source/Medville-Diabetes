@@ -1,6 +1,8 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
+import { isEnquirable } from "../data/products";
+import { useProducts } from "../lib/useSiteData";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -48,6 +50,9 @@ const schema = z.object({
   city: z.string().trim().min(1, "Please enter your city.").max(80),
   state: z.string().min(1, "Please select your state."),
   injectsInsulinDaily: z.enum(["yes", "no"], { message: "Please select an answer." }),
+  /* Which product prompted the enquiry. Optional, and a slug rather than
+     free text, so nothing unexpected reaches the record. */
+  productInterest: z.string().max(60).optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -88,7 +93,23 @@ export default function Qualify() {
     resolver: zodResolver(schema),
   });
 
+  const location = useLocation();
   const insulinAnswer = watch("injectsInsulinDaily");
+
+  /*
+    The product a visitor was reading before they clicked through. It
+    travels in router state rather than in the URL: a product slug is not
+    Protected Health Information on its own, but this form is the PHI
+    pathway, and Section 3.4(e) is easiest to honour by keeping the whole
+    address free of anything about the visitor.
+  */
+  const arrivedFrom = (location.state as { product?: string } | null)?.product ?? "";
+  const enquirable = useProducts().filter(isEnquirable);
+
+  useEffect(() => {
+    if (arrivedFrom) setValue("productInterest", arrivedFrom);
+  }, [arrivedFrom, setValue]);
+
   const endpoint = import.meta.env.VITE_QUALIFY_ENDPOINT as string | undefined;
 
   const onSubmit = async (values: FormValues) => {
@@ -210,6 +231,24 @@ export default function Qualify() {
             </div>
 
             {/* insulin question as a Yes / No toggle pair */}
+            <Field
+              label="Which product are you interested in?"
+              error={errors.productInterest?.message}
+            >
+              <select
+                {...register("productInterest")}
+                defaultValue={arrivedFrom}
+                className={inputClass(!!errors.productInterest)}
+              >
+                <option value="">I am not sure yet</option>
+                {enquirable.map((product) => (
+                  <option key={product.slug} value={product.slug}>
+                    {product.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
             <Field label="Do you inject insulin daily?" error={errors.injectsInsulinDaily?.message}>
               <input type="hidden" {...register("injectsInsulinDaily")} />
               <div className="grid grid-cols-2 gap-2.5" role="group" aria-label="Do you inject insulin daily?">

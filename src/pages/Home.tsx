@@ -22,7 +22,7 @@ import QuickView from "../components/QuickView";
 import Faq, { type FaqItem } from "../components/Faq";
 import { Blob, Eyebrow, Grain } from "../components/Decor";
 import HeroViewer from "../components/HeroViewer";
-import { products, getProduct } from "../data/products";
+import { useProduct, useProducts } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
 import { useReveal } from "../lib/useReveal";
 import { useCountUp } from "../lib/useCountUp";
@@ -171,7 +171,8 @@ export default function Home() {
   const { ref: statsRef, values: stats } = useCountUp({ a: 11, b: 2, c: 14, d: 1 });
   const [quickView, setQuickView] = useState<string | null>(null);
 
-  const hero = getProduct("freestyle-libre-3");
+  const products = useProducts();
+  const hero = useProduct("freestyle-libre-3");
   const featured = products.filter((p) => p.featured);
 
   return (
@@ -504,7 +505,7 @@ export default function Home() {
       </section>
 
       <QuickView
-        product={quickView ? getProduct(quickView) ?? null : null}
+        product={quickView ? products.find((p) => p.slug === quickView) ?? null : null}
         onClose={() => setQuickView(null)}
       />
     </div>

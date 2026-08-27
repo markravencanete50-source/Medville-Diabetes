@@ -23,6 +23,18 @@ export type Brand = "FreeStyle Libre" | "Dexcom" | "Tandem";
    shows one card per line; each line routes to its own listing. */
 export type ProductLine = "cgm" | "insulin-pump";
 
+/*
+  Availability, set by the client from the dashboard.
+
+  "available"   enquiries proceed as normal
+  "coming-soon" shown in the catalog, cannot be enquired about yet
+  "sold"        shown but out of stock, the enquiry route is closed
+
+  A missing value means available, so every product written before this
+  field existed keeps working unchanged.
+*/
+export type ProductStatus = "available" | "coming-soon" | "sold";
+
 export interface Product {
   slug: string;
   name: string;
@@ -35,6 +47,19 @@ export interface Product {
   imageFront: string;
   imageBack: string;
   featured?: boolean;
+  status?: ProductStatus;
+  price?: number;
+}
+
+export const PRODUCT_STATUS_LABEL: Record<ProductStatus, string> = {
+  available: "Available",
+  "coming-soon": "Coming soon",
+  sold: "Sold out",
+};
+
+/* Whether a visitor may still ask about this product. */
+export function isEnquirable(product: Product) {
+  return (product.status ?? "available") === "available";
 }
 
 export const products: Product[] = [

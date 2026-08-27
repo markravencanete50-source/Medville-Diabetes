@@ -6,14 +6,16 @@ import Button from "../components/Button";
 import ProductViewer from "../components/ProductViewer";
 import ProductCard, { PRODUCT_TINT, PRODUCT_PILL } from "../components/ProductCard";
 import QuickView from "../components/QuickView";
-import { getProduct, products } from "../data/products";
+import { isEnquirable, PRODUCT_STATUS_LABEL } from "../data/products";
+import { useProduct, useProducts } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
 import { useReveal } from "../lib/useReveal";
 import NotFound from "./NotFound";
 
 export default function ProductDetail() {
   const { slug } = useParams();
-  const product = slug ? getProduct(slug) : undefined;
+  const products = useProducts();
+  const product = useProduct(slug);
   const revealRef = useReveal<HTMLDivElement>();
   const [quickView, setQuickView] = useState<string | null>(null);
 
@@ -93,12 +95,23 @@ export default function ProductDetail() {
               </div>
 
               <div className="mt-7 flex flex-wrap gap-3">
-                <Button to="/qualify" variant="cta">Check if you Qualify</Button>
+                {isEnquirable(product) ? (
+                  <Button to="/qualify" state={{ product: product.slug }} variant="cta">
+                    Check if you Qualify
+                  </Button>
+                ) : (
+                  <span className="inline-flex min-h-[46px] items-center gap-2 rounded-full bg-grey-light px-7 font-display text-small font-semibold text-grey-muted">
+                    {PRODUCT_STATUS_LABEL[product.status ?? "available"]}
+                  </span>
+                )}
                 <Button to="/contact" variant="ghost">Ask us a question</Button>
               </div>
               <p className="mt-4 max-w-[56ch] text-caption leading-relaxed text-grey-muted">
-                Availability depends on your coverage and on a review by our team.
-                Checking takes less than one minute and there is no cost.
+                {isEnquirable(product)
+                  ? "Availability depends on your coverage and on a review by our team. Checking takes less than one minute and there is no cost."
+                  : product.status === "coming-soon"
+                    ? "This product is not available to order yet. Contact us and we will tell you when it is."
+                    : "This product is out of stock. Contact us and we will suggest an alternative."}
               </p>
             </div>
           </div>
@@ -126,7 +139,7 @@ export default function ProductDetail() {
       )}
 
       <QuickView
-        product={quickView ? getProduct(quickView) ?? null : null}
+        product={quickView ? products.find((p) => p.slug === quickView) ?? null : null}
         onClose={() => setQuickView(null)}
       />
     </div>

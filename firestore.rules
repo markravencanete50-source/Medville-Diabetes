@@ -1,13 +1,98 @@
 rules_version = '2';
+
+/*
+  Medville Diabetes — Firestore security rules.
+
+  Two worlds live in this database and they are kept strictly apart.
+
+  1. Marketing content (siteContent, siteTheme, products, faqs, testimonials).
+     The public website reads these directly. They contain no personal data of
+     any kind. Only a signed-in administrator with a content role may write.
+
+  2. Protected Health Information (leads, auditLog). No client, signed in or
+     not, may touch these. They are reachable only through the adminApi Cloud
+     Run function, which runs with the Admin SDK, verifies the caller's token
+     and role, and records an auditLog entry for every access. Section 3.4(c)
+     of the agreement requires an audit trail of who accessed PHI and when,
+     and a direct browser read could never be audited reliably.
+
+  Roles live in Identity Platform custom claims, not in documents, so a role
+  cannot be escalated by writing to Firestore:
+    owner  — everything, including managing other administrators
+    editor — marketing content only, no access to leads
+    agent  — leads only, no ability to change the website
+
+  If a change to this file appears to open leads to any client read, it is
+  wrong. Route it through the function instead.
+*/
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Deny all client access by default.
-    // The leads collection is written ONLY by the Cloud Run intake function
-    // through the Admin SDK, which bypasses these rules.
-    // The admin panel (a later milestone) will read leads through
-    // Identity Platform authentication with an "admin" custom claim:
-    //   allow read: if request.auth != null && request.auth.token.admin == true;
-    // Do not open leads to unauthenticated reads or writes under any change.
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return signedIn() ? request.auth.token.get('role', '') : '';
+    }
+
+    function isOwner() {
+      return role() == 'owner';
+    }
+
+    function canEditContent() {
+      return role() == 'owner' || role() == 'editor';
+    }
+
+    /* ---- public marketing content ---- */
+
+    match /siteContent/{page} {
+      allow read: if true;
+      allow write: if canEditContent();
+    }
+
+    match /siteTheme/{doc} {
+      allow read: if true;
+      allow write: if canEditContent();
+    }
+
+    match /products/{slug} {
+      allow read: if true;
+      allow write: if canEditContent();
+    }
+
+    match /faqs/{id} {
+      allow read: if true;
+      allow write: if canEditContent();
+    }
+
+    match /testimonials/{id} {
+      allow read: if true;
+      allow write: if canEditContent();
+    }
+
+    /* ---- Protected Health Information ---- */
+
+    match /leads/{id} {
+      allow read, write: if false;
+    }
+
+    match /auditLog/{id} {
+      allow read, write: if false;
+    }
+
+    /* ---- administrator roster ----
+       A display mirror only, so the dashboard can list colleagues without a
+       function round trip. The claim is what actually grants access, and the
+       function is the only thing that can set it. */
+
+    match /adminUsers/{uid} {
+      allow read: if signedIn();
+      allow write: if isOwner();
+    }
+
+    /* Everything else stays closed. */
     match /{document=**} {
       allow read, write: if false;
     }

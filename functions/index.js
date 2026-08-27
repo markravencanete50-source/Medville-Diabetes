@@ -29,6 +29,14 @@ const US_STATES = new Set([
   "West Virginia","Wisconsin","Wyoming",
 ]);
 
+/* The product a visitor was looking at when they asked to be contacted.
+   Optional, and restricted to a slug shape so nothing free-form is stored.
+   This is not PHI on its own, but it lives beside PHI, so it is validated
+   as strictly as everything else and never echoed back. */
+function isProductSlug(v) {
+  return typeof v === "string" && v.length <= 60 && /^[a-z0-9-]*$/.test(v);
+}
+
 function isNonEmptyString(v, max) {
   return typeof v === "string" && v.trim().length > 0 && v.trim().length <= max;
 }
@@ -58,6 +66,7 @@ http("qualifyIntake", async (req, res) => {
     isNonEmptyString(b.phone, 25) && /^[0-9+()\-.\s]+$/.test(b.phone) &&
     isNonEmptyString(b.city, 80) &&
     US_STATES.has(b.state) &&
+    (b.productInterest === undefined || isProductSlug(b.productInterest)) &&
     (b.injectsInsulinDaily === "yes" || b.injectsInsulinDaily === "no");
 
   if (!valid) {
@@ -74,6 +83,7 @@ http("qualifyIntake", async (req, res) => {
       city: b.city.trim(),
       state: b.state,
       injectsInsulinDaily: b.injectsInsulinDaily,
+      productInterest: typeof b.productInterest === "string" ? b.productInterest : "",
       status: "new",
       createdAt: FieldValue.serverTimestamp(),
     });
