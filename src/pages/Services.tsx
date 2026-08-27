@@ -58,39 +58,21 @@ const STEP_IMAGES: (string | null)[] = [
 
 const missingStepImages = new Set<string>();
 
-function HeroDepthVisual() {
+/*
+  The hero photograph fills the right half of the section, flush to the
+  viewport edge, so the page opens as one split composition rather than a
+  card floating on a wash. Below the large breakpoint it becomes a normal
+  banner under the copy.
+*/
+function HeroPhoto() {
   return (
-    <div className="services-hero-visual relative mx-auto w-full max-w-[560px]" aria-label="A Medville patient journey from conversation to delivery">
-      <div className="services-hero-glow absolute inset-[12%_8%] rounded-full" aria-hidden="true" />
-      <div className="services-hero-depth relative overflow-hidden rounded-sheet shadow-overlay">
-        <img
-          src="/services/services-hero.webp"
-          alt="A woman at home checks her phone while wearing a continuous glucose monitor."
-          className="aspect-[4/3] w-full object-cover"
-        />
-        <div className="services-hero-wash absolute inset-0" aria-hidden="true" />
-        <div className="services-hero-card absolute bottom-5 left-5 right-5 rounded-card border border-on-dark/20 bg-ink/80 p-4 text-on-dark backdrop-blur-md md:bottom-7 md:left-7 md:right-auto md:w-[230px]">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-caption font-semibold uppercase tracking-[0.16em] text-on-dark-accent">Care path</span>
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-brand-bright text-ink">
-              <ArrowRight size={14} strokeWidth={2.5} />
-            </span>
-          </div>
-          <p className="mt-3 font-display text-[1.3rem] font-semibold leading-tight">One team for every handoff.</p>
-          <div className="mt-4 flex items-center gap-2 text-caption text-on-dark-muted">
-            <span className="h-2 w-2 rounded-full bg-cta" aria-hidden="true" />
-            <span>10 steps. Nothing to chase alone.</span>
-          </div>
-        </div>
-      </div>
-      <div className="services-hero-chip services-hero-chip-one rounded-full bg-surface-raised px-4 py-2.5 text-caption font-semibold text-ink shadow-pill">
-        <span className="mr-2 inline-block h-2 w-2 rounded-full bg-brand-bright" aria-hidden="true" />
-        Clinic + insurance
-      </div>
-      <div className="services-hero-chip services-hero-chip-two rounded-full bg-surface-raised px-4 py-2.5 text-caption font-semibold text-ink shadow-pill">
-        <span className="mr-2 inline-block h-2 w-2 rounded-full bg-brand" aria-hidden="true" />
-        Straight to your door
-      </div>
+    <div className="services-hero-photo relative h-[260px] w-full sm:h-[340px] lg:absolute lg:inset-y-0 lg:right-0 lg:h-full lg:w-[48%]">
+      <img
+        src="/services/services-hero.webp"
+        alt="A woman at home checks her phone while wearing a continuous glucose monitor."
+        className="h-full w-full object-cover object-[76%_center] lg:object-[82%_center]"
+      />
+      <div className="services-hero-edge absolute inset-0" aria-hidden="true" />
     </div>
   );
 }
@@ -163,6 +145,12 @@ function StepList({ active, onSelect }: { active: number; onSelect: (index: numb
   );
 }
 
+/*
+  The stage shows the step's rendered object on its own. The Canva
+  backgrounds are cut away in the source files, so the artwork sits on a
+  soft brand-tinted panel with a single glow behind it. No photograph, no
+  card, nothing layered over the render.
+*/
 function StageVisual({ stepIndex }: { stepIndex: number }) {
   const step = STEPS[stepIndex];
   const Icon = step.icon;
@@ -170,50 +158,23 @@ function StageVisual({ stepIndex }: { stepIndex: number }) {
   const [failed, setFailed] = useState(() => (image ? missingStepImages.has(image) : true));
   const showImage = image !== null && !failed;
   return (
-    <div className="services-stage-scene relative min-h-[340px] overflow-hidden rounded-sheet bg-brand-tint p-5 sm:min-h-[400px] md:p-8">
-      <div className="services-stage-photo absolute inset-0" aria-hidden="true">
-        <img src="/services/services-spotlight.webp" alt="" className="h-full w-full object-cover" />
-      </div>
-      <div className="services-stage-overlay absolute inset-0" aria-hidden="true" />
-      <div className="services-stage-ring services-stage-ring-one absolute rounded-full border border-on-dark/30" aria-hidden="true" />
-      <div className="services-stage-ring services-stage-ring-two absolute rounded-full border border-brand-bright/55" aria-hidden="true" />
+    <div className="services-stage-scene relative flex min-h-[340px] items-center justify-center overflow-hidden rounded-sheet p-6 sm:min-h-[420px] md:p-10">
+      <div className="services-stage-glow absolute inset-0" aria-hidden="true" />
       {showImage ? (
-        /* the step's rendered 3D artwork is the stage's subject */
-        <div className="absolute left-1/2 top-1/2 w-[78%] max-w-[330px] -translate-x-1/2 -translate-y-1/2">
-          <img
-            src={image}
-            alt={step.caption}
-            className="w-full rounded-sheet border border-on-dark/30 shadow-overlay"
-            onError={() => {
-              missingStepImages.add(image);
-              setFailed(true);
-            }}
-          />
-          <span className="absolute right-3 top-3 rounded-full bg-ink/80 px-3 py-1.5 text-caption font-semibold text-on-dark backdrop-blur-md">
-            Step {String(stepIndex + 1).padStart(2, "0")}
-          </span>
-        </div>
+        <img
+          src={image}
+          alt={step.caption}
+          className="services-stage-art relative z-10 max-h-[300px] w-auto max-w-[86%] object-contain sm:max-h-[360px]"
+          onError={() => {
+            missingStepImages.add(image);
+            setFailed(true);
+          }}
+        />
       ) : (
-        <div className="services-stage-kit absolute left-1/2 top-1/2 w-[72%] max-w-[285px] -translate-x-1/2 -translate-y-1/2">
-          <div className="services-stage-kit-inner rounded-sheet border border-on-dark/40 bg-ink/85 p-5 text-on-dark shadow-overlay backdrop-blur-md sm:p-6">
-            <div className="flex items-center justify-between gap-3">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-brand-bright text-ink">
-                <Icon size={22} strokeWidth={2.1} aria-hidden="true" />
-              </span>
-              <span className="text-caption font-semibold uppercase tracking-[0.16em] text-on-dark-accent">Step {String(stepIndex + 1).padStart(2, "0")}</span>
-            </div>
-            <p className="mt-6 font-display text-[1.5rem] font-semibold leading-tight">{step.label}</p>
-            <div className="mt-5 h-px bg-on-dark/20" />
-            <div className="mt-4 flex items-center justify-between gap-3 text-caption text-on-dark-muted">
-              <span>Medville handoff</span>
-              <span className="flex items-center gap-1.5 text-on-dark-brand"><Check size={14} strokeWidth={2.4} /> In progress</span>
-            </div>
-          </div>
-        </div>
+        <span className="relative z-10 flex h-24 w-24 items-center justify-center rounded-full bg-brand-soft text-brand">
+          <Icon size={40} strokeWidth={1.9} aria-hidden="true" />
+        </span>
       )}
-      <div className="services-stage-chip absolute bottom-5 left-5 rounded-full bg-surface-raised px-3.5 py-2 text-caption font-semibold text-ink shadow-pill sm:bottom-7 sm:left-7">
-        Your part: a quick answer
-      </div>
     </div>
   );
 }
@@ -323,13 +284,13 @@ export default function Services() {
         <Blob tone="brand" strength={0.18} blur={46} size={480} duration="15s" className="-left-[180px] -top-[160px]" />
         <Blob tone="cyan" strength={0.16} blur={48} size={520} duration="18s" reverse className="-bottom-[220px] -right-[180px]" />
         <Grain opacity={0.045} />
-        <Container wide className="relative grid items-center gap-10 py-12 md:py-20 lg:grid-cols-[0.88fr_1.12fr] lg:gap-14 lg:py-24">
-          <div className="relative z-10">
+        <Container wide className="relative py-12 md:py-16 lg:py-28">
+          <div className="relative z-10 lg:w-[52%] lg:pr-10">
             <div className="rise-in inline-flex items-center gap-2 rounded-full border border-brand/25 bg-canvas/75 px-4 py-1.5 text-caption font-semibold uppercase tracking-[0.1em] text-brand">
               <span className="h-2 w-2 rounded-full bg-cta" aria-hidden="true" />
               The Medville process
             </div>
-            <h1 className="rise-in mt-5 max-w-[14ch] font-display text-display font-bold leading-[1.03] text-ink" style={{ "--rise-delay": "90ms" } as React.CSSProperties}>
+            <h1 className="rise-in mt-5 max-w-[15ch] font-display text-display font-bold leading-[1.03] text-ink" style={{ "--rise-delay": "90ms" } as React.CSSProperties}>
               From first conversation to <span className="text-teal">ongoing supplies.</span>
             </h1>
             <p className="rise-in mt-5 max-w-[41ch] text-body-lg leading-relaxed text-grey-dark" style={{ "--rise-delay": "160ms" } as React.CSSProperties}>
@@ -349,10 +310,8 @@ export default function Services() {
               <span className="inline-flex items-center gap-2"><Check size={14} className="text-brand" strokeWidth={2.5} aria-hidden="true" /> One team throughout</span>
             </div>
           </div>
-          <div className="rise-in relative z-10" style={{ "--rise-delay": "180ms" } as React.CSSProperties}>
-            <HeroDepthVisual />
-          </div>
         </Container>
+        <HeroPhoto />
       </section>
 
       <section ref={journeyRef} className="scroll-mt-24 bg-grey-light py-16 md:py-24">
