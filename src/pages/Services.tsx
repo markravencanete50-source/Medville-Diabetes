@@ -40,9 +40,8 @@ const PHASES = [
 
 /*
   The client's rendered 3D artwork, one file per step, produced in their
-  Canva account. A null entry means no clean render exists yet; that step
-  keeps the icon card until the file lands here, and a failed load falls
-  back the same way so the stage never shows a broken image.
+  Canva account. A failed load falls back to the icon card, so the stage
+  never shows a broken image.
 */
 const STEP_IMAGES: (string | null)[] = [
   "/services/step-01-reach-out.webp",
@@ -52,9 +51,9 @@ const STEP_IMAGES: (string | null)[] = [
   "/services/step-05-review.webp",
   "/services/step-06-insurance.webp",
   "/services/step-07-order.webp",
-  null,
+  "/services/step-08-delivery.webp",
   "/services/step-09-support.webp",
-  null,
+  "/services/step-10-resupply.webp",
 ];
 
 const missingStepImages = new Set<string>();
