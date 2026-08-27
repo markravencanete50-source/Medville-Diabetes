@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Float, Html, Line, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 import Container from "./Container";
-import { prefersReducedMotion } from "../lib/useReveal";
+import { prefersReducedMotion, reveal, useReveal } from "../lib/useReveal";
 
 /*
   The Our Services care cycle: one contained live explainer, not a technical
@@ -403,6 +403,13 @@ export default function CareCycle3D() {
   const panel = useRef<HTMLDivElement>(null);
 
   /*
+    The section arrives on scroll like the rest of the page. This lives here
+    rather than on the page because the component is lazy-loaded: by the time
+    it mounts, the page has long since looked for what it needs to observe.
+  */
+  const section = useReveal<HTMLElement>();
+
+  /*
     react-three-fiber measures its container to size the renderer, and that
     first measurement does not always arrive for a canvas mounted lazily
     part way down the page. The renderer then keeps the 300 by 150 drawing
@@ -434,25 +441,27 @@ export default function CareCycle3D() {
   }, []);
 
   return (
-    <section className="journey-cycle" aria-labelledby="care-cycle-title">
+    <section ref={section} className="journey-cycle" aria-labelledby="care-cycle-title">
       <Container wide className="journey-cycle-grid">
         <div className="journey-cycle-copy">
-          <p className="journey-eyebrow">The process at a glance</p>
-          <h2 id="care-cycle-title">
+          <p className="journey-eyebrow" {...reveal()}>
+            The process at a glance
+          </p>
+          <h2 id="care-cycle-title" {...reveal(90)}>
             One simple process. <em>Every step coordinated.</em>
           </h2>
-          <p className="journey-cycle-lede">
+          <p className="journey-cycle-lede" {...reveal(180)}>
             Get a clear view of the journey, from your initial call through insurance
             coordination and ongoing supply deliveries.
           </p>
-          <div className="journey-cycle-active" aria-live="polite">
+          <div className="journey-cycle-active" aria-live="polite" {...reveal(270)}>
             <span>{String(active + 1).padStart(2, "0")}</span>
             <div>
               <strong>{PHASES[active].label}</strong>
               <small>{PHASES[active].detail}</small>
             </div>
           </div>
-          <ol className="journey-cycle-labels" aria-label="Care cycle milestones">
+          <ol className="journey-cycle-labels" aria-label="Care cycle milestones" {...reveal(350)}>
             {PHASES.map((phase, index) => (
               <li key={phase.label} className={active === index ? "is-active" : ""}>
                 <i>{String(index + 1).padStart(2, "0")}</i>
@@ -464,7 +473,8 @@ export default function CareCycle3D() {
 
         <div
           ref={panel}
-          className="journey-cycle-canvas"
+          className="journey-cycle-canvas reveal-slow"
+          {...reveal(120)}
           aria-label="An animated care cycle: calling, verifying, preparing, delivering, receiving, and resupply."
         >
           <Canvas

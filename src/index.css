@@ -935,6 +935,40 @@ h1, h2, h3, h4 {
   line-height: 1.5;
 }
 
+/* ---- the hero plays once, on arrival ---- */
+
+@keyframes journey-rise {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes journey-photo-in {
+  from { opacity: 0; transform: translateY(34px) scale(1.045); }
+  to { opacity: 1; transform: none; }
+}
+
+/*
+  Each line of the hero follows the one above it, so the page assembles
+  itself rather than appearing all at once. The photograph starts a little
+  early and settles a little late, so it reads as the slower, heavier thing.
+*/
+.journey-motion .journey-hero-copy > *,
+.journey-motion .journey-hero-card {
+  animation: journey-rise 780ms var(--ease-gentle) both;
+  animation-delay: var(--journey-delay, 0ms);
+}
+
+.journey-motion .journey-hero-copy > :nth-child(1) { --journey-delay: 60ms; }
+.journey-motion .journey-hero-copy > :nth-child(2) { --journey-delay: 150ms; }
+.journey-motion .journey-hero-copy > :nth-child(3) { --journey-delay: 260ms; }
+.journey-motion .journey-hero-copy > :nth-child(4) { --journey-delay: 360ms; }
+.journey-motion .journey-hero-copy > :nth-child(5) { --journey-delay: 440ms; }
+.journey-motion .journey-hero-card { --journey-delay: 760ms; }
+
+.journey-motion .journey-hero-photo {
+  animation: journey-photo-in 1050ms var(--ease-gentle) 200ms both;
+}
+
 /* ---- staged arrival, only when motion is allowed ---- */
 
 .journey-motion .journey-stage-visual > img {
@@ -976,11 +1010,11 @@ h1, h2, h3, h4 {
 .journey-motion .journey-stage-copy h2,
 .journey-motion .journey-stage-summary,
 .journey-motion .journey-step-list {
-  opacity: 0.18;
-  transform: translateY(24px);
+  opacity: 0;
+  transform: translateY(32px);
   transition:
-    opacity 780ms var(--ease-gentle),
-    transform 780ms var(--ease-gentle);
+    opacity 820ms var(--ease-gentle),
+    transform 820ms var(--ease-gentle);
 }
 
 .journey-motion .journey-stage.is-revealed .journey-stage-kicker,

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowRight,
@@ -165,16 +165,19 @@ export default function Services() {
     "See the ten steps Medville handles from your first conversation to ongoing CGM supplies.",
   );
 
-  const [revealed, setRevealed] = useState<Set<number>>(() => new Set([0]));
+  const [revealed, setRevealed] = useState<Set<number>>(() => new Set<number>());
   const [motion, setMotion] = useState(false);
   const stages = useRef<(HTMLElement | null)[]>([]);
 
   /*
-    Motion is opt-in. The staged reveals only get their hidden starting state
-    once this class lands, so a visitor who prefers reduced motion, or one
-    whose script never runs, reads the page in full.
+    Motion is opt-in. The hero entrance and the staged reveals only get their
+    hidden starting state once this class lands, so a visitor who prefers
+    reduced motion, or one whose script never runs, reads the page in full.
+
+    This runs before the browser paints, so the hero is never shown in full
+    and then snapped back to the start of its own animation.
   */
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!prefersReducedMotion()) setMotion(true);
   }, []);
 
@@ -189,7 +192,12 @@ export default function Services() {
           return next.size === previous.size ? previous : next;
         });
       },
-      { threshold: [0.2, 0.45, 0.7], rootMargin: "-14% 0px -24% 0px" },
+      /*
+        The low threshold is the safety net. Thresholds are a share of the
+        panel, not of the screen, and a tall stage on a short window can
+        never reach a high one, which would leave that stage hidden.
+      */
+      { threshold: [0.05, 0.2, 0.45], rootMargin: "-14% 0px -24% 0px" },
     );
     stages.current.forEach((stage) => stage && observer.observe(stage));
     return () => observer.disconnect();
