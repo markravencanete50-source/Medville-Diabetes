@@ -48,7 +48,7 @@ import { useCountUp } from "../lib/useCountUp";
   Motion: no two sections arrive the same way. The hero assembles line by
   line, the numbers drop in, the step cards tilt up off the page, the products
   scale in, the monitoring benefits come in from the left while the photograph
-  unwipes, the call to action resolves out of a blur, the guides swing open,
+  slides up through its frame, the call to action resolves out of a blur, the guides swing open,
   and the questions barely move at all. Photographs drift against the scroll
   through useParallax.
 */
@@ -403,10 +403,13 @@ export default function Home() {
                 ))}
               </ul>
             </div>
-            {/* The curtain runs on the inner wrapper: a clip-path on the framed
-                element would cut its own shadow off while it played. */}
-            <div className="overflow-hidden rounded-[24px] shadow-soft">
-              <div data-reveal={160} className="reveal-wipe reveal-glacial">
+            {/* The frame clips and the inner wrapper slides up through it.
+                The photograph itself is left free for the parallax drift. */}
+            <div
+              data-reveal={160}
+              className="reveal-curtain reveal-glacial rounded-[24px] shadow-soft"
+            >
+              <div>
                 <img
                   src="/home/why-monitoring.webp"
                   alt="A woman wearing a sensor on her arm looks at her phone, which shows a glucose reading of 112 inside her target range."
@@ -495,8 +498,18 @@ export default function Home() {
                 Check My Eligibility
                 <ArrowRight size={17} strokeWidth={2.2} />
               </Button>
-              <p className="m-0 flex items-start gap-2 text-caption leading-relaxed text-on-dark-muted">
-                <Lock size={14} strokeWidth={2} className="mt-0.5 flex-none" />
+              {/*
+                Not a flex container. Text around an inline link would each
+                become its own flex item, which breaks the sentence into
+                columns instead of wrapping it.
+              */}
+              <p className="m-0 text-caption leading-relaxed text-on-dark-muted">
+                <Lock
+                  size={14}
+                  strokeWidth={2}
+                  className="mr-1.5 inline-block -translate-y-px align-middle"
+                  aria-hidden="true"
+                />
                 Your information will be handled according to our{" "}
                 <Link to="/privacy-policy" className="underline underline-offset-2 hover:text-on-dark">
                   Privacy Policy

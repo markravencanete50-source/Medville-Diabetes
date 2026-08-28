@@ -340,15 +340,34 @@ h1, h2, h3, h4 {
   transform-origin: 100% 50%;
 }
 
-/* a curtain lifting off the element, for full-bleed imagery */
-.reveal-start.reveal-wipe {
-  clip-path: inset(100% 0 0 0);
-  transform: none;
+/*
+  A curtain, for framed imagery. The element itself holds still and clips;
+  its one child slides in from an edge.
+
+  This deliberately does not use clip-path. An element whose clip-path has
+  collapsed it to nothing reports itself as off screen to an
+  IntersectionObserver, so a clip-path reveal never triggers its own reveal.
+  A clip-path also cuts the frame's box-shadow while it plays. Moving the
+  child inside an overflow-hidden frame avoids both.
+*/
+.reveal-curtain,
+.reveal-curtain-left { overflow: hidden; }
+
+.reveal-curtain > *,
+.reveal-curtain-left > * {
+  transition: transform var(--duration-reveal) var(--ease-gentle);
 }
-.reveal-start.reveal-wipe-left {
-  clip-path: inset(0 100% 0 0);
-  transform: none;
-}
+
+.reveal-slow.reveal-curtain > *,
+.reveal-slow.reveal-curtain-left > * { transition-duration: var(--duration-reveal-slow); }
+.reveal-glacial.reveal-curtain > *,
+.reveal-glacial.reveal-curtain-left > * { transition-duration: var(--duration-reveal-glacial); }
+
+.reveal-start.reveal-curtain,
+.reveal-start.reveal-curtain-left { transform: none; }
+
+.reveal-start.reveal-curtain > * { transform: translateY(102%); }
+.reveal-start.reveal-curtain-left > * { transform: translateX(-102%); }
 
 /* a rule or divider widening from its own centre */
 .reveal-start.reveal-expand {
@@ -370,26 +389,23 @@ h1, h2, h3, h4 {
 }
 
 /*
-  clip-path is added only for the two curtain variants. A clip-path also cuts
-  an element's box-shadow at the border box, so putting it on every reveal
-  would flatten the shadow of every card on the way in. Apply the wipe to an
-  inner wrapper when the frame around it carries a shadow.
+  On a narrow screen the sideways arrivals become an upward one.
+
+  A phone has no room to spare horizontally: an element that starts 64 pixels
+  to the left of where it belongs sticks out past the viewport, and a section
+  that does not clip turns that into a horizontal scrollbar for the whole
+  page. The vertical arrival reads the same at this width anyway.
 */
-.reveal-wipe.reveal-in,
-.reveal-wipe-left.reveal-in {
-  clip-path: inset(0 0 0 0);
-  transition:
-    opacity var(--duration-reveal) var(--ease-gentle),
-    transform var(--duration-reveal) var(--ease-gentle),
-    filter var(--duration-reveal) var(--ease-gentle),
-    clip-path var(--duration-reveal) var(--ease-gentle);
+@media (max-width: 767px) {
+  .reveal-start.reveal-left,
+  .reveal-start.reveal-right,
+  .reveal-start.reveal-swing-left,
+  .reveal-start.reveal-swing-right { transform: translateY(30px); }
 }
 
 /* The settled state: no transition, so the element's own hover and focus
    styles run at their own speed again. */
 .reveal-done { opacity: 1; }
-.reveal-wipe.reveal-done,
-.reveal-wipe-left.reveal-done { clip-path: none; }
 
 /* ---- pace ---- */
 
@@ -433,8 +449,9 @@ video[data-parallax] {
     opacity: 1;
     transform: none;
     filter: none;
-    clip-path: none;
   }
+  .reveal-start.reveal-curtain > *,
+  .reveal-start.reveal-curtain-left > * { transform: none; }
   [data-parallax],
   img[data-parallax],
   video[data-parallax] { transform: none; }

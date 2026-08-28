@@ -26,8 +26,7 @@ import { useParallax, useReveal } from "../lib/useReveal";
 
   Motion: the hero assembles line by line, the promise strip drops in, the
   mission and vision panels swing open from their outer edges, the story
-  paragraphs settle one after another, the promise cards unwipe from the
-  bottom, and the closing band resolves out of a blur. Photographs drift
+  paragraphs settle one after another, the promise cards scale up into place, and the closing band resolves out of a blur. Photographs drift
   against the scroll.
 */
 

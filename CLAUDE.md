@@ -83,8 +83,8 @@ only change made to their wording.
   `src/index.css`. `useReveal` reveals anything carrying `data-reveal`;
   a second class picks the shape (`reveal-left`, `reveal-right`, `reveal-drop`,
   `reveal-zoom`, `reveal-push`, `reveal-blur`, `reveal-tilt`,
-  `reveal-swing-left`, `reveal-swing-right`, `reveal-wipe`,
-  `reveal-wipe-left`, `reveal-expand`, `reveal-settle`) and a third the pace
+  `reveal-swing-left`, `reveal-swing-right`, `reveal-curtain`,
+  `reveal-curtain-left`, `reveal-expand`, `reveal-settle`) and a third the pace
   (`reveal-swift`, `reveal-slow`, `reveal-glacial`). `useParallax` drifts
   anything carrying `data-parallax` against the scroll. Rules for new work:
   give consecutive sections different shapes, never put `data-reveal` and

@@ -38,7 +38,7 @@ import {
   with no other change.
 
   Motion: the hero assembles line by line, the three steps tilt up in
-  sequence, the video frame unwipes from the left, the download panel pushes
+  sequence, the video frame draws in from the left, the download panel pushes
   forward off the page, and the support band resolves out of a blur.
 */
 
@@ -196,8 +196,11 @@ export default function ReferPatient() {
               </p>
             </div>
 
-            <div className="mt-9 overflow-hidden rounded-[24px] bg-grey-light shadow-soft">
-              <div data-reveal={200} className="reveal-wipe-left reveal-glacial">
+            <div
+              data-reveal={200}
+              className="reveal-curtain-left reveal-glacial mt-9 rounded-[24px] bg-grey-light shadow-soft"
+            >
+              <div>
               {REFERRAL_VIDEO_URL ? (
                 <iframe
                   src={REFERRAL_VIDEO_URL}
@@ -227,9 +230,12 @@ export default function ReferPatient() {
           <Container wide>
             <div
               data-reveal={0}
-              className="reveal-push reveal-glacial grid gap-9 rounded-[26px] bg-surface-raised p-8 shadow-soft md:p-12 lg:grid-cols-[1.1fr_0.9fr]"
+              className="reveal-push reveal-glacial grid gap-9 rounded-[26px] bg-surface-raised p-6 shadow-soft sm:p-8 md:p-12 lg:grid-cols-[1.1fr_0.9fr]"
             >
-              <div>
+              {/* min-w-0 on both columns: a grid track defaults to the width
+                  of its widest child, and the email address below is one long
+                  unbreakable word. */}
+              <div className="min-w-0">
                 <Eyebrow>Ready to refer?</Eyebrow>
                 <h2 className="mt-3 font-display text-h2 font-bold text-ink">
                   Everything You Need in One Download
@@ -248,17 +254,17 @@ export default function ReferPatient() {
                 </p>
               </div>
 
-              <div className="flex flex-col gap-5 rounded-lg bg-brand-tint p-7">
+              <div className="flex min-w-0 flex-col gap-5 rounded-lg bg-brand-tint p-6 sm:p-7">
                 <div>
                   <p className="m-0 text-caption font-semibold uppercase tracking-[0.14em] text-grey-muted">
                     Send completed referrals to
                   </p>
                   <a
                     href={EMAIL_HREF}
-                    className="mt-1.5 inline-flex items-center gap-2 font-display text-body font-semibold text-brand"
+                    className="mt-1.5 flex items-start gap-2 font-display text-body font-semibold text-brand"
                   >
-                    <Mail size={17} strokeWidth={2} />
-                    {EMAIL}
+                    <Mail size={17} strokeWidth={2} className="mt-1 flex-none" />
+                    <span className="break-all">{EMAIL}</span>
                   </a>
                 </div>
                 <div className="border-t border-brand-mint pt-5">
@@ -267,9 +273,9 @@ export default function ReferPatient() {
                   </p>
                   <a
                     href={PHONE_TEL}
-                    className="mt-1.5 inline-flex items-center gap-2 font-display text-body font-semibold text-brand"
+                    className="mt-1.5 flex items-center gap-2 font-display text-body font-semibold text-brand"
                   >
-                    <PhoneCall size={17} strokeWidth={2} />
+                    <PhoneCall size={17} strokeWidth={2} className="flex-none" />
                     Call {PHONE_DISPLAY}
                   </a>
                 </div>
