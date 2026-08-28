@@ -25,10 +25,11 @@ import QuickView from "../components/QuickView";
 import Faq, { type FaqItem } from "../components/Faq";
 import { Blob, Eyebrow, Grain } from "../components/Decor";
 import HeroViewer from "../components/HeroViewer";
-import { useFaqs, useProduct, useProducts, useTestimonials } from "../lib/useSiteData";
+import { useFaqs, usePosts, useProduct, useProducts, useTestimonials } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
 import { useParallax, useReveal } from "../lib/useReveal";
 import { useCountUp } from "../lib/useCountUp";
+import { formatPostDate, readingMinutes } from "../data/blog";
 
 /*
   Home page.
@@ -48,7 +49,7 @@ import { useCountUp } from "../lib/useCountUp";
   Motion: no two sections arrive the same way. The hero assembles line by
   line, the numbers drop in, the step cards tilt up off the page, the products
   scale in, the monitoring benefits come in from the left while the photograph
-  slides up through its frame, the call to action resolves out of a blur, the guides swing open,
+  slides up through its frame, the call to action resolves out of a blur, the blog cards swing open,
   and the questions barely move at all. Photographs drift against the scroll
   through useParallax.
 */
@@ -137,29 +138,6 @@ const CAPTIONS = [
   { icon: Smartphone, text: "Technology designed to fit into real life." },
 ];
 
-const GUIDES = [
-  {
-    to: "/products/cgm",
-    image: "/home/guide-what-is-a-cgm.webp",
-    alt: "An open book explains what a continuous glucose monitor is, with a sensor and a daily glucose chart.",
-    title: "What Is a CGM and How Does It Work?",
-    body: "A straightforward introduction to continuous glucose monitoring, what it measures, and what you can expect when using one.",
-  },
-  {
-    to: "/qualify",
-    image: "/home/guide-coverage.webp",
-    alt: "A phone shows an active call to the customer care team.",
-    title: "Does Insurance Cover CGMs?",
-    body: "Learn about some of the factors that may affect CGM coverage and what information may be needed to check your potential eligibility.",
-  },
-  {
-    to: "/products/cgm",
-    image: "/home/guide-libre-or-dexcom.webp",
-    alt: "A phone shows a glucose reading of 6.2 next to a small round sensor.",
-    title: "Dexcom vs. FreeStyle Libre: What Is the Difference?",
-    body: "A simple look at two of the most recognized CGM brands and the features that may matter when discussing your options with your healthcare provider.",
-  },
-];
 
 export default function Home() {
   usePageMeta(
@@ -188,6 +166,11 @@ export default function Home() {
 
   /* Only verified, published testimonials reach the page. See the note above. */
   const testimonials = useTestimonials();
+
+  /* The three newest published articles. The band is left out entirely when
+     there are none: invented cards that look like articles but lead nowhere
+     are worse than no section at all. */
+  const posts = usePosts().slice(0, 3);
 
   return (
     <div ref={revealRef}>
@@ -520,49 +503,67 @@ export default function Home() {
           </Container>
         </section>
 
-        {/* GUIDES */}
-        <section id="guides" className="bg-grey-light scroll-mt-24 py-16 md:py-24">
-          <Container wide>
-            <div data-reveal={0} className="max-w-[620px]">
-              <Eyebrow>Learn</Eyebrow>
-              <h2 className="mt-3 font-display text-h2 font-bold text-ink">
-                Simple Answers for Everyday Diabetes Questions
-              </h2>
-            </div>
-            <div className="mt-9 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
-              {GUIDES.map((guide, index) => (
-                <Link
-                  key={guide.title}
-                  to={guide.to}
-                  data-reveal={index * 190}
-                  className={`${
-                    index === 0 ? "reveal-swing-left" : index === 2 ? "reveal-swing-right" : "reveal-zoom"
-                  } reveal-slow group flex flex-col overflow-hidden rounded-lg bg-surface-raised shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover`}
-                >
-                  <div className="aspect-[3/2] overflow-hidden bg-grey-light">
-                    <img
-                      src={guide.image}
-                      alt={guide.alt}
-                      loading="lazy"
-                      data-parallax="0.45"
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <div className="px-6 pb-6 pt-5">
-                    <h3 className="m-0 font-display text-[1.05rem] font-semibold text-ink">
-                      {guide.title}
-                    </h3>
-                    <p className="mt-2 text-small leading-relaxed text-grey-dark">{guide.body}</p>
-                    <span className="mt-3.5 inline-flex items-center gap-1.5 text-small font-semibold text-brand">
-                      Read the guide
-                      <ArrowRight size={15} strokeWidth={2.2} />
-                    </span>
-                  </div>
+        {/* BLOG */}
+        {posts.length > 0 && (
+          <section id="blog" className="bg-grey-light scroll-mt-24 py-16 md:py-24">
+            <Container wide>
+              <div data-reveal={0} className="flex flex-wrap items-end justify-between gap-4">
+                <div className="max-w-[620px]">
+                  <Eyebrow>Learn</Eyebrow>
+                  <h2 className="mt-3 font-display text-h2 font-bold text-ink">
+                    Simple Answers for Everyday Diabetes Questions
+                  </h2>
+                </div>
+                <Link to="/blog" className="group inline-flex items-center gap-1.5 text-small font-semibold text-brand">
+                  Read our blog
+                  <ArrowRight size={15} strokeWidth={2.2} className="transition-transform duration-(--duration-micro) group-hover:translate-x-0.5" />
                 </Link>
-              ))}
-            </div>
-          </Container>
-        </section>
+              </div>
+              <div className="mt-9 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
+                {posts.map((post, index) => (
+                  <Link
+                    key={post.slug}
+                    to={`/blog/${post.slug}`}
+                    data-reveal={index * 190}
+                    className={`${
+                      index === 0 ? "reveal-swing-left" : index === 2 ? "reveal-swing-right" : "reveal-zoom"
+                    } reveal-slow group flex flex-col overflow-hidden rounded-lg bg-surface-raised shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover`}
+                  >
+                    {post.image && (
+                      <div className="aspect-[3/2] overflow-hidden bg-grey-light">
+                        <img
+                          src={post.image}
+                          alt={post.imageAlt}
+                          loading="lazy"
+                          data-parallax="0.45"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <div className="flex flex-1 flex-col px-6 pb-6 pt-5">
+                      <p className="m-0 text-caption font-semibold uppercase tracking-[0.12em] text-brand">
+                        {formatPostDate(post.publishedAt)}
+                        <span className="ml-3 normal-case tracking-normal text-grey-muted">
+                          {readingMinutes(post.body)} min read
+                        </span>
+                      </p>
+                      <h3 className="mt-2 font-display text-[1.05rem] font-semibold leading-snug text-ink">
+                        {post.title}
+                      </h3>
+                      {post.excerpt && (
+                        <p className="mt-2 text-small leading-relaxed text-grey-dark">{post.excerpt}</p>
+                      )}
+                      <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-small font-semibold text-brand">
+                        Read the article
+                        <ArrowRight size={15} strokeWidth={2.2} />
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </Container>
+          </section>
+        )}
 
         {/* FAQ */}
         <section id="faqs" className="scroll-mt-24 py-16 md:py-24">

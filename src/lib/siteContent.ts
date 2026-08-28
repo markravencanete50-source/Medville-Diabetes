@@ -21,6 +21,7 @@
 */
 
 import { defaultsFor, type PageId, type PageValues, type SiteContent } from "../content/schema";
+import { decodeBlocks, type Post } from "../data/blog";
 import type { Product } from "../data/products";
 import { products as builtInProducts } from "../data/products";
 import { firebaseConfig } from "./firebaseConfig";
@@ -54,6 +55,7 @@ export interface SiteData {
     order: number;
     published: boolean;
   }[];
+  posts: Post[];
 }
 
 export const EMPTY_SITE_DATA: SiteData = {
@@ -62,6 +64,7 @@ export const EMPTY_SITE_DATA: SiteData = {
   products: builtInProducts,
   faqs: [],
   testimonials: [],
+  posts: [],
 };
 
 export function isLiveContentConfigured() {
@@ -209,18 +212,47 @@ function readTestimonials(docs: RestDocument[]): SiteData["testimonials"] {
     .sort((a, b) => a.order - b.order);
 }
 
+/*
+  Blog posts. Only published ones are returned, because this list is read by
+  the public site and a draft is not for readers. Newest first.
+
+  A post with no title or no address is skipped rather than rendered as a
+  blank card: a half-saved record should be invisible, not broken.
+*/
+function readPosts(docs: RestDocument[]): Post[] {
+  return docs
+    .map((doc) => {
+      const f = decodeFields(doc.fields);
+      return {
+        slug: documentId(doc),
+        title: typeof f.title === "string" ? f.title : "",
+        excerpt: typeof f.excerpt === "string" ? f.excerpt : "",
+        body: decodeBlocks(f.body),
+        image: typeof f.image === "string" ? f.image : "",
+        imageAlt: typeof f.imageAlt === "string" ? f.imageAlt : "",
+        author: typeof f.author === "string" ? f.author : "",
+        publishedAt: typeof f.publishedAt === "string" ? f.publishedAt : "",
+        published: f.published === true,
+      };
+    })
+    .filter((post) => post.published && post.slug && post.title)
+    .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
+}
+
 /* ---- the one public entry point ---- */
 
 export async function loadSiteData(signal: AbortSignal): Promise<SiteData> {
   if (!isLiveContentConfigured()) return EMPTY_SITE_DATA;
 
-  const [contentDocs, themeDocs, productDocs, faqDocs, testimonialDocs] = await Promise.all([
-    fetchCollection("siteContent", signal).catch(() => []),
-    fetchCollection("siteTheme", signal).catch(() => []),
-    fetchCollection("products", signal).catch(() => []),
-    fetchCollection("faqs", signal).catch(() => []),
-    fetchCollection("testimonials", signal).catch(() => []),
-  ]);
+  const [contentDocs, themeDocs, productDocs, faqDocs, testimonialDocs, postDocs] =
+    await Promise.all([
+      fetchCollection("siteContent", signal).catch(() => []),
+      fetchCollection("siteTheme", signal).catch(() => []),
+      fetchCollection("products", signal).catch(() => []),
+      fetchCollection("faqs", signal).catch(() => []),
+      fetchCollection("testimonials", signal).catch(() => []),
+      fetchCollection("posts", signal).catch(() => []),
+    ]);
 
   return {
     content: readContent(contentDocs),
@@ -228,6 +260,7 @@ export async function loadSiteData(signal: AbortSignal): Promise<SiteData> {
     products: readProducts(productDocs),
     faqs: readFaqs(faqDocs),
     testimonials: readTestimonials(testimonialDocs),
+    posts: readPosts(postDocs),
   };
 }
 

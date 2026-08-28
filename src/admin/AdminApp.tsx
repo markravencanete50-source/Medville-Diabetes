@@ -9,6 +9,7 @@ import {
   MessageSquareQuote,
   Moon,
   Package,
+  PenSquare,
   ScrollText,
   ShieldCheck,
   Sun,
@@ -62,6 +63,7 @@ const Overview = screen(() => import("./pages/Overview"));
 const Leads = screen(() => import("./pages/Leads"));
 const Products = screen(() => import("./pages/Products"));
 const Content = screen(() => import("./pages/Content"));
+const Blog = screen(() => import("./pages/Blog"));
 const Appearance = screen(() => import("./pages/Appearance"));
 const Faqs = screen(() => import("./pages/Faqs"));
 const Testimonials = screen(() => import("./pages/Testimonials"));
@@ -73,6 +75,7 @@ type Section =
   | "leads"
   | "products"
   | "content"
+  | "blog"
   | "appearance"
   | "faqs"
   | "testimonials"
@@ -84,6 +87,7 @@ const NAV: { id: Section; label: string; icon: typeof BarChart3; group: string }
   { id: "leads", label: "Enquiries", icon: ClipboardList, group: "Enquiries" },
   { id: "products", label: "Products", icon: Package, group: "Website" },
   { id: "content", label: "Page text", icon: FileText, group: "Website" },
+  { id: "blog", label: "Blog", icon: PenSquare, group: "Website" },
   { id: "appearance", label: "Colours", icon: ImageIcon, group: "Website" },
   { id: "faqs", label: "Questions", icon: MessageSquareQuote, group: "Website" },
   { id: "testimonials", label: "Reviews", icon: MessageSquareQuote, group: "Website" },
@@ -388,6 +392,7 @@ function Shell() {
             {section === "leads" && <Leads />}
             {section === "products" && <Products />}
             {section === "content" && <Content />}
+            {section === "blog" && <Blog />}
             {section === "appearance" && <Appearance />}
             {section === "faqs" && <Faqs />}
             {section === "testimonials" && <Testimonials />}

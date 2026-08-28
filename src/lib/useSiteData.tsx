@@ -141,3 +141,16 @@ export function useFaqs() {
 export function useTestimonials() {
   return useSiteData().testimonials;
 }
+
+/* Published blog posts, newest first. */
+export function usePosts() {
+  return useSiteData().posts;
+}
+
+export function usePost(slug: string | undefined) {
+  const posts = usePosts();
+  return useMemo(
+    () => (slug ? posts.find((post) => post.slug === slug) : undefined),
+    [posts, slug],
+  );
+}

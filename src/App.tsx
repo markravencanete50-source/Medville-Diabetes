@@ -11,6 +11,8 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Services from "./pages/Services";
 import ReferPatient from "./pages/ReferPatient";
+import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
@@ -63,6 +65,8 @@ function PublicSite() {
           <Route path="/products/:slug" element={<ProductDetail />} />
           <Route path="/services" element={<Services />} />
           <Route path="/refer-a-patient" element={<ReferPatient />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
           <Route path="/qualify" element={<Qualify />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />

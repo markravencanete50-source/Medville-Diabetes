@@ -15,10 +15,10 @@ import {
   Global footer, laid out as the four columns the client's copy document
   specifies: Explore, Products, Resources and Contact Information.
 
-  Guides and FAQs are sections of the home page rather than pages of their
-  own, so those two links carry a fragment. React Router does not scroll to a
-  fragment by itself, which is why both targets have an id and a scroll
-  margin that clears the sticky header.
+  The blog is a page of its own at /blog. FAQs are a section of the home page,
+  so that link carries a fragment; React Router does not scroll to a fragment
+  by itself, which is why the target has an id and a scroll margin clearing
+  the sticky header.
 */
 
 const linkClass =
@@ -41,7 +41,7 @@ const PRODUCTS = [
 ];
 
 const RESOURCES = [
-  { to: "/#guides", label: "Guides" },
+  { to: "/blog", label: "Blog" },
   { to: "/#faqs", label: "FAQs" },
   { to: "/privacy-policy", label: "Privacy Policy" },
   { to: "/terms-of-service", label: "Terms of Service" },

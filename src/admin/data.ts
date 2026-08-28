@@ -10,6 +10,7 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { adminDb, adminStorage } from "./auth";
 import type { PageId, PageValues } from "../content/schema";
 import type { Product } from "../data/products";
+import { decodeBlocks, type PostBlock } from "../data/blog";
 
 /*
   Reads and writes for everything that is not Protected Health Information.
@@ -36,6 +37,21 @@ export interface TestimonialRecord {
   name: string;
   location: string;
   order: number;
+  published: boolean;
+}
+
+export interface PostRecord {
+  /* The document id and the address. Renaming it means a new document, so the
+     editor keeps it fixed once a post has been saved: a published article
+     that silently changes address breaks every link to it. */
+  slug: string;
+  title: string;
+  excerpt: string;
+  body: PostBlock[];
+  image: string;
+  imageAlt: string;
+  author: string;
+  publishedAt: string;
   published: boolean;
 }
 
@@ -175,4 +191,46 @@ export function toSlug(value: string) {
 
 export function newId() {
   return `${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
+}
+
+/* ---- blog posts ---- */
+
+export async function loadPosts(): Promise<PostRecord[]> {
+  const snapshot = await getDocs(collection(adminDb(), "posts"));
+  return snapshot.docs
+    .map((entry) => {
+      const data = entry.data() as Record<string, unknown>;
+      return {
+        slug: entry.id,
+        title: typeof data.title === "string" ? data.title : "",
+        excerpt: typeof data.excerpt === "string" ? data.excerpt : "",
+        body: decodeBlocks(data.body),
+        image: typeof data.image === "string" ? data.image : "",
+        imageAlt: typeof data.imageAlt === "string" ? data.imageAlt : "",
+        author: typeof data.author === "string" ? data.author : "",
+        publishedAt: typeof data.publishedAt === "string" ? data.publishedAt : "",
+        published: data.published === true,
+      };
+    })
+    /* Newest first, and drafts with no date yet sort to the top where the
+       author will see them. */
+    .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
+}
+
+export async function savePost(record: PostRecord) {
+  const { slug, ...rest } = record;
+  /* Blocks are stored as plain objects. Firestore rejects undefined, so every
+     optional field is dropped rather than sent as undefined. */
+  const body = rest.body.map((block) =>
+    Object.fromEntries(Object.entries(block).filter(([, value]) => value !== undefined)),
+  );
+  await setDoc(doc(adminDb(), "posts", slug), { ...rest, body }, { merge: false });
+}
+
+export async function deletePost(slug: string) {
+  await deleteDoc(doc(adminDb(), "posts", slug));
+}
+
+export async function postSlugExists(slug: string) {
+  return (await getDoc(doc(adminDb(), "posts", slug))).exists();
 }

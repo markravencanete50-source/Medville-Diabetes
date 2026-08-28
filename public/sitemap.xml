@@ -25,4 +25,7 @@
   <url><loc>https://www.medvillediabetes.com/terms-of-service</loc></url>
   <url><loc>https://www.medvillediabetes.com/services</loc></url>
   <url><loc>https://www.medvillediabetes.com/refer-a-patient</loc></url>
+  <!-- Individual articles are written from the dashboard, so they cannot be
+       listed here at build time. The blog index links every one of them. -->
+  <url><loc>https://www.medvillediabetes.com/blog</loc></url>
 </urlset>

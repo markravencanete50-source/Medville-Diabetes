@@ -94,6 +94,21 @@ only change made to their wording.
   the wordmark measures 1.19:1 against the footer and is effectively invisible
   there. The cyan "DIABETES" line and the leaves still read. A reversed logo
   from the client, or a light panel behind it, fixes it whenever they want.
+- Blog. Articles live in the Firestore `posts` collection, written from the
+  dashboard's Blog screen and read by the public site, following the same
+  pattern as faqs and testimonials. A post body is a list of typed blocks, not
+  HTML: `src/data/blog.ts` holds the shapes, the markdown-lite inline parser
+  (**bold**, *italic*, [link](url)) and the decoder, and
+  `src/components/PostBody.tsx` is the only thing that renders them. The
+  dashboard preview mounts that same component, so a preview cannot drift from
+  the published article. Two rules to keep: nothing is ever rendered with
+  dangerouslySetInnerHTML, and a block stores a token name for colour and font
+  rather than a raw value, so a post cannot introduce type or colour the rest
+  of the site does not use. Only http, https, root-relative and mailto links
+  survive the parser. Pages are `/blog` and `/blog/:slug`; the home band and
+  the footer both point at `/blog`, and the home band is hidden entirely until
+  a post is published. The old "Guides" section and its `/#guides` anchor are
+  gone, replaced by this at the client's request on 2026-08-28.
 - The qualify form has two states, decided by `VITE_QUALIFY_ENDPOINT`. With it
   set, the real form renders and posts to the intake function. With it unset,
   the form is not rendered at all and the card becomes an "Eligibility checks

@@ -5,7 +5,7 @@ rules_version = '2';
 
   Two worlds live in this database and they are kept strictly apart.
 
-  1. Marketing content (siteContent, siteTheme, products, faqs, testimonials).
+  1. Marketing content (siteContent, siteTheme, products, faqs, testimonials, posts).
      The public website reads these directly. They contain no personal data of
      any kind. Only a signed-in administrator with a content role may write.
 
@@ -68,6 +68,13 @@ service cloud.firestore {
     }
 
     match /testimonials/{id} {
+      allow read: if true;
+      allow write: if canEditContent();
+    }
+
+    /* Blog posts. Drafts live here too, which is safe: a post carries no
+       personal data, and the public site filters to published itself. */
+    match /posts/{slug} {
       allow read: if true;
       allow write: if canEditContent();
     }

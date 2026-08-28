@@ -52,6 +52,10 @@ change.
    firebase deploy --only firestore:rules,firestore:indexes,storage
    ```
 
+   Re-run this whenever `firestore.rules` changes. It changed on 2026-08-28
+   to add the `posts` collection the blog uses; without redeploying, saving an
+   article is refused.
+
 4. Enable **Data Access audit logs** for Firestore in the console. They are off
    by default, and Section 3.4(c) needs them.
 
@@ -111,7 +115,7 @@ dashboard. The three roles are:
 | Role | Sees |
 |---|---|
 | `owner` | Everything, including administrators and the access log |
-| `editor` | The website only. No access to enquiries or patient details |
+| `editor` | The website only, including the blog. No access to enquiries or patient details |
 | `agent` | Enquiries only. Cannot change the website |
 
 Give each person the narrowest role that lets them do their job. That is the
@@ -179,6 +183,7 @@ Steps 1, 2, 4, 5 and 6 all need Google Cloud console or `gcloud` access.
 | Enquiries | The people who completed the form, their details, the product they asked about, and what stage each one is at |
 | Products | Add, edit and remove products, front and back photographs, price, and whether a product is available, coming soon or sold out |
 | Page text | The wording and pictures on Home, Our Products, Our Services, About Us and Contact |
+| Blog | Write, edit and publish articles. Blocks for paragraphs, headings, lists, quotes, pictures, highlights and dividers, with brand colours and fonts, picture shapes, and a preview that renders exactly what a reader will see. Draft until published |
 | Colours | The five brand colours, each checked for readability before it can be saved |
 | Questions | The questions and answers on the home page |
 | Reviews | Customer reviews, draft until published |

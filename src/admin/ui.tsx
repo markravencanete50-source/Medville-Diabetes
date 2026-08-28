@@ -164,11 +164,15 @@ export function Drawer({
   onClose,
   title,
   children,
+  /* A wider panel for the blog editor, where a block and its preview both
+     need room. Everything else keeps the reading width. */
+  wide = false,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  wide?: boolean;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -190,7 +194,9 @@ export function Drawer({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="fixed inset-y-0 right-0 z-50 flex w-[min(460px,100vw)] flex-col"
+        className={`fixed inset-y-0 right-0 z-50 flex flex-col ${
+          wide ? "w-[min(780px,100vw)]" : "w-[min(460px,100vw)]"
+        }`}
         style={{ background: "var(--a-surface)", boxShadow: "var(--a-shadow)" }}
       >
         <header
