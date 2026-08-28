@@ -38,7 +38,7 @@ export default function Header() {
       <div className="border-b border-ink/[0.08] bg-canvas/[0.86] backdrop-blur-[14px]">
         <Container wide className="flex h-[72px] items-center justify-between gap-6">
           <Link to="/" aria-label="Medville Diabetes home page">
-            <Logo />
+            <Logo className="h-12" />
           </Link>
 
           <nav className="hidden items-center gap-6 lg:flex" aria-label="Main navigation">
@@ -102,7 +102,7 @@ export default function Header() {
             className="absolute right-0 top-0 flex h-full w-[84%] max-w-sm flex-col bg-canvas shadow-overlay"
           >
             <div className="flex h-[72px] items-center justify-between border-b border-line-brand px-5">
-              <Logo />
+              <Logo className="h-11" />
               <button
                 type="button"
                 className="flex h-11 w-11 items-center justify-center rounded-md text-ink"

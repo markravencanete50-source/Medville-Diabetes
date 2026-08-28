@@ -75,7 +75,7 @@ export default function Footer() {
           className="grid gap-10 pb-12 pt-14 [grid-template-columns:repeat(auto-fit,minmax(210px,1fr))]"
         >
           <div>
-            <Logo dark />
+            <Logo className="h-14" />
             <p className="mt-4 max-w-[36ch] text-small leading-relaxed text-on-dark-muted">
               Medville Diabetes helps make getting the diabetes supplies you rely on
               simpler, with dependable products and support along the way.

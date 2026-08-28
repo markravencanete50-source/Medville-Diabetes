@@ -1,43 +1,31 @@
 /*
-  Medville Diabetes wordmark, rebuilt from brand/Medville_Brand.svg.
-  Poppins wordmark with the brand leaf accent above the letter "i".
+  Medville Diabetes logo.
 
-  The leaf keeps the brand cyan in both themes. The rules and the "Diabetes"
-  line moved to the brand system in the 2026-08-26 redesign.
+  This renders the client's own artwork (supplied 2026-08-28, original kept at
+  brand/Medville_Logo.svg) rather than a wordmark rebuilt in markup. It is an
+  SVG, so it is drawn from vectors at whatever size the page asks for and can
+  never blur, on a phone or on a 5K display.
+
+  The delivered lockup is white type on a solid brand-cyan field. That field is
+  part of the logo, so it is kept: the logo reads as its own tile on the light
+  header and on the dark footer alike, and nothing is recoloured. The only
+  change made to the file is a cropped viewBox, because the delivered canvas
+  is 400 by 350 with the artwork occupying the middle 182 units; without the
+  crop, well over half of the logo's height on screen would be empty cyan.
+
+  If the client has a version of the logo with a transparent background, drop
+  it in at public/brand/ and point this component at it.
 */
-export default function Logo({ dark = false }: { dark?: boolean }) {
-  const wordColour = dark ? "text-on-dark" : "text-ink";
-
+export default function Logo({ className = "h-11" }: { className?: string }) {
   return (
-    <span className="inline-flex flex-col leading-none" aria-label="Medville Diabetes">
-      <span className="relative font-display text-[1.45rem] font-bold tracking-[-0.025em]">
-        <span className={wordColour}>Medv</span>
-        <span className="relative">
-          <span className={wordColour}>i</span>
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 20"
-            className="absolute -top-2.5 left-0.5 h-3 w-4 text-accent"
-            fill="currentColor"
-          >
-            <ellipse cx="6" cy="14" rx="4.5" ry="3.4" transform="rotate(-35 6 14)" />
-            <ellipse cx="14" cy="8" rx="4" ry="3" transform="rotate(-35 14 8)" opacity="0.85" />
-            <ellipse cx="20.5" cy="3" rx="3" ry="2.3" transform="rotate(-35 20.5 3)" opacity="0.7" />
-          </svg>
-        </span>
-        <span className={wordColour}>lle</span>
-      </span>
-      <span className="mt-0.5 flex items-center gap-1.5">
-        <span className="h-px w-4 bg-brand-bright" aria-hidden="true" />
-        <span
-          className={`text-[0.62rem] font-semibold uppercase tracking-[0.32em] ${
-            dark ? "text-on-dark-accent" : "text-brand"
-          }`}
-        >
-          Diabetes
-        </span>
-        <span className="h-px w-4 bg-brand-bright" aria-hidden="true" />
-      </span>
-    </span>
+    <img
+      src="/brand/medville-logo.svg"
+      alt="Medville Diabetes"
+      /* The intrinsic ratio of the cropped lockup. Giving it here reserves the
+         right box before the file loads, so the header never jumps. */
+      width={400}
+      height={182}
+      className={`w-auto rounded-[10px] ${className}`}
+    />
   );
 }

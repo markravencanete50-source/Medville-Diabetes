@@ -77,6 +77,20 @@ only change made to their wording.
 - Design token system in `src/index.css` derived from `brand/Medville_Brand.svg`
   (navy #00293B, cyan #18BADA, orange #FF9E1B, Poppins + Inter). No raw hex
   in components; extend tokens, do not bypass them.
+- Logo: the client's own artwork, delivered 2026-08-28. The untouched original
+  is `brand/Medville_Logo.svg`; the site renders `public/brand/medville-logo.svg`,
+  which is the same file with its viewBox cropped to the artwork (the delivered
+  canvas is 400x350 and over half of it is empty cyan). It is white type on a
+  brand-cyan field, so it carries its own background and needs no light or dark
+  variant. `public/favicon.svg` and `public/apple-touch-icon.png` are the logo's
+  own "M" path on the same cyan; the full wordmark is unreadable at 16 px.
+  Everything is vector, so nothing blurs at any size. If the client supplies a
+  transparent-background version, add it under `public/brand/` and point
+  `src/components/Logo.tsx` at it.
+- Cache rules in `firebase.json`: only `/assets/**` may be immutable, because
+  Vite fingerprints those names. Anything with a stable name (the icons, the
+  logo, images in `public/`) must revalidate, or a replacement will not reach
+  visitors who have been to the site before.
 - `ProductViewer` component: drag to rotate front/back, wheel and pinch zoom,
   double-tap zoom, keyboard support, reduced-motion support.
 - Scroll-motion system in `src/lib/useReveal.ts` and the reveal block of
