@@ -55,6 +55,29 @@ const BLOCK_TYPES: PostBlock["type"][] = [
   "divider",
 ];
 
+/*
+  Uploading needs a Cloud Storage bucket, and a project on the free tier does
+  not have one: Firebase only creates the default bucket on the Blaze plan. So
+  a picture can also be given as a web address, which needs nothing enabled
+  and works today. When Storage is switched on, upload starts working with no
+  change here.
+*/
+const UPLOAD_HELP =
+  "Upload needs Cloud Storage, which is not switched on for this project yet. Paste a web address instead, or ask for Storage to be enabled.";
+
+function uploadProblem(problem: unknown) {
+  const message = problem instanceof Error ? problem.message : "";
+  /* A missing bucket surfaces as an unhelpful storage error, so say the
+     useful thing rather than repeating it. */
+  return /bucket|not found|404|unknown/i.test(message) ? UPLOAD_HELP : message || UPLOAD_HELP;
+}
+
+/* Only a real web address is accepted, so a stray paste cannot become a
+   broken picture or a javascript: address in a published article. */
+function isImageAddress(value: string) {
+  return /^https?:\/\/\S+$/i.test(value.trim());
+}
+
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -490,7 +513,7 @@ function HeaderImage({
       set("image", await uploadImage(file, "blog"));
       toast("Picture uploaded.");
     } catch (problem) {
-      toast(problem instanceof Error ? problem.message : "The upload did not work.", "danger");
+      toast(uploadProblem(problem), "danger");
     } finally {
       setBusy(false);
     }
@@ -539,6 +562,17 @@ function HeaderImage({
       </div>
       <input
         className="admin-input mt-3"
+        value={draft.image}
+        onChange={(e) => set("image", e.target.value.trim())}
+        placeholder="Or paste a picture address: https://..."
+      />
+      {draft.image && !isImageAddress(draft.image) && !draft.image.startsWith("/") && (
+        <p className="admin-help" style={{ color: "var(--a-warn)" }}>
+          That does not look like a web address.
+        </p>
+      )}
+      <input
+        className="admin-input mt-2"
         value={draft.imageAlt}
         onChange={(e) => set("imageAlt", e.target.value)}
         placeholder="Describe the picture for a screen reader"
@@ -580,7 +614,7 @@ function BlockEditor({
       patch({ url: await uploadImage(file, "blog") } as Partial<PostBlock>);
       toast("Picture uploaded.");
     } catch (problem) {
-      toast(problem instanceof Error ? problem.message : "The upload did not work.", "danger");
+      toast(uploadProblem(problem), "danger");
     } finally {
       setBusy(false);
     }
@@ -811,6 +845,12 @@ function BlockEditor({
           </div>
           <input
             className="admin-input mt-3"
+            value={block.url}
+            onChange={(e) => patch({ url: e.target.value.trim() } as Partial<PostBlock>)}
+            placeholder="Or paste a picture address: https://..."
+          />
+          <input
+            className="admin-input mt-2"
             value={block.alt}
             onChange={(e) => patch({ alt: e.target.value } as Partial<PostBlock>)}
             placeholder="Describe the picture for a screen reader"

@@ -120,7 +120,11 @@ only change made to their wording.
   survive the parser. Pages are `/blog` and `/blog/:slug`; the home band and
   the footer both point at `/blog`, and the home band is hidden entirely until
   a post is published. The old "Guides" section and its `/#guides` anchor are
-  gone, replaced by this at the client's request on 2026-08-28.
+  gone, replaced by this at the client's request on 2026-08-28. A picture can
+  be uploaded or given as a web address: Firebase only creates the default
+  Cloud Storage bucket on the Blaze plan, so on the free tier uploads fail and
+  pasting an address is the route that works. Both fields write the same
+  value, so nothing changes when Storage is switched on.
 - The qualify form has two states, decided by `VITE_QUALIFY_ENDPOINT`. With it
   set, the real form renders and posts to the intake function. With it unset,
   the form is not rendered at all and the card becomes an "Eligibility checks

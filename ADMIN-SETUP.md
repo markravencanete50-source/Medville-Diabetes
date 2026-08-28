@@ -168,6 +168,24 @@ there.
 
 ---
 
+## What works before billing is enabled
+
+Cloud Functions and Cloud Storage need the Blaze plan. Everything else does
+not, so most of the dashboard is usable on the free tier:
+
+| Works now | Waits for Blaze |
+|---|---|
+| The whole public website | The qualify form (`qualifyIntake`) |
+| Blog: writing, editing, publishing | Enquiries and the access log (`adminApi`) |
+| Products, page text, colours, questions, reviews | Uploading pictures |
+| Signing in, inviting administrators | |
+
+Pictures can be given as a web address in the meantime, which needs nothing
+enabled. The upload button starts working once Storage exists, with no change
+to the site.
+
+---
+
 ## Current state, verified 2026-08-28
 
 Checked directly against the project rather than assumed:
@@ -179,6 +197,7 @@ Checked directly against the project rather than assumed:
 | Firestore database | live |
 | Security rules | deployed and correct: the public content collections read, `leads` refuses the browser |
 | Content collections | empty, so the site serves its built-in wording, which is the intended fallback |
+| Cloud Storage bucket | does not exist; the default bucket needs Blaze |
 | Blaze plan and BAA (step 1) | not confirmed |
 | Identity Platform upgrade (step 2) | not confirmed; plain Firebase Auth is not BAA covered |
 | The two functions (step 4) | not deployed |
