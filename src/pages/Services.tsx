@@ -285,7 +285,14 @@ export default function Services() {
                 <Container wide className="journey-stage-grid">
                   <figure className="journey-stage-visual">
                     <div className="journey-stage-mask" aria-hidden="true" />
-                    <img src={stage.image} alt={stage.alt} loading="lazy" decoding="async" />
+                    <img
+                      src={stage.image}
+                      alt={stage.alt}
+                      loading="lazy"
+                      decoding="async"
+                      width={1100}
+                      height={825}
+                    />
                     <figcaption>
                       <span>Stage {stage.number}</span>
                       <strong>{stage.label}</strong>

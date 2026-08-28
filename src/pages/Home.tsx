@@ -311,7 +311,7 @@ export default function Home() {
                   everyday life.
                 </p>
               </div>
-              <Link to="/products" className="group inline-flex items-center gap-1.5 text-small font-semibold text-brand">
+              <Link to="/products" className="group inline-flex items-center gap-1.5 py-1 text-small font-semibold text-brand">
                 View All Products
                 <ArrowRight size={15} strokeWidth={2.2} className="transition-transform duration-(--duration-micro) group-hover:translate-x-0.5" />
               </Link>
@@ -374,8 +374,10 @@ export default function Home() {
                   src="/home/why-monitoring.webp"
                   alt="A woman wearing a sensor on her arm looks at her phone, which shows a glucose reading of 112 inside her target range."
                   loading="lazy"
+                  width={1200}
+                  height={936}
                   data-parallax="0.7"
-                  className="w-full"
+                  className="h-auto w-full"
                 />
               </div>
             </div>
@@ -471,7 +473,7 @@ export default function Home() {
                   aria-hidden="true"
                 />
                 Your information will be handled according to our{" "}
-                <Link to="/privacy-policy" className="underline underline-offset-2 hover:text-on-dark">
+                <Link to="/privacy-policy" className="inline-block py-1 underline underline-offset-2 hover:text-on-dark">
                   Privacy Policy
                 </Link>{" "}
                 and applicable privacy requirements.

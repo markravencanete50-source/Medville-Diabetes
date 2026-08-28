@@ -107,6 +107,8 @@ export default function About() {
               <img
                 src="/about/about-hero.webp"
                 alt=""
+                width={1536}
+                height={1024}
                 data-parallax="0.35"
                 className="mask-fade-left h-full w-full object-cover object-right"
               />
@@ -157,7 +159,9 @@ export default function About() {
               <img
                 src="/about/about-hero.webp"
                 alt="An adult goes about a normal day at home while wearing a continuous glucose monitor."
-                className="rise-in mb-14 w-full rounded-lg shadow-soft lg:hidden"
+                width={1536}
+                height={1024}
+                className="rise-in mb-14 h-auto w-full rounded-lg shadow-soft lg:hidden"
                 style={{ "--rise-delay": "660ms" } as React.CSSProperties}
               />
             </Container>
@@ -207,6 +211,8 @@ export default function About() {
                     src={item.image}
                     alt={item.alt}
                     loading="lazy"
+                    width={1536}
+                    height={1024}
                     data-parallax="0.35"
                     className="absolute inset-0 h-full w-full object-cover"
                   />
@@ -278,6 +284,8 @@ export default function About() {
                       src={promise.image}
                       alt={promise.alt}
                       loading="lazy"
+                      width={900}
+                      height={720}
                       data-parallax="0.45"
                       className="aspect-[5/4] w-full object-cover"
                     />

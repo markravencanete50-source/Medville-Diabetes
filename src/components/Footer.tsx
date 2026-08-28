@@ -21,8 +21,11 @@ import {
   the sticky header.
 */
 
+/* inline-block with vertical padding, because the text alone is 16px tall and
+   a touch target should be at least 24. The list gap comes down to match, so
+   the footer looks the same while the tappable area grows. */
 const linkClass =
-  "text-small text-on-dark-brand transition-colors duration-(--duration-micro) hover:text-on-dark";
+  "inline-block py-1.5 text-small text-on-dark-brand transition-colors duration-(--duration-micro) hover:text-on-dark";
 const headingClass =
   "m-0 font-display text-caption font-semibold uppercase tracking-[0.16em] text-on-dark-accent";
 
@@ -84,7 +87,7 @@ export default function Footer() {
 
           <nav aria-label="Explore">
             <h3 className={headingClass}>Explore</h3>
-            <ul className="mt-4.5 flex list-none flex-col gap-2.5 p-0">
+            <ul className="mt-3 flex list-none flex-col gap-0.5 p-0">
               {EXPLORE.map((item) => (
                 <li key={item.to}>
                   <Link to={item.to} className={linkClass}>
@@ -97,7 +100,7 @@ export default function Footer() {
 
           <nav aria-label="Products">
             <h3 className={headingClass}>Products</h3>
-            <ul className="mt-4.5 flex list-none flex-col gap-2.5 p-0">
+            <ul className="mt-3 flex list-none flex-col gap-0.5 p-0">
               {PRODUCTS.map((item) => (
                 <li key={item.to}>
                   <Link to={item.to} className={linkClass}>
@@ -110,7 +113,7 @@ export default function Footer() {
 
           <nav aria-label="Resources">
             <h3 className={headingClass}>Resources</h3>
-            <ul className="mt-4.5 flex list-none flex-col gap-2.5 p-0">
+            <ul className="mt-3 flex list-none flex-col gap-0.5 p-0">
               {RESOURCES.map((item) => (
                 <li key={item.to}>
                   <Link to={item.to} className={linkClass}>

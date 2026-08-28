@@ -148,6 +148,9 @@ export default function Products({ line }: { line: ProductLine }) {
             </div>
           )}
 
+          {/* The cards are h3. Without this the outline runs h1 straight to h3,
+              which reads to a screen reader as a missing level. */}
+          <h2 className="sr-only">{copy.title}</h2>
           <div className={`${showFilter ? "mt-8" : ""} grid gap-6 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]`}>
             {visible.map((product, index) => (
               <ProductCard

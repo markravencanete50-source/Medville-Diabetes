@@ -54,14 +54,14 @@ export default function Contact() {
 
           <div className="mt-10 grid gap-4 sm:grid-cols-2">
             <ContactCard delay={0} motion="reveal-left" icon={<Phone size={19} />} label="Phone">
-              <a href={PHONE_TEL} className="font-semibold text-ink transition-colors hover:text-brand">
+              <a href={PHONE_TEL} className="inline-block py-1 font-semibold text-ink transition-colors hover:text-brand">
                 {PHONE_DISPLAY}
               </a>
             </ContactCard>
             <ContactCard delay={170} motion="reveal-right" icon={<Mail size={19} />} label="Email">
               <a
                 href={EMAIL_HREF}
-                className="font-semibold text-ink transition-colors hover:text-brand"
+                className="inline-block py-1 font-semibold text-ink transition-colors hover:text-brand"
               >
                 {EMAIL}
               </a>

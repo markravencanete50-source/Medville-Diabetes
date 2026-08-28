@@ -86,9 +86,11 @@ export default function ProductCard({
           </button>
           <Link
             to={`/products/${product.slug}`}
-            className="group inline-flex items-center gap-1.5 text-small font-semibold text-brand"
+            className="group inline-flex items-center gap-1.5 py-1 text-small font-semibold text-brand"
           >
-            Learn more
+            {/* The product name is read out but not shown, so the card stays
+                clean while "Learn more" stops being the whole link text. */}
+            Learn more<span className="sr-only"> about {product.name}</span>
             <ArrowRight
               size={15}
               className="transition-transform duration-(--duration-micro) group-hover:translate-x-0.5"

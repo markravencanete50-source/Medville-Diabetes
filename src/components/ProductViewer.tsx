@@ -232,7 +232,9 @@ export default function ProductViewer({
                   active ? "border-brand" : "border-line-filter hover:border-brand-mint"
                 } ${tint}`}
               >
-                <img src={thumb.src} alt="" className="h-full w-full object-contain" />
+                <img src={thumb.src} alt="" width={1200}
+                height={800}
+                className="h-full w-full object-contain" />
               </button>
             );
           })}

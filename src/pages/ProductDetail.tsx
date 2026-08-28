@@ -39,11 +39,13 @@ export default function ProductDetail() {
           {/* breadcrumb */}
           <nav
             aria-label="Breadcrumb"
-            className="flex flex-wrap items-center gap-1.5 text-caption text-grey-muted"
+            className="flex flex-wrap items-center gap-1.5 py-1 text-caption text-grey-muted"
           >
-            <Link to="/" className="transition-colors hover:text-brand">Home</Link>
+            <Link to="/" className="inline-block py-1 transition-colors hover:text-brand">Home</Link>
             <ChevronRight size={13} aria-hidden="true" />
-            <Link to="/products" className="transition-colors hover:text-brand">Our Products</Link>
+            <Link to="/products" className="inline-block py-1 transition-colors hover:text-brand">
+              Our Products
+            </Link>
             <ChevronRight size={13} aria-hidden="true" />
             <span className="text-grey-dark">{product.name}</span>
           </nav>
