@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Medville Diabetes logo, transparent background, supplied by the client
-  2026-08-28. Vector, so it never blurs at any size.
+  Medville Diabetes logo, transparent background, reversed for dark surfaces.
 
-  For light backgrounds: the wordmark is the client's navy #002a3b.
-  The artwork is untouched; only the viewBox is cropped to it, because the
-  delivered canvas is 400x350 and the artwork occupies the middle 180 units.
-  The unmodified original is brand/MD_Logo_Transparent.svg.
+  Generated from brand/MD_Logo_Transparent.svg. One change only: the wordmark
+  fill goes from the client's navy #002a3b to white, because the footer
+  gradient ends on #00293b and navy type on navy is invisible. The cyan leaves
+  and the cyan "DIABETES" line are untouched: both already read on dark.
+  Every path is identical to the original.
 -->
 <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 85 400 180">
   <defs>
     <style>
       .cls-1 {
-        fill: #002a3b;
+        fill: #ffffff;
       }
 
       .cls-2 {

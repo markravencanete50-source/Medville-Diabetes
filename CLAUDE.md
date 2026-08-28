@@ -78,15 +78,18 @@ only change made to their wording.
   (navy #00293B, cyan #18BADA, orange #FF9E1B, Poppins + Inter). No raw hex
   in components; extend tokens, do not bypass them.
 - Logo: the client's own artwork, delivered 2026-08-28. The untouched original
-  is `brand/Medville_Logo.svg`; the site renders `public/brand/medville-logo.svg`,
-  which is the same file with its viewBox cropped to the artwork (the delivered
-  canvas is 400x350 and over half of it is empty cyan). It is white type on a
-  brand-cyan field, so it carries its own background and needs no light or dark
-  variant. `public/favicon.svg` and `public/apple-touch-icon.png` are the logo's
-  own "M" path on the same cyan; the full wordmark is unreadable at 16 px.
-  Everything is vector, so nothing blurs at any size. If the client supplies a
-  transparent-background version, add it under `public/brand/` and point
-  `src/components/Logo.tsx` at it.
+  is `brand/MD_Logo_Transparent.svg`. The site renders two files from
+  `public/brand/`, both with the viewBox cropped to the artwork (the delivered
+  canvas is 400x350 and the artwork occupies the middle 180 units):
+  `medville-logo.svg` for light surfaces, and `medville-logo-on-dark.svg` for
+  the footer, whose only difference is a white wordmark instead of the navy
+  #002a3b, because the footer gradient ends on #00293b and navy on navy is
+  invisible. `src/components/Logo.tsx` picks between them with `onDark`.
+  `public/favicon.svg` and `public/apple-touch-icon.png` are the logo's own
+  "M" path reversed on brand cyan; the full wordmark is unreadable at 16 px,
+  and the cyan field keeps the mark legible against light and dark browser
+  chrome alike. Everything is vector, so nothing blurs at any size.
+  `brand/Medville_Logo.svg` is the earlier cyan-tile lockup, kept for reference.
 - Cache rules in `firebase.json`: only `/assets/**` may be immutable, because
   Vite fingerprints those names. Anything with a stable name (the icons, the
   logo, images in `public/`) must revalidate, or a replacement will not reach
