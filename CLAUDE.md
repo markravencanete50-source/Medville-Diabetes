@@ -92,6 +92,11 @@ only change made to their wording.
   the wordmark measures 1.19:1 against the footer and is effectively invisible
   there. The cyan "DIABETES" line and the leaves still read. A reversed logo
   from the client, or a light panel behind it, fixes it whenever they want.
+- Link preview card: `public/og-image.jpg`, a 1200x630 render of the home page
+  hero, wired up by the Open Graph and Twitter tags in `index.html`. Rebuild it
+  with `npm run build:og` (serve `dist` on :4173 first) whenever the hero
+  changes. Crawlers do not run JavaScript, so they only ever read `index.html`
+  and every address on the site shares this one card, which is intended.
 - Cache rules in `firebase.json`: only `/assets/**` may be immutable, because
   Vite fingerprints those names. Anything with a stable name (the icons, the
   logo, images in `public/`) must revalidate, or a replacement will not reach
@@ -145,7 +150,9 @@ only change made to their wording.
      placeholder quote ever reaches a visitor.
    - A provider photograph for the Refer a Patient hero, which currently
      borrows a services photograph.
-   - `REPLACE-WITH-FINAL-DOMAIN` (robots.txt, sitemap.xml)
+   - `REPLACE-WITH-FINAL-DOMAIN` (robots.txt, sitemap.xml, and the canonical,
+     og:url, og:image and twitter:image tags in index.html, which must be
+     absolute addresses)
    - `REPLACE-WITH-CLIENT-GCP-PROJECT-ID` (.firebaserc)
 3. Replace placeholder product art with real supplier photos (front and back
    per product) once the client provides them. Keep the same file paths or

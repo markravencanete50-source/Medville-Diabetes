@@ -1,7 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64">
   <!--
-    Medville Diabetes tab icon: the client's transparent logo, whole and
-    unaltered, fitted to the square a browser draws an icon into.
+    Medville Diabetes tab icon: the client's transparent logo on a white
+    tile. The logo's wordmark is navy, which disappeared against a dark
+    browser tab bar when the icon had no background of its own. White keeps
+    it readable on dark chrome and blends into light chrome.
   -->
   <defs>
     <style>
@@ -65,7 +67,8 @@
     <radialGradient id="radial-gradient-4" cx="267.11" cy="136.75" fx="267.11" fy="136.75" r="60.47" gradientTransform="translate(5.67 9.16) rotate(-8.29)" xlink:href="#radial-gradient"/>
     <radialGradient id="radial-gradient-5" cx="249.54" cy="161.21" fx="249.54" fy="161.21" r="25.02" gradientTransform="translate(5.67 9.16) rotate(-8.29)" xlink:href="#radial-gradient"/>
   </defs>
-  <g transform="translate(0 4) scale(0.16)">
+  <rect width="64" height="64" rx="14" fill="#ffffff"/>
+  <g transform="translate(4 7.5) scale(0.14)">
   <path class="cls-4" d="M285.11,119.1c-4.73,4.52-13.16,3.37-13.16,3.37,0,0-.76-8.47,3.97-12.99s13.16-3.37,13.16-3.37c0,0,.76,8.47-3.97,12.99Z"/>
   <path class="cls-6" d="M285.28,131.86c-2.67,1.82-6.69.58-6.69.58,0,0,.32-4.19,2.99-6.01s6.69-.58,6.69-.58c0,0-.32,4.19-2.99,6.01Z"/>
   <path class="cls-5" d="M263.65,126.43c-2.82,1.92-7.06.61-7.06.61,0,0,.33-4.42,3.16-6.34,2.82-1.92,7.06-.61,7.06-.61,0,0-.33,4.42-3.16,6.34Z"/>

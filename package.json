@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "optimize:images": "node scripts/optimize-product-photos.mjs",
-    "optimize:services": "node scripts/optimize-services-photos.mjs"
+    "optimize:services": "node scripts/optimize-services-photos.mjs",
+    "build:og": "node scripts/build-og-image.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
