@@ -82,9 +82,11 @@ only change made to their wording.
   `public/brand/medville-logo.svg`, the same file with its viewBox cropped to
   the artwork (the delivered canvas is 400x350 and the artwork occupies the
   middle 180 units). One file everywhere, on the client's instruction, so
-  `src/components/Logo.tsx` takes no variant. `public/favicon.svg` is the whole
-  logo fitted to a square; `public/apple-touch-icon.png` is the same on white,
-  because iOS fills a transparent touch icon with black. All vector, so nothing
+  `src/components/Logo.tsx` takes no variant. `public/favicon.svg` and
+  `public/apple-touch-icon.png` are the logo's own "M" path in its navy on a
+  white tile: a browser draws a favicon at 16 px, the wordmark is 2.2 times
+  wider than tall, and fitting the whole lockup into a square left the type
+  unreadable. White because the navy mark vanished against a dark tab bar. All vector, so nothing
   blurs at any size. `brand/Medville_Logo.svg` is the earlier cyan-tile lockup,
   kept for reference.
 - Known contrast issue, raised with the client and their call: the logo's
