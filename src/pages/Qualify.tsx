@@ -9,8 +9,11 @@ import {
   AlertCircle,
   CheckCircle2,
   ClipboardList,
+  Clock,
   Headset,
   LockKeyhole,
+  Mail,
+  Phone,
   PhoneCall,
 } from "lucide-react";
 import Container from "../components/Container";
@@ -18,7 +21,7 @@ import Button from "../components/Button";
 import { Blob, Eyebrow, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
 import { useReveal } from "../lib/useReveal";
-import { PHONE_DISPLAY } from "../data/company";
+import { EMAIL_HREF, HOURS_LONG, PHONE_DISPLAY, PHONE_TEL } from "../data/company";
 
 /*
   PHI NOTICE: read before changing this file.
@@ -116,14 +119,17 @@ export default function Qualify() {
   const endpoint = import.meta.env.VITE_QUALIFY_ENDPOINT as string | undefined;
 
   const onSubmit = async (values: FormValues) => {
+    /*
+      There is deliberately no path to the success screen without a server.
+      An earlier build simulated one when no endpoint was configured, which
+      told a visitor "We Received Your Information" while nothing had been
+      sent. On a public address that is a person with diabetes waiting for a
+      call that is never coming. When there is no endpoint the form is not
+      rendered at all; see the dormant panel below.
+    */
+    if (!endpoint) return;
     setStatus("submitting");
     try {
-      if (!endpoint) {
-        /* Prototype mode: no endpoint configured, nothing is sent anywhere. */
-        await new Promise((r) => setTimeout(r, 700));
-        setStatus("success");
-        return;
-      }
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -150,13 +156,6 @@ export default function Qualify() {
             discuss your potential eligibility and available next steps. Submitting
             this form does not guarantee insurance coverage or qualification.
           </p>
-          {!endpoint && (
-            <p className="mx-auto mt-6 max-w-[52ch] rounded-md bg-surface-raised p-4 text-caption text-grey-muted">
-              Preview note: this website is running in prototype mode. Submissions
-              are not yet connected to a server, and nothing you typed was sent or
-              saved.
-            </p>
-          )}
           <Button to="/products" variant="ghost" className="mt-8">Explore Products</Button>
         </Container>
       </section>
@@ -176,9 +175,9 @@ export default function Qualify() {
             Does Your Insurance Help Cover a CGM?
           </h1>
           <p className="mt-4 max-w-[54ch] text-body leading-relaxed text-grey-dark">
-            Not sure what your plan may cover? Complete the short form below and our
-            team will review your information to help you understand your potential
-            eligibility and next steps.
+            {endpoint
+              ? "Not sure what your plan may cover? Complete the short form below and our team will review your information to help you understand your potential eligibility and next steps."
+              : "Not sure what your plan may cover? Our team can review your information and help you understand your potential eligibility and next steps."}
           </p>
           </div>
 
@@ -199,7 +198,11 @@ export default function Qualify() {
                   <h2 className="m-0 mt-0.5 font-display text-body font-semibold text-ink">
                     {step.title}
                   </h2>
-                  <p className="mt-1 text-small leading-relaxed text-grey-dark">{step.body}</p>
+                  <p className="mt-1 text-small leading-relaxed text-grey-dark">
+                    {!endpoint && index === 0
+                      ? "Call or email us with your basic information."
+                      : step.body}
+                  </p>
                 </div>
               </li>
             ))}
@@ -221,11 +224,50 @@ export default function Qualify() {
           </div>
         </div>
 
-        {/* right: the form card */}
+        {/* right: the form card, or the dormant panel in its place */}
         <div
           data-reveal={140}
           className="reveal-right reveal-slow rounded-[26px] bg-surface-raised p-6 shadow-overlay sm:p-9"
         >
+          {!endpoint ? (
+            /*
+              No intake endpoint, so there is nowhere for an answer to go. The
+              form is not shown at all rather than shown and quietly discarded:
+              collecting a person's insulin use and then dropping it is worse
+              than not asking. The page keeps its heading, its three steps and
+              its privacy notice, so it reads as a finished page that is not
+              open yet, and it offers the two routes that do work.
+
+              This whole branch disappears the moment VITE_QUALIFY_ENDPOINT is
+              set at launch. Nothing here needs undoing.
+            */
+            <div className="flex h-full flex-col justify-center py-4 text-center">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft text-brand">
+                <Clock size={26} strokeWidth={2} aria-hidden="true" />
+              </span>
+              <h2 className="mt-5 font-display text-h3 font-bold text-ink">
+                Eligibility checks open soon
+              </h2>
+              <p className="mx-auto mt-3 max-w-[42ch] text-body leading-relaxed text-grey-dark">
+                The online eligibility form is not accepting submissions yet. Our
+                team can still answer your questions and start the process with you
+                over the phone or by email.
+              </p>
+              <div className="mt-7 flex flex-col gap-3">
+                <Button href={PHONE_TEL} variant="cta" className="w-full">
+                  <Phone size={16} strokeWidth={2.2} />
+                  Call {PHONE_DISPLAY}
+                </Button>
+                <Button href={EMAIL_HREF} variant="ghost" className="w-full">
+                  <Mail size={16} strokeWidth={2.2} />
+                  Email our team
+                </Button>
+              </div>
+              <p className="mt-6 text-caption leading-relaxed text-grey-muted">
+                {HOURS_LONG}
+              </p>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
             <div className="grid gap-5 sm:grid-cols-2">
               <Field label="First Name" error={errors.firstName?.message}>
@@ -344,6 +386,7 @@ export default function Qualify() {
               .
             </p>
           </form>
+          )}
         </div>
       </Container>
     </section>

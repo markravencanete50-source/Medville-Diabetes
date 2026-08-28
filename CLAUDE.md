@@ -94,6 +94,14 @@ only change made to their wording.
   the wordmark measures 1.19:1 against the footer and is effectively invisible
   there. The cyan "DIABETES" line and the leaves still read. A reversed logo
   from the client, or a light panel behind it, fixes it whenever they want.
+- The qualify form has two states, decided by `VITE_QUALIFY_ENDPOINT`. With it
+  set, the real form renders and posts to the intake function. With it unset,
+  the form is not rendered at all and the card becomes an "Eligibility checks
+  open soon" panel offering the phone number and email. There is deliberately
+  no path to the success screen without a server: an earlier build faked one,
+  which told a visitor "We Received Your Information" while nothing had been
+  sent. Never reintroduce that. Setting the variable at launch restores the
+  form with no code change.
 - Link preview card: `public/og-image.jpg`, a 1200x630 render of the home page
   hero, wired up by the Open Graph and Twitter tags in `index.html`. Rebuild it
   with `npm run build:og` (serve `dist` on :4173 first) whenever the hero
