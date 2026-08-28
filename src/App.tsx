@@ -1,5 +1,5 @@
-import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
@@ -10,6 +10,7 @@ import Qualify from "./pages/Qualify";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Services from "./pages/Services";
+import ReferPatient from "./pages/ReferPatient";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
@@ -45,6 +46,7 @@ export default function App() {
 function PublicSite() {
   return (
     <SiteDataProvider>
+      <ScrollToHash />
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-on-dark"
@@ -60,6 +62,7 @@ function PublicSite() {
           <Route path="/products/insulin-pumps" element={<Products line="insulin-pump" />} />
           <Route path="/products/:slug" element={<ProductDetail />} />
           <Route path="/services" element={<Services />} />
+          <Route path="/refer-a-patient" element={<ReferPatient />} />
           <Route path="/qualify" element={<Qualify />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
@@ -71,4 +74,32 @@ function PublicSite() {
       <Footer />
     </SiteDataProvider>
   );
+}
+
+/*
+  Scrolls to the section named in the address bar.
+
+  The footer links to the guides band and the questions band on the home page,
+  which are sections rather than pages. React Router changes the address
+  without scrolling, so this waits one frame for the page to render and then
+  brings the target into view.
+*/
+function ScrollToHash() {
+  const { hash, pathname } = useLocation();
+
+  useEffect(() => {
+    if (!hash) return;
+    const id = hash.slice(1);
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+        block: "start",
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [hash, pathname]);
+
+  return null;
 }

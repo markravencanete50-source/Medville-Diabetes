@@ -120,7 +120,17 @@
   --duration-base: 220ms;
   --duration-slow: 320ms;
   --duration-large: 560ms;
-  --duration-reveal: 700ms;
+  /*
+    Scroll-reveal pace. The 2026-08-28 motion pass slowed every arrival so a
+    visitor can actually watch one happen: the base reveal runs for just over
+    a second, and large imagery takes half a second longer again. Interface
+    feedback (hover, focus, the accordion) keeps its own short durations
+    above; only scroll motion is slow.
+  */
+  --duration-reveal: 1050ms;
+  --duration-reveal-swift: 780ms;
+  --duration-reveal-slow: 1400ms;
+  --duration-reveal-glacial: 1750ms;
 }
 
 /*
@@ -200,7 +210,7 @@ h1, h2, h3, h4 {
 /* ---- keyframes ---- */
 
 @keyframes rise-in {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(34px); }
   to { opacity: 1; transform: none; }
 }
 
@@ -243,7 +253,7 @@ h1, h2, h3, h4 {
 /* ---- animation utilities ---- */
 
 .rise-in {
-  animation: rise-in 640ms var(--ease-out-quart) both;
+  animation: rise-in var(--rise-duration, 1000ms) var(--ease-gentle) both;
   animation-delay: var(--rise-delay, 0ms);
 }
 
@@ -278,38 +288,132 @@ h1, h2, h3, h4 {
 }
 
 /*
-  Scroll reveal. useReveal sets the starting state only when motion is
-  allowed, so elements stay visible for reduced-motion users and when
-  JavaScript has not run yet.
+  Scroll reveal.
+
+  useReveal adds .reveal-start when an element comes into view, then swaps it
+  for .reveal-in. The starting state is only ever applied from JavaScript, so
+  content stays visible for a reduced-motion visitor and when a script has not
+  run.
+
+  The vocabulary below is deliberately wide. A page picks a different arrival
+  for each section so the scroll does not become one repeated slide upward:
+  copy rises, side panels come in from their own edge, photographs unwipe or
+  settle out of a blur, cards tilt up from the page plane, and rules widen
+  from their centre. Everything is slow on purpose, between one second and one
+  and a half, because motion the visitor cannot follow is decoration rather
+  than direction.
 */
 .reveal-start {
   opacity: 0;
-  transform: translateY(26px);
+  transform: translateY(38px);
 }
 
-/*
-  Directional and depth variants for the 2026-08-26 motion pass. A section
-  can pick how its content arrives: from a side, scaled up from slightly
-  behind the page, or resolving from a soft blur. Variants only shape the
-  starting state; the shared .reveal-in transition brings everything home.
-*/
-.reveal-start.reveal-left { transform: translateX(-40px); }
-.reveal-start.reveal-right { transform: translateX(40px); }
-.reveal-start.reveal-zoom { transform: translateY(14px) scale(0.93); }
-.reveal-start.reveal-blur { filter: blur(12px); }
+/* ---- the arrival shapes ---- */
+
+/* from the sides, for split layouts and list items */
+.reveal-start.reveal-left { transform: translateX(-64px); }
+.reveal-start.reveal-right { transform: translateX(64px); }
+
+/* down from above, for anything that should feel dropped into place */
+.reveal-start.reveal-drop { transform: translateY(-46px); }
+
+/* depth: pushed back behind the page, or pulled forward through it */
+.reveal-start.reveal-zoom { transform: translateY(22px) scale(0.9); }
+.reveal-start.reveal-push { transform: translateY(-14px) scale(1.07); }
+
+/* soft focus resolving, for photographs and quiet statements */
+.reveal-start.reveal-blur { filter: blur(16px); transform: translateY(24px); }
+
+/* tilted back on the horizon, for card grids */
+.reveal-start.reveal-tilt {
+  transform: perspective(1200px) rotateX(11deg) translateY(52px);
+  transform-origin: 50% 100%;
+}
+
+/* swung open on the vertical, for two-up panels */
+.reveal-start.reveal-swing-left {
+  transform: perspective(1400px) rotateY(-13deg) translateX(-40px);
+  transform-origin: 0% 50%;
+}
+.reveal-start.reveal-swing-right {
+  transform: perspective(1400px) rotateY(13deg) translateX(40px);
+  transform-origin: 100% 50%;
+}
+
+/* a curtain lifting off the element, for full-bleed imagery */
+.reveal-start.reveal-wipe {
+  clip-path: inset(100% 0 0 0);
+  transform: none;
+}
+.reveal-start.reveal-wipe-left {
+  clip-path: inset(0 100% 0 0);
+  transform: none;
+}
+
+/* a rule or divider widening from its own centre */
+.reveal-start.reveal-expand {
+  transform: scaleX(0.2);
+  transform-origin: 50% 50%;
+}
+
+/* the smallest move there is, for dense text that should not jump */
+.reveal-start.reveal-settle { transform: translateY(14px); }
 
 .reveal-in {
   opacity: 1;
   transform: none;
   filter: none;
   transition:
-    opacity var(--duration-reveal) var(--ease-out-quart),
-    transform var(--duration-reveal) var(--ease-out-quart),
-    filter var(--duration-reveal) var(--ease-out-quart);
+    opacity var(--duration-reveal) var(--ease-gentle),
+    transform var(--duration-reveal) var(--ease-gentle),
+    filter var(--duration-reveal) var(--ease-gentle);
 }
 
-/* slower arrival for large imagery, so photos settle after their copy */
-.reveal-slow.reveal-in { transition-duration: 900ms; }
+/*
+  clip-path is added only for the two curtain variants. A clip-path also cuts
+  an element's box-shadow at the border box, so putting it on every reveal
+  would flatten the shadow of every card on the way in. Apply the wipe to an
+  inner wrapper when the frame around it carries a shadow.
+*/
+.reveal-wipe.reveal-in,
+.reveal-wipe-left.reveal-in {
+  clip-path: inset(0 0 0 0);
+  transition:
+    opacity var(--duration-reveal) var(--ease-gentle),
+    transform var(--duration-reveal) var(--ease-gentle),
+    filter var(--duration-reveal) var(--ease-gentle),
+    clip-path var(--duration-reveal) var(--ease-gentle);
+}
+
+/* The settled state: no transition, so the element's own hover and focus
+   styles run at their own speed again. */
+.reveal-done { opacity: 1; }
+.reveal-wipe.reveal-done,
+.reveal-wipe-left.reveal-done { clip-path: none; }
+
+/* ---- pace ---- */
+
+/* slower still, for large imagery that should settle after its own copy */
+.reveal-slow.reveal-in { transition-duration: var(--duration-reveal-slow); }
+/* slower again, for a single hero statement that carries a whole section */
+.reveal-glacial.reveal-in { transition-duration: var(--duration-reveal-glacial); }
+/* quicker, for small chips and captions inside an already slow group */
+.reveal-swift.reveal-in { transition-duration: var(--duration-reveal-swift); }
+
+/*
+  Slow drift against the scroll, driven by useParallax. The hook writes
+  --parallax-y and this one rule reads it. Media is scaled slightly so the
+  travel never uncovers an edge of its frame; the frame itself must clip.
+*/
+[data-parallax] {
+  transform: translate3d(0, var(--parallax-y, 0px), 0);
+  will-change: transform;
+}
+
+img[data-parallax],
+video[data-parallax] {
+  transform: translate3d(0, var(--parallax-y, 0px), 0) scale(1.14);
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -325,7 +429,15 @@ h1, h2, h3, h4 {
   .wave-draw,
   .sheet-up { animation: none; }
   .wave-dot::after { animation: none; opacity: 0; }
-  .reveal-start { opacity: 1; transform: none; filter: none; }
+  .reveal-start {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    clip-path: none;
+  }
+  [data-parallax],
+  img[data-parallax],
+  video[data-parallax] { transform: none; }
 }
 
 

@@ -11,12 +11,14 @@ import {
   ClipboardList,
   Headset,
   LockKeyhole,
-  Truck,
+  PhoneCall,
 } from "lucide-react";
 import Container from "../components/Container";
 import Button from "../components/Button";
 import { Blob, Eyebrow, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
+import { useReveal } from "../lib/useReveal";
+import { PHONE_DISPLAY } from "../data/company";
 
 /*
   PHI NOTICE: read before changing this file.
@@ -44,9 +46,9 @@ const US_STATES = [
 const schema = z.object({
   firstName: z.string().trim().min(1, "Please enter your first name.").max(80),
   lastName: z.string().trim().min(1, "Please enter your last name.").max(80),
-  email: z.string().trim().email("Please enter a valid email address.").max(160),
-  phone: z.string().trim().min(7, "Please enter a valid phone number.").max(25)
-    .regex(/^[0-9+()\-.\s]+$/, "Please use numbers only."),
+  email: z.string().trim().email("Please enter your email address.").max(160),
+  phone: z.string().trim().min(7, "Please enter your phone number.").max(25)
+    .regex(/^[0-9+()\-.\s]+$/, "Please enter your phone number."),
   city: z.string().trim().min(1, "Please enter your city.").max(80),
   state: z.string().min(1, "Please select your state."),
   injectsInsulinDaily: z.enum(["yes", "no"], { message: "Please select an answer." }),
@@ -62,27 +64,28 @@ type Status = "idle" | "submitting" | "success" | "error";
 const STEPS = [
   {
     icon: ClipboardList,
-    title: "Answer the form",
-    body: "Your contact details and one question about your insulin use.",
+    title: "Submit Your Details",
+    body: "Complete the short form below.",
   },
   {
     icon: Headset,
-    title: "We review it",
-    body: "Real people check your answers and contact you, usually within one business day.",
+    title: "We Review",
+    body: "We check your information and potential eligibility.",
   },
   {
-    icon: Truck,
-    title: "Delivered to you",
-    body: "If you qualify, your monitor and supplies arrive at your door.",
+    icon: PhoneCall,
+    title: "We Contact You",
+    body: "Our team reaches out to explain what comes next.",
   },
 ];
 
 export default function Qualify() {
   usePageMeta(
-    "Check if you Qualify | Medville Diabetes",
-    "Answer a few short questions to check whether you qualify for a continuous glucose monitor. It takes less than one minute.",
+    "Check Your Potential Eligibility | Medville Diabetes",
+    "Complete the short Medville Diabetes eligibility form. Our team will review your information and explain your potential eligibility and next steps.",
   );
   const [status, setStatus] = useState<Status>("idle");
+  const revealRef = useReveal<HTMLElement>();
   const {
     register,
     handleSubmit,
@@ -139,10 +142,13 @@ export default function Qualify() {
         <Grain opacity={0.05} />
         <Container className="relative max-w-2xl py-20 text-center md:py-28">
           <CheckCircle2 size={52} className="mx-auto text-success" aria-hidden="true" />
-          <h1 className="mt-5 font-display text-h1 font-bold text-ink">Thank you.</h1>
-          <p className="mx-auto mt-4 max-w-[52ch] text-body-lg leading-relaxed text-grey-dark">
-            We received your information. A member of our team will review it and
-            contact you with the next steps, usually within one business day.
+          <h1 className="mt-5 font-display text-h1 font-bold text-ink">
+            Thank You. We Received Your Information.
+          </h1>
+          <p className="mx-auto mt-4 max-w-[60ch] text-body-lg leading-relaxed text-grey-dark">
+            Our team will review the information you submitted and contact you to
+            discuss your potential eligibility and available next steps. Submitting
+            this form does not guarantee insurance coverage or qualification.
           </p>
           {!endpoint && (
             <p className="mx-auto mt-6 max-w-[52ch] rounded-md bg-surface-raised p-4 text-caption text-grey-muted">
@@ -151,30 +157,38 @@ export default function Qualify() {
               saved.
             </p>
           )}
-          <Button to="/products" variant="ghost" className="mt-8">Browse our products</Button>
+          <Button to="/products" variant="ghost" className="mt-8">Explore Products</Button>
         </Container>
       </section>
     );
   }
 
   return (
-    <section className="bg-wash relative overflow-hidden">
-      <Blob tone="brand" strength={0.18} blur={40} size={420} className="-left-[120px] -top-[120px]" />
+    <section ref={revealRef} className="bg-wash relative overflow-hidden">
+      <Blob tone="brand" strength={0.18} blur={40} size={420} duration="20s" className="-left-[120px] -top-[120px]" />
       <Grain opacity={0.05} />
       <Container wide className="relative grid gap-10 py-12 md:py-16 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14">
         {/* left: what happens */}
         <div>
-          <Eyebrow>One short form</Eyebrow>
-          <h1 className="mt-3 font-display text-h1 font-bold text-ink">Check if you Qualify</h1>
-          <p className="mt-4 max-w-[52ch] text-body leading-relaxed text-grey-dark">
-            Answer the questions below. It takes less than one minute, and there is
-            no cost to check. Our team will review your answers and contact you with
-            the next steps.
+          <div data-reveal={0} className="reveal-settle">
+          <Eyebrow>Check your potential eligibility</Eyebrow>
+          <h1 className="mt-3 font-display text-h1 font-bold text-ink">
+            Does Your Insurance Help Cover a CGM?
+          </h1>
+          <p className="mt-4 max-w-[54ch] text-body leading-relaxed text-grey-dark">
+            Not sure what your plan may cover? Complete the short form below and our
+            team will review your information to help you understand your potential
+            eligibility and next steps.
           </p>
+          </div>
 
           <ul className="mt-8 flex list-none flex-col gap-5 p-0">
             {STEPS.map((step, index) => (
-              <li key={step.title} className="flex gap-4">
+              <li
+                key={step.title}
+                data-reveal={200 + index * 190}
+                className="reveal-left flex gap-4"
+              >
                 <span className="flex h-11 w-11 flex-none items-center justify-center rounded-md bg-brand-soft text-brand">
                   <step.icon size={20} strokeWidth={2} />
                 </span>
@@ -191,31 +205,40 @@ export default function Qualify() {
             ))}
           </ul>
 
-          <div className="mt-8 flex items-start gap-3 rounded-lg border border-brand-mint bg-brand-tint p-5">
+          <div
+            data-reveal={780}
+            className="reveal-blur mt-8 flex items-start gap-3 rounded-lg border border-brand-mint bg-brand-tint p-5"
+          >
             <LockKeyhole size={16} className="mt-0.5 flex-none text-brand" aria-hidden="true" />
             <p className="m-0 text-caption leading-relaxed text-grey-dark">
-              Your information is sent over an encrypted connection and stored in a
-              secure database. It is used only to review whether you qualify and to
-              contact you about it.
+              Your privacy matters. Information submitted through this form will be
+              handled according to our{" "}
+              <Link to="/privacy-policy" className="font-semibold text-brand underline underline-offset-2">
+                Privacy Policy
+              </Link>{" "}
+              and applicable privacy requirements.
             </p>
           </div>
         </div>
 
         {/* right: the form card */}
-        <div className="rounded-[26px] bg-surface-raised p-6 shadow-overlay sm:p-9">
+        <div
+          data-reveal={140}
+          className="reveal-right reveal-slow rounded-[26px] bg-surface-raised p-6 shadow-overlay sm:p-9"
+        >
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="First name" error={errors.firstName?.message}>
+              <Field label="First Name" error={errors.firstName?.message}>
                 <input {...register("firstName")} autoComplete="given-name" className={inputClass(!!errors.firstName)} />
               </Field>
-              <Field label="Last name" error={errors.lastName?.message}>
+              <Field label="Last Name" error={errors.lastName?.message}>
                 <input {...register("lastName")} autoComplete="family-name" className={inputClass(!!errors.lastName)} />
               </Field>
             </div>
-            <Field label="Email" error={errors.email?.message}>
+            <Field label="Email Address" error={errors.email?.message}>
               <input {...register("email")} type="email" autoComplete="email" inputMode="email" className={inputClass(!!errors.email)} />
             </Field>
-            <Field label="Phone" error={errors.phone?.message}>
+            <Field label="Phone Number" error={errors.phone?.message}>
               <input {...register("phone")} type="tel" autoComplete="tel" inputMode="tel" className={inputClass(!!errors.phone)} />
             </Field>
             <div className="grid gap-5 sm:grid-cols-2">
@@ -279,14 +302,14 @@ export default function Qualify() {
               <div role="alert" className="flex items-start gap-3 rounded-md border border-danger/30 bg-danger/5 p-4">
                 <AlertCircle size={18} className="mt-0.5 flex-none text-danger" aria-hidden="true" />
                 <p className="m-0 text-small text-ink">
-                  Something went wrong and your form was not sent. Please try again.
-                  If the problem continues, call us at 888-564-2595.
+                  Something went wrong while submitting your information. Please try
+                  again or contact our team for assistance at {PHONE_DISPLAY}.
                 </p>
               </div>
             )}
 
             <Button type="submit" variant="cta" disabled={status === "submitting"} className="w-full">
-              {status === "submitting" ? "Sending your answers…" : "Submit"}
+              {status === "submitting" ? "Sending your information…" : "Check My Eligibility"}
             </Button>
 
             {/*

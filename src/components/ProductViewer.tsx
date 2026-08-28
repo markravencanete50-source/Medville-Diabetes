@@ -19,6 +19,10 @@ interface ProductViewerProps {
   tint?: string;
   /* Front and back thumbnails under the stage, per the redesign. */
   thumbnails?: boolean;
+  /* Scroll-reveal wiring, so a page can choose how the viewer arrives.
+     Leaving revealMotion empty keeps the viewer out of the reveal pass. */
+  revealMotion?: string;
+  revealDelay?: number;
 }
 
 const MIN_ZOOM = 1;
@@ -31,6 +35,8 @@ export default function ProductViewer({
   className = "",
   tint = "tint-product",
   thumbnails = false,
+  revealMotion = "",
+  revealDelay = 0,
 }: ProductViewerProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [angle, setAngle] = useState(0);
@@ -147,7 +153,10 @@ export default function ProductViewer({
   const showingBack = Math.abs(Math.round(angle / 180)) % 2 === 1;
 
   return (
-    <div className={className}>
+    <div
+      className={`${revealMotion} ${className}`}
+      {...(revealMotion ? { "data-reveal": revealDelay } : {})}
+    >
       <div
         ref={stageRef}
         role="img"

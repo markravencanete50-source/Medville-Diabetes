@@ -22,10 +22,14 @@ export const PRODUCT_PILL = "text-brand";
 export default function ProductCard({
   product,
   delay = 0,
+  motion = "",
   onQuickView,
 }: {
   product: Product;
   delay?: number;
+  /* Which scroll-reveal shape this card arrives with. A grid picks one so
+     the cards do not repeat the arrival of the section above them. */
+  motion?: string;
   onQuickView: (slug: string) => void;
 }) {
   const [showBack, setShowBack] = useState(false);
@@ -35,7 +39,7 @@ export default function ProductCard({
       data-reveal={delay}
       onMouseEnter={() => setShowBack(true)}
       onMouseLeave={() => setShowBack(false)}
-      className="flex flex-col overflow-hidden rounded-card bg-surface-raised shadow-raised transition-all duration-(--duration-slow) ease-(--ease-out-quart) hover:-translate-y-1.5 hover:shadow-raised-hover"
+      className={`${motion} flex flex-col overflow-hidden rounded-card bg-surface-raised shadow-raised transition-all duration-(--duration-slow) ease-(--ease-out-quart) hover:-translate-y-1.5 hover:shadow-raised-hover`}
     >
       <div className={`relative p-7 ${PRODUCT_TINT}`}>
         <div className="relative aspect-square w-full">

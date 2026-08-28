@@ -133,7 +133,7 @@ export default function QuickView({
             </ul>
             <div className="mt-6 flex flex-wrap gap-2.5">
               <Button to="/qualify" variant="cta" className="text-[0.875rem]">
-                Check if you Qualify
+                Check My Eligibility
               </Button>
               <Link
                 to={`/products/${product.slug}`}

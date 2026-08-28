@@ -62,15 +62,34 @@ All site copy is plain English: no idioms, no contractions ("do not", never
 string. Product descriptions must stay original — never paste text from the
 reference site.
 
+Since 2026-08-28 the wording of every public page comes from the client's
+own document, `MEDVILLE_DIABETES__Website_Copy.docx`. That document is the
+source of truth for copy; the rules above govern anything written outside
+it. Where the client's text used a contraction it was expanded, which is the
+only change made to their wording.
+
 ## What is already done
 
-- Full React + TypeScript + Vite + Tailwind v4 site: Home, Products (with
-  brand filter), Product detail, Qualify form, About, Contact, 404.
+- Full React + TypeScript + Vite + Tailwind v4 site: Home, Products (landing,
+  CGM listing, insulin pump listing), Product detail, Our Services, Refer a
+  Patient, Qualify form, About, Contact, Privacy Policy, Terms of Service,
+  404, and the /admin dashboard.
 - Design token system in `src/index.css` derived from `brand/Medville_Brand.svg`
   (navy #00293B, cyan #18BADA, orange #FF9E1B, Poppins + Inter). No raw hex
   in components; extend tokens, do not bypass them.
 - `ProductViewer` component: drag to rotate front/back, wheel and pinch zoom,
   double-tap zoom, keyboard support, reduced-motion support.
+- Scroll-motion system in `src/lib/useReveal.ts` and the reveal block of
+  `src/index.css`. `useReveal` reveals anything carrying `data-reveal`;
+  a second class picks the shape (`reveal-left`, `reveal-right`, `reveal-drop`,
+  `reveal-zoom`, `reveal-push`, `reveal-blur`, `reveal-tilt`,
+  `reveal-swing-left`, `reveal-swing-right`, `reveal-wipe`,
+  `reveal-wipe-left`, `reveal-expand`, `reveal-settle`) and a third the pace
+  (`reveal-swift`, `reveal-slow`, `reveal-glacial`). `useParallax` drifts
+  anything carrying `data-parallax` against the scroll. Rules for new work:
+  give consecutive sections different shapes, never put `data-reveal` and
+  `data-parallax` on the same element, and keep every starting state inside
+  the hook so nothing is stranded invisible under reduced motion.
 - 11 products in `src/data/products.ts` with plain-English copy.
 - Placeholder vector product art in `public/products/`.
 - PHI-safe intake function source in `functions/`.
@@ -86,8 +105,27 @@ reference site.
      the client's Privacy Policy and Terms of Service pages are published at
      /privacy-policy and /terms-of-service. That text is verbatim legal copy;
      changes to it must come from the client.
-   - `[Street address to be provided]` (Footer, Contact) — real address
-   - `info@medvillediabetes.com` — confirm the real email
+   - Done 2026-08-28: the client's website copy document is live across every
+     page, the real address (28863 Industry Dr, Valencia, CA 91355) and the
+     phone number 800-394-3917 are in place, and the Refer a Patient page
+     exists at /refer-a-patient. Shared facts live in `src/data/company.ts`.
+   - `info@medvillediabetes.com` — confirm the real email. The copy document
+     spells it `info@medvillediabetics.com` in the footer and
+     `info@medvillediabetes.com` on the contact and referral pages; the site
+     uses the second spelling. Change `EMAIL` in `src/data/company.ts` alone
+     if the first is correct.
+   - `REPLACE-WITH-REFERRAL-PACKET-PDF` (`src/data/company.ts`) — the referral
+     form and requirements PDF. Until it is set, the referral buttons ask
+     providers to request the packet by email instead of offering a download
+     that would not resolve.
+   - `REPLACE-WITH-REFERRAL-VIDEO-EMBED` (`src/data/company.ts`) — the 30 to
+     60 second referral explainer video. Until it is set, the video frame
+     shows a placeholder panel.
+   - Verified customer testimonials. The home page testimonials band renders
+     only when the client publishes a testimonial from the dashboard, so no
+     placeholder quote ever reaches a visitor.
+   - A provider photograph for the Refer a Patient hero, which currently
+     borrows a services photograph.
    - `REPLACE-WITH-FINAL-DOMAIN` (robots.txt, sitemap.xml)
    - `REPLACE-WITH-CLIENT-GCP-PROJECT-ID` (.firebaserc)
 3. Replace placeholder product art with real supplier photos (front and back

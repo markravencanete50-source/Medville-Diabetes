@@ -5,13 +5,13 @@ import Container from "./Container";
 import Logo from "./Logo";
 import Button from "./Button";
 
-const PHONE_DISPLAY = "888-564-2595";
-const PHONE_TEL = "tel:+18885642595";
+import { PHONE_DISPLAY, PHONE_TEL } from "../data/company";
 
 const links = [
   { to: "/", label: "Home" },
   { to: "/products", label: "Our Products" },
   { to: "/services", label: "Our Services" },
+  { to: "/refer-a-patient", label: "Refer a Patient" },
   { to: "/about", label: "About Us" },
   { to: "/contact", label: "Contact" },
 ];
@@ -41,7 +41,7 @@ export default function Header() {
             <Logo />
           </Link>
 
-          <nav className="hidden items-center gap-7 md:flex" aria-label="Main navigation">
+          <nav className="hidden items-center gap-6 lg:flex" aria-label="Main navigation">
             {links.map((l) => (
               <NavLink
                 key={l.to}
@@ -67,16 +67,16 @@ export default function Header() {
             ))}
           </nav>
 
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
             <Button to="/qualify" variant="cta" className="px-6 text-[0.875rem]">
-              Check if you Qualify
+              Check Eligibility
               <ArrowRight size={15} strokeWidth={2.2} />
             </Button>
           </div>
 
           <button
             type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-md text-ink md:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-md text-ink lg:hidden"
             aria-expanded={open}
             aria-controls="mobile-menu"
             aria-label={open ? "Close the menu" : "Open the menu"}
@@ -89,7 +89,7 @@ export default function Header() {
 
       {/* mobile drawer */}
       {open && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
             aria-label="Close the menu"
@@ -131,7 +131,7 @@ export default function Header() {
             </nav>
             <div className="mt-auto space-y-3 border-t border-line-brand p-5">
               <Button to="/qualify" variant="cta" className="w-full">
-                Check if you Qualify
+                Check Eligibility
               </Button>
               <a
                 href={PHONE_TEL}

@@ -61,7 +61,7 @@ export const PAGES: PageDef[] = [
             label: "Browser and search title",
             kind: "text",
             max: 70,
-            fallback: "Medville Diabetes | Continuous Glucose Monitors",
+            fallback: "Medville Diabetes | CGMs & Diabetes Supplies Made Simpler",
           },
           {
             key: "description",
@@ -70,7 +70,7 @@ export const PAGES: PageDef[] = [
             max: 160,
             help: "Around 150 characters reads best in search results.",
             fallback:
-              "Medville Diabetes supplies continuous glucose monitors from FreeStyle Libre and Dexcom. Check if you qualify for a CGM in under one minute.",
+              "Explore CGMs, insulin pumps, and diabetes supplies with support from Medville Diabetes. Check your potential CGM eligibility and learn what comes next.",
           },
         ],
       },
@@ -83,7 +83,7 @@ export const PAGES: PageDef[] = [
             label: "Small label above the heading",
             kind: "text",
             max: 40,
-            fallback: "Continuous glucose monitors",
+            fallback: "Diabetes supplies made simpler",
           },
           {
             key: "heading",
@@ -91,7 +91,7 @@ export const PAGES: PageDef[] = [
             kind: "text",
             max: 90,
             help: "Wrap the words you want in brand colour with *asterisks*.",
-            fallback: "Know your glucose, *every minute* of the day.",
+            fallback: "Manage Less. *Live More.*",
           },
           {
             key: "body",
@@ -99,28 +99,28 @@ export const PAGES: PageDef[] = [
             kind: "longText",
             max: 320,
             fallback:
-              "We supply continuous glucose monitors from the leading brands, FreeStyle Libre and Dexcom. A small sensor tracks your glucose 24 hours a day, without routine finger sticks.",
+              "Getting the diabetes supplies you rely on should not add more to your day. Medville Diabetes helps make access to CGMs and diabetes supplies simpler, with dependable support along the way.",
           },
           {
             key: "primaryCta",
             label: "Main button",
             kind: "text",
             max: 32,
-            fallback: "Check if you Qualify",
+            fallback: "Check My Eligibility",
           },
           {
             key: "secondaryCta",
             label: "Second button",
             kind: "text",
             max: 32,
-            fallback: "Browse our products",
+            fallback: "Explore Products",
           },
           {
             key: "note",
             label: "Line under the buttons",
             kind: "text",
             max: 90,
-            fallback: "It takes less than one minute. There is no cost to check.",
+            fallback: "Quick to get started. No obligation. Coverage and eligibility vary by plan.",
           },
         ],
       },
@@ -141,7 +141,7 @@ export const PAGES: PageDef[] = [
             label: "Browser and search title",
             kind: "text",
             max: 70,
-            fallback: "Our Products | Medville Diabetes",
+            fallback: "CGMs, Insulin Pumps & Diabetes Supplies | Medville Diabetes",
           },
           {
             key: "description",
@@ -149,7 +149,7 @@ export const PAGES: PageDef[] = [
             kind: "longText",
             max: 160,
             fallback:
-              "Browse the continuous glucose monitors and insulin pumps Medville Diabetes supplies, with plain English descriptions of every product.",
+              "Explore continuous glucose monitors, CGM sensors, accessories, and insulin pump technology available through Medville Diabetes.",
           },
         ],
       },
@@ -169,7 +169,7 @@ export const PAGES: PageDef[] = [
             label: "Heading",
             kind: "text",
             max: 90,
-            fallback: "What are you looking for?",
+            fallback: "Diabetes Technology That Fits Into Real Life",
           },
           {
             key: "body",
@@ -177,7 +177,7 @@ export const PAGES: PageDef[] = [
             kind: "longText",
             max: 320,
             fallback:
-              "We supply two types of diabetes devices: continuous glucose monitors and insulin pumps. Pick a type to see every product we carry.",
+              "Explore continuous glucose monitors, sensors, supplies, and insulin delivery technology from leading diabetes brands, backed by support to help make getting what you need easier.",
           },
         ],
       },
@@ -334,7 +334,7 @@ export const PAGES: PageDef[] = [
             label: "Button",
             kind: "text",
             max: 32,
-            fallback: "Check if you Qualify",
+            fallback: "Check My Eligibility",
           },
         ],
       },
@@ -355,7 +355,7 @@ export const PAGES: PageDef[] = [
             label: "Browser and search title",
             kind: "text",
             max: 70,
-            fallback: "About Us | Medville Diabetes",
+            fallback: "About Medville Diabetes | CGMs & Diabetes Supplies",
           },
           {
             key: "description",
@@ -363,7 +363,7 @@ export const PAGES: PageDef[] = [
             kind: "longText",
             max: 160,
             fallback:
-              "Medville Diabetes supplies continuous glucose monitors and support to people living with diabetes. Your best interest is our first concern.",
+              "Medville Diabetes brings the medical supply experience of Medville into a service focused on diabetes, making access to CGMs and supplies simpler.",
           },
         ],
       },
@@ -376,14 +376,14 @@ export const PAGES: PageDef[] = [
             label: "Small label above the heading",
             kind: "text",
             max: 40,
-            fallback: "About Us",
+            fallback: "About Medville Diabetes",
           },
           {
             key: "heading",
             label: "Heading",
             kind: "text",
             max: 90,
-            fallback: "Your best interest is our first concern.",
+            fallback: "Making Diabetes Supply One Less Thing to Manage",
           },
           {
             key: "body",
@@ -391,7 +391,7 @@ export const PAGES: PageDef[] = [
             kind: "longText",
             max: 400,
             fallback:
-              "Medville Diabetes supplies continuous glucose monitors from the leading brands to people living with diabetes.",
+              "Living with diabetes comes with enough routines, decisions, and responsibilities. Getting the supplies you rely on should not make your day more complicated.",
           },
           {
             key: "image",
@@ -418,7 +418,7 @@ export const PAGES: PageDef[] = [
             label: "Browser and search title",
             kind: "text",
             max: 70,
-            fallback: "Contact | Medville Diabetes",
+            fallback: "Contact Medville Diabetes | CGM & Diabetes Supply Support",
           },
           {
             key: "description",
@@ -426,7 +426,7 @@ export const PAGES: PageDef[] = [
             kind: "longText",
             max: 160,
             fallback:
-              "Call or email Medville Diabetes with any question about our products, your order, or how to qualify.",
+              "Contact Medville Diabetes for help with continuous glucose monitors, diabetes supplies, potential eligibility, and next steps.",
           },
         ],
       },
@@ -439,14 +439,14 @@ export const PAGES: PageDef[] = [
             label: "Small label above the heading",
             kind: "text",
             max: 40,
-            fallback: "Contact",
+            fallback: "Contact Us",
           },
           {
             key: "heading",
             label: "Heading",
             kind: "text",
             max: 90,
-            fallback: "Talk to a real person.",
+            fallback: "Need Help? Start Here.",
           },
           {
             key: "body",
@@ -454,7 +454,7 @@ export const PAGES: PageDef[] = [
             kind: "longText",
             max: 320,
             fallback:
-              "Call or email us with any question about our products, your order, or how to qualify. We answer in plain language.",
+              "Have a question about a product, your eligibility submission, supplies, or next steps? Reach out to the Medville Diabetes team and we will help point you in the right direction.",
           },
         ],
       },
@@ -462,7 +462,7 @@ export const PAGES: PageDef[] = [
         id: "details",
         label: "Contact details",
         fields: [
-          { key: "phone", label: "Phone number", kind: "text", max: 24, fallback: "877-000-0000" },
+          { key: "phone", label: "Phone number", kind: "text", max: 24, fallback: "800-394-3917" },
           {
             key: "email",
             label: "Email address",
@@ -475,14 +475,14 @@ export const PAGES: PageDef[] = [
             label: "Postal address",
             kind: "longText",
             max: 200,
-            fallback: "[Street address to be provided]",
+            fallback: "28863 Industry Dr\nValencia, CA 91355",
           },
           {
             key: "hours",
             label: "Opening hours",
             kind: "text",
             max: 120,
-            fallback: "Monday to Friday, 8:30 AM to 5:00 PM Eastern Time",
+            fallback: "Monday to Friday 8AM to 5PM Pacific Standard Time",
           },
         ],
       },

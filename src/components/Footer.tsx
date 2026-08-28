@@ -1,19 +1,53 @@
 import { Link } from "react-router-dom";
 import Container from "./Container";
 import Logo from "./Logo";
-import { useProducts } from "../lib/useSiteData";
+import {
+  ADDRESS_LINE_1,
+  ADDRESS_LINE_2,
+  EMAIL,
+  EMAIL_HREF,
+  HOURS_SHORT,
+  PHONE_DISPLAY,
+  PHONE_TEL,
+} from "../data/company";
 
-/* Replace the placeholder contact details before launch. See CLAUDE.md. */
+/*
+  Global footer, laid out as the four columns the client's copy document
+  specifies: Explore, Products, Resources and Contact Information.
+
+  Guides and FAQs are sections of the home page rather than pages of their
+  own, so those two links carry a fragment. React Router does not scroll to a
+  fragment by itself, which is why both targets have an id and a scroll
+  margin that clears the sticky header.
+*/
 
 const linkClass =
   "text-small text-on-dark-brand transition-colors duration-(--duration-micro) hover:text-on-dark";
 const headingClass =
   "m-0 font-display text-caption font-semibold uppercase tracking-[0.16em] text-on-dark-accent";
 
-export default function Footer() {
-  const products = useProducts();
-  const footerProducts = products.filter((p) => p.category === "System").slice(0, 6);
+const EXPLORE = [
+  { to: "/", label: "Home" },
+  { to: "/about", label: "About Us" },
+  { to: "/contact", label: "Contact" },
+  { to: "/qualify", label: "Check Eligibility" },
+  { to: "/refer-a-patient", label: "Refer a Patient" },
+];
 
+const PRODUCTS = [
+  { to: "/products/cgm", label: "Continuous Glucose Monitors" },
+  { to: "/products/insulin-pumps", label: "Insulin Pumps" },
+  { to: "/products", label: "All Products" },
+];
+
+const RESOURCES = [
+  { to: "/#guides", label: "Guides" },
+  { to: "/#faqs", label: "FAQs" },
+  { to: "/privacy-policy", label: "Privacy Policy" },
+  { to: "/terms-of-service", label: "Terms of Service" },
+];
+
+export default function Footer() {
   return (
     <footer className="relative">
       {/*
@@ -38,38 +72,52 @@ export default function Footer() {
       <div className="bg-[linear-gradient(135deg,#0a3d2e_0%,#00293b_100%)]">
         <Container
           wide
-          className="grid gap-10 pb-12 pt-14 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]"
+          className="grid gap-10 pb-12 pt-14 [grid-template-columns:repeat(auto-fit,minmax(210px,1fr))]"
         >
           <div>
             <Logo dark />
             <p className="mt-4 max-w-[36ch] text-small leading-relaxed text-on-dark-muted">
-              Medville Diabetes supplies continuous glucose monitors and support to
-              people living with diabetes. Your best interest is our first concern.
+              Medville Diabetes helps make getting the diabetes supplies you rely on
+              simpler, with dependable products and support along the way.
             </p>
           </div>
 
-          <nav aria-label="Products">
-            <h3 className={headingClass}>Our Products</h3>
+          <nav aria-label="Explore">
+            <h3 className={headingClass}>Explore</h3>
             <ul className="mt-4.5 flex list-none flex-col gap-2.5 p-0">
-              {footerProducts.map((p) => (
-                <li key={p.slug}>
-                  <Link to={`/products/${p.slug}`} className={linkClass}>
-                    {p.name}
+              {EXPLORE.map((item) => (
+                <li key={item.to}>
+                  <Link to={item.to} className={linkClass}>
+                    {item.label}
                   </Link>
                 </li>
               ))}
             </ul>
           </nav>
 
-          <nav aria-label="Company">
-            <h3 className={headingClass}>Quick Links</h3>
+          <nav aria-label="Products">
+            <h3 className={headingClass}>Products</h3>
             <ul className="mt-4.5 flex list-none flex-col gap-2.5 p-0">
-              <li><Link to="/services" className={linkClass}>Our Services</Link></li>
-              <li><Link to="/about" className={linkClass}>About Us</Link></li>
-              <li><Link to="/qualify" className={linkClass}>Check if you Qualify</Link></li>
-              <li><Link to="/contact" className={linkClass}>Contact</Link></li>
-              <li><Link to="/privacy-policy" className={linkClass}>Privacy Policy</Link></li>
-              <li><Link to="/terms-of-service" className={linkClass}>Terms of Service</Link></li>
+              {PRODUCTS.map((item) => (
+                <li key={item.to}>
+                  <Link to={item.to} className={linkClass}>
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <nav aria-label="Resources">
+            <h3 className={headingClass}>Resources</h3>
+            <ul className="mt-4.5 flex list-none flex-col gap-2.5 p-0">
+              {RESOURCES.map((item) => (
+                <li key={item.to}>
+                  <Link to={item.to} className={linkClass}>
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </nav>
 
@@ -77,21 +125,21 @@ export default function Footer() {
             <h3 className={headingClass}>Contact Information</h3>
             <address className="mt-4.5 flex flex-col gap-2.5 not-italic">
               <p className="m-0 text-small text-on-dark-brand">
-                28863 Industry Dr
+                {ADDRESS_LINE_1}
                 <br />
-                Valencia, CA 91355
+                {ADDRESS_LINE_2}
               </p>
               <p className="m-0 text-small text-on-dark-brand">
-                <a href="mailto:info@medvillediabetes.com" className={linkClass}>
-                  info@medvillediabetes.com
+                <a href={EMAIL_HREF} className={linkClass}>
+                  {EMAIL}
                 </a>
               </p>
               <p className="m-0 text-small text-on-dark-brand">
-                <a href="tel:+18885642595" className={linkClass}>888-564-2595</a>
+                <a href={PHONE_TEL} className={linkClass}>
+                  {PHONE_DISPLAY}
+                </a>
               </p>
-              <p className="m-0 text-small text-on-dark-brand">
-                Monday to Friday, 8:30 AM to 5:00 PM Eastern Time
-              </p>
+              <p className="m-0 text-small text-on-dark-brand">{HOURS_SHORT}</p>
             </address>
           </div>
         </Container>
@@ -104,8 +152,9 @@ export default function Footer() {
             <p className="m-0 text-caption text-on-dark-muted">
               © {new Date().getFullYear()} Medville Diabetes. All rights reserved.
             </p>
-            <p className="m-0 text-caption text-on-dark-muted/70">
-              Product names are trademarks of their respective manufacturers.
+            <p className="m-0 max-w-[62ch] text-caption text-on-dark-muted/70">
+              All product names, logos, trademarks, and registered trademarks are the
+              property of their respective owners.
             </p>
           </Container>
         </div>

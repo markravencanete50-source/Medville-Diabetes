@@ -12,54 +12,85 @@ import {
   type Brand,
   type ProductLine,
 } from "../data/products";
+import { PRODUCT_DISCLAIMER } from "../data/company";
 import { useLineProducts } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
 import { useReveal } from "../lib/useReveal";
 
-type Filter = "All products" | Brand;
+type Filter = "All Products" | Brand;
 
-/* Copy for each product line. Everything else on the page is shared. */
+/* Copy for each product line, from the client's copy document. Everything
+   else on the page is shared between the two listings. */
 const LINE_COPY: Record<
   ProductLine,
-  { title: string; metaDescription: string; intro: string; helpTitle: string }
+  {
+    eyebrow: string;
+    title: string;
+    metaTitle: string;
+    metaDescription: string;
+    intro: string[];
+    closingTitle: string;
+    closingBody: string;
+    closingCta: string;
+    closingTo: string;
+  }
 > = {
   cgm: {
-    title: "Continuous Glucose Monitors",
+    eyebrow: "Continuous Glucose Monitors",
+    title: "Find a CGM That Fits Your Day",
+    metaTitle: "Continuous Glucose Monitors & CGM Supplies | Medville Diabetes",
     metaDescription:
-      "Browse continuous glucose monitors from FreeStyle Libre and Dexcom. See real photographs of every product, front and back.",
-    intro:
-      "A continuous glucose monitoring system is a small wearable device that tracks your glucose in real time, 24 hours a day. We supply the leading brands, including the FreeStyle Libre family and the Dexcom family. Hover any card to see the back of the product, or open a quick view.",
-    helpTitle: "Not sure which monitor fits you?",
+      "Explore FreeStyle Libre and Dexcom continuous glucose monitors, sensors, and CGM supplies through Medville Diabetes.",
+    intro: [
+      "Explore CGM systems, sensors, and accessories from FreeStyle Libre and Dexcom. Compare available products and find the technology that may fit your diabetes care and daily routine.",
+    ],
+    closingTitle: "Not Sure Where to Start?",
+    closingBody:
+      "Tell us a little about yourself and our team can help you understand your potential CGM eligibility and available next steps.",
+    closingCta: "Check My Eligibility",
+    closingTo: "/qualify",
   },
   "insulin-pump": {
-    title: "Insulin Pumps",
+    eyebrow: "Insulin Pumps",
+    title: "Insulin Delivery Designed Around Your Day",
+    metaTitle: "Insulin Pumps & Diabetes Technology | Medville Diabetes",
     metaDescription:
-      "Browse insulin pumps, including the Tandem t:slim X2. See what each pump does and check whether you qualify.",
-    intro:
-      "An insulin pump is a small device that delivers insulin through a thin tube. It replaces most daily injections. Some pumps can also connect to a continuous glucose monitor and adjust your insulin automatically. Hover any card to see the back of the product, or open a quick view.",
-    helpTitle: "Not sure whether a pump fits you?",
+      "Explore insulin pump technology available through Medville Diabetes, including the Tandem t:slim X2 insulin pump.",
+    intro: [
+      "Explore insulin pump technology designed to provide continuous insulin delivery and work with compatible diabetes management systems.",
+      "Insulin pumps require a prescription and should be used under the direction of a qualified healthcare professional.",
+    ],
+    closingTitle: "Have Questions About Getting Started?",
+    closingBody:
+      "Our team can help with supply-related questions and explain what to expect when accessing available insulin pump technology.",
+    closingCta: "Contact Our Team",
+    closingTo: "/contact",
   },
 };
 
 export default function Products({ line }: { line: ProductLine }) {
   const copy = LINE_COPY[line];
-  usePageMeta(`${copy.title} | Medville Diabetes`, copy.metaDescription);
+  usePageMeta(copy.metaTitle, copy.metaDescription);
 
   const revealRef = useReveal<HTMLDivElement>();
-  const [filter, setFilter] = useState<Filter>("All products");
+  const [filter, setFilter] = useState<Filter>("All Products");
   const [quickView, setQuickView] = useState<string | null>(null);
 
   const catalogue = useLineProducts(line);
   const visible =
-    filter === "All products" ? catalogue : catalogue.filter((p) => p.brand === filter);
+    filter === "All Products" ? catalogue : catalogue.filter((p) => p.brand === filter);
   /* Brand pills only earn their place when there is more than one brand. */
   const showFilter = line === "cgm";
+
+  /* The grid arrives in a rotation of three shapes rather than one repeated
+     slide, so a long listing keeps some variety as it scrolls past. */
+  const SHAPES = ["reveal-tilt", "reveal-zoom", "reveal-blur"];
 
   return (
     <div ref={revealRef} key={line}>
       {/* gradient hero */}
       <section className="bg-wash relative overflow-hidden">
-        <Blob tone="brand" strength={0.18} blur={40} size={420} className="-left-[120px] -top-[140px]" />
+        <Blob tone="brand" strength={0.18} blur={40} size={420} duration="20s" className="-left-[120px] -top-[140px]" />
         <Grain opacity={0.05} />
         <Container wide className="relative py-12 md:py-20">
           <p className="rise-in m-0">
@@ -71,21 +102,24 @@ export default function Products({ line }: { line: ProductLine }) {
               All product types
             </Link>
           </p>
-          <p className="rise-in m-0">
-            <Eyebrow>Our Products</Eyebrow>
+          <p className="rise-in m-0" style={{ "--rise-delay": "90ms" } as React.CSSProperties}>
+            <Eyebrow>{copy.eyebrow}</Eyebrow>
           </p>
           <h1
-            className="rise-in mt-3 font-display text-h1 font-bold text-ink"
-            style={{ "--rise-delay": "80ms" } as React.CSSProperties}
+            className="rise-in mt-3 max-w-[22ch] font-display text-h1 font-bold text-ink"
+            style={{ "--rise-delay": "200ms" } as React.CSSProperties}
           >
             {copy.title}
           </h1>
-          <p
-            className="rise-in mt-4 max-w-[62ch] text-body-lg leading-relaxed text-grey-dark"
-            style={{ "--rise-delay": "160ms" } as React.CSSProperties}
-          >
-            {copy.intro}
-          </p>
+          {copy.intro.map((paragraph, index) => (
+            <p
+              key={paragraph}
+              className="rise-in mt-4 max-w-[62ch] text-body-lg leading-relaxed text-grey-dark"
+              style={{ "--rise-delay": `${340 + index * 130}ms` } as React.CSSProperties}
+            >
+              {paragraph}
+            </p>
+          ))}
         </Container>
       </section>
 
@@ -93,11 +127,12 @@ export default function Products({ line }: { line: ProductLine }) {
         <Container wide>
           {showFilter && (
             <div
-              className="flex flex-wrap items-center gap-2.5"
+              data-reveal={0}
+              className="reveal-drop flex flex-wrap items-center gap-2.5"
               role="group"
               aria-label="Filter products by brand"
             >
-              {(["All products", ...brands] as Filter[]).map((f) => (
+              {(["All Products", ...brands] as Filter[]).map((f) => (
                 <button
                   key={f}
                   type="button"
@@ -119,30 +154,45 @@ export default function Products({ line }: { line: ProductLine }) {
           )}
 
           <div className={`${showFilter ? "mt-8" : ""} grid gap-6 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]`}>
-            {visible.map((product) => (
-              <ProductCard key={product.slug} product={product} onQuickView={setQuickView} />
+            {visible.map((product, index) => (
+              <ProductCard
+                key={product.slug}
+                product={product}
+                delay={(index % 3) * 170}
+                motion={`${SHAPES[index % SHAPES.length]} reveal-slow`}
+                onQuickView={setQuickView}
+              />
             ))}
           </div>
 
-          {/* not sure panel */}
-          <div className="bg-cta-band relative mt-14 overflow-hidden rounded-[24px] p-8 md:p-12">
+          {/* closing prompt */}
+          <div
+            data-reveal={0}
+            className="bg-cta-band reveal-blur reveal-glacial relative mt-14 overflow-hidden rounded-[24px] p-8 md:p-12"
+          >
             <Grain opacity={0.07} />
             <div className="relative flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
               <div>
                 <h2 className="m-0 font-display text-h3 font-bold text-on-dark">
-                  {copy.helpTitle}
+                  {copy.closingTitle}
                 </h2>
-                <p className="mt-2 max-w-[54ch] text-small leading-relaxed text-on-dark-brand">
-                  Answer a few short questions. Our team will review your information
-                  and help you find the right system.
+                <p className="mt-2 max-w-[58ch] text-small leading-relaxed text-on-dark-brand">
+                  {copy.closingBody}
                 </p>
               </div>
-              <Button to="/qualify" variant="on-band" className="flex-none">
-                Check if you Qualify
+              <Button to={copy.closingTo} variant="on-band" className="flex-none">
+                {copy.closingCta}
                 <ArrowRight size={16} strokeWidth={2.2} />
               </Button>
             </div>
           </div>
+
+          <p
+            data-reveal={160}
+            className="reveal-settle mx-auto mt-12 max-w-[78ch] text-center text-caption leading-relaxed text-grey-faint"
+          >
+            {PRODUCT_DISCLAIMER}
+          </p>
         </Container>
       </section>
 

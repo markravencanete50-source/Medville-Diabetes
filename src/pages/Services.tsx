@@ -336,7 +336,7 @@ export default function Services() {
             recurring deliveries.
           </p>
           <Button to="/qualify" variant="cta" className="min-h-[52px] px-8">
-            Check if you Qualify
+            Check My Eligibility
             <ArrowRight size={16} strokeWidth={2.2} />
           </Button>
         </Container>

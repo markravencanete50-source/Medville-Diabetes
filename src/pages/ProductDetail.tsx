@@ -7,9 +7,10 @@ import ProductViewer from "../components/ProductViewer";
 import ProductCard, { PRODUCT_TINT, PRODUCT_PILL } from "../components/ProductCard";
 import QuickView from "../components/QuickView";
 import { isEnquirable, PRODUCT_STATUS_LABEL } from "../data/products";
+import { PRODUCT_DISCLAIMER } from "../data/company";
 import { useProduct, useProducts } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
-import { useReveal } from "../lib/useReveal";
+import { useParallax, useReveal } from "../lib/useReveal";
 import NotFound from "./NotFound";
 
 export default function ProductDetail() {
@@ -17,6 +18,7 @@ export default function ProductDetail() {
   const products = useProducts();
   const product = useProduct(slug);
   const revealRef = useReveal<HTMLDivElement>();
+  const parallaxRef = useParallax<HTMLDivElement>();
   const [quickView, setQuickView] = useState<string | null>(null);
 
   usePageMeta(
@@ -32,7 +34,7 @@ export default function ProductDetail() {
 
   return (
     <div ref={revealRef}>
-      <section className="py-8 md:py-12">
+      <section ref={parallaxRef} className="py-8 md:py-12">
         <Container wide>
           {/* breadcrumb */}
           <nav
@@ -49,6 +51,8 @@ export default function ProductDetail() {
           <div className="mt-6 grid gap-10 lg:grid-cols-[1fr_1fr] lg:gap-14">
             {/* viewer with front and back thumbnails */}
             <ProductViewer
+              revealDelay={0}
+              revealMotion="reveal-swing-left reveal-slow"
               front={product.imageFront}
               back={product.imageBack}
               alt={product.name}
@@ -58,7 +62,7 @@ export default function ProductDetail() {
             />
 
             {/* details */}
-            <div>
+            <div data-reveal={180} className="reveal-right reveal-slow">
               <span
                 className={`inline-flex rounded-full bg-grey-light px-3.5 py-1.5 text-caption font-semibold ${PRODUCT_PILL}`}
               >
@@ -97,24 +101,31 @@ export default function ProductDetail() {
               <div className="mt-7 flex flex-wrap gap-3">
                 {isEnquirable(product) ? (
                   <Button to="/qualify" state={{ product: product.slug }} variant="cta">
-                    Check if you Qualify
+                    Check My Eligibility
                   </Button>
                 ) : (
                   <span className="inline-flex min-h-[46px] items-center gap-2 rounded-full bg-grey-light px-7 font-display text-small font-semibold text-grey-muted">
                     {PRODUCT_STATUS_LABEL[product.status ?? "available"]}
                   </span>
                 )}
-                <Button to="/contact" variant="ghost">Ask us a question</Button>
+                <Button to="/contact" variant="ghost">Contact Our Team</Button>
               </div>
               <p className="mt-4 max-w-[56ch] text-caption leading-relaxed text-grey-muted">
                 {isEnquirable(product)
-                  ? "Availability depends on your coverage and on a review by our team. Checking takes less than one minute and there is no cost."
+                  ? "Submitting the eligibility form does not guarantee eligibility, insurance coverage, or receipt of a product. Our team will review your information and explain what comes next."
                   : product.status === "coming-soon"
                     ? "This product is not available to order yet. Contact us and we will tell you when it is."
                     : "This product is out of stock. Contact us and we will suggest an alternative."}
               </p>
             </div>
           </div>
+
+          <p
+            data-reveal={0}
+            className="reveal-settle mt-12 border-t border-line-brand pt-7 text-caption leading-relaxed text-grey-faint"
+          >
+            {PRODUCT_DISCLAIMER}
+          </p>
         </Container>
       </section>
 
@@ -129,7 +140,8 @@ export default function ProductDetail() {
                 <ProductCard
                   key={p.slug}
                   product={p}
-                  delay={index * 120}
+                  delay={index * 180}
+                  motion="reveal-tilt reveal-slow"
                   onQuickView={setQuickView}
                 />
               ))}

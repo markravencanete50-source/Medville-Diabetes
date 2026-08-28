@@ -13,6 +13,9 @@ export function usePageMeta(title: string, description?: string) {
       }
       tag.setAttribute("content", description);
     }
-    window.scrollTo(0, 0);
+    /* A page that was opened at a fragment, such as the footer's link to the
+       guides band, must not be yanked back to the top before ScrollToHash can
+       reach its target. */
+    if (!window.location.hash) window.scrollTo(0, 0);
   }, [title, description]);
 }
