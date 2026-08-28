@@ -225,6 +225,56 @@ async function listAdmins() {
   };
 }
 
+/*
+  Inviting an administrator.
+
+  Until now an account had to be created in the Google Cloud console and only
+  its role was set here. That was a deliberate limit: creating a user is the
+  one action that can mint access to patient records. The client asked for the
+  invitation to happen in the dashboard, and it is safe to move it here
+  because the three things that made the console safer are all still true.
+
+  - Only an owner may call this, the same as every other route on this screen.
+  - It is written to the audit log before anything is returned, so an account
+    can never appear without a record of who created it and when.
+  - No password is set. The account exists but cannot be signed in to until
+    the person proves control of the mailbox by following the link Firebase
+    emails them and choosing their own password. An invitation is not a
+    credential, so an intercepted invite grants nothing on its own.
+*/
+const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+async function inviteAdmin(actor, body) {
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const role = body.role;
+
+  if (!EMAIL.test(email)) return { error: "Please enter a valid email address." };
+  if (!["owner", "editor", "agent"].includes(role)) {
+    return { error: "That role is not allowed." };
+  }
+
+  let user;
+  let created = false;
+  try {
+    user = await auth.getUserByEmail(email);
+  } catch (problem) {
+    if (problem?.code !== "auth/user-not-found") throw problem;
+    /* No password. The invitation email is the only way in. */
+    user = await auth.createUser({ email, emailVerified: false });
+    created = true;
+  }
+
+  await auth.setCustomUserClaims(user.uid, { role });
+  /* Anything they already held stops working immediately rather than at the
+     next token refresh. */
+  await auth.revokeRefreshTokens(user.uid);
+
+  /* The email address is not recorded: the uid identifies the account, and an
+     audit entry should carry no more than it needs to. */
+  await audit(actor, "admins.invite", { targetUid: user.uid, role, created });
+  return { ok: true, uid: user.uid, created };
+}
+
 async function setAdminRole(actor, body) {
   const { uid, role } = body;
   if (typeof uid !== "string" || !uid) return { error: "Unknown administrator." };
@@ -251,6 +301,7 @@ const ROUTES = {
   "audit.list": { roles: ["owner"], run: listAudit },
   "admins.list": { roles: ["owner"], run: listAdmins },
   "admins.setRole": { roles: ["owner"], run: setAdminRole },
+  "admins.invite": { roles: ["owner"], run: inviteAdmin },
 };
 
 http("adminApi", async (req, res) => {

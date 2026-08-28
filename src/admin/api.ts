@@ -143,6 +143,16 @@ export const adminApi = {
 
   setAdminRole: (getToken: GetToken, uid: string, role: string) =>
     call<{ ok: true }>(getToken, "admins.setRole", { uid, role }),
+
+  /* Creates the account if it does not exist and gives it a role. It does not
+     set a password: the invitation email does that, so this returning
+     successfully means the person can be emailed, not that they can sign in
+     yet. */
+  inviteAdmin: (getToken: GetToken, email: string, role: string) =>
+    call<{ ok: true; uid: string; created: boolean }>(getToken, "admins.invite", {
+      email,
+      role,
+    }),
 };
 
 /* Turns a lead into the one line a table row shows. Kept here so no component

@@ -110,7 +110,15 @@ once, then sets the `owner` claim. The role reaches the browser in the next
 identity token, so anyone already signed in has to sign out and back in.
 
 After that, the owner adds everyone else from **Administrators** in the
-dashboard. The three roles are:
+dashboard: enter their email, choose a role, and send the invitation. The
+account is created with no password, and Identity Platform emails them a link
+to choose one. An invitation is therefore not a credential, and somebody who
+intercepts the email still cannot sign in without the mailbox.
+
+Edit the wording of that email under **Identity Platform, Templates** in the
+Google Cloud console. It is the password-reset template.
+
+The three roles are:
 
 | Role | Sees |
 |---|---|
@@ -187,7 +195,7 @@ Steps 1, 2, 4, 5 and 6 all need Google Cloud console or `gcloud` access.
 | Colours | The five brand colours, each checked for readability before it can be saved |
 | Questions | The questions and answers on the home page |
 | Reviews | Customer reviews, draft until published |
-| Administrators | Who can sign in and what they may open |
+| Administrators | Invite people by email, and set what each of them may open |
 | Access log | Who opened or changed patient information, and when |
 
 Page text, products, questions, reviews and colours are read by the website

@@ -94,6 +94,18 @@ only change made to their wording.
   the wordmark measures 1.19:1 against the footer and is effectively invisible
   there. The cyan "DIABETES" line and the leaves still read. A reversed logo
   from the client, or a light panel behind it, fixes it whenever they want.
+- Administrator invitations. An owner invites by email from the dashboard's
+  Administrators screen. `admins.invite` in `functions/admin/index.js` creates
+  the Identity Platform account and sets the role claim but never a password,
+  then the dashboard asks Identity Platform to email the person a link to
+  choose one. Two properties to preserve: an invitation is not a credential,
+  because the account cannot be signed in to until the invitee proves control
+  of the mailbox; and the invitation is written to the audit log before
+  anything is returned, so no account can appear without a record of who made
+  it. The email is sent by Identity Platform rather than a mail service, which
+  keeps the stack inside the BAA-covered products and adds no monthly cost.
+  The wording lives in the Google Cloud console under Identity Platform,
+  Templates.
 - Blog. Articles live in the Firestore `posts` collection, written from the
   dashboard's Blog screen and read by the public site, following the same
   pattern as faqs and testimonials. A post body is a list of typed blocks, not
