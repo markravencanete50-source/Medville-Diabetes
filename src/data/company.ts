@@ -7,11 +7,12 @@
 
   Source: the client's website copy document, 2026-08-28.
 
-  One note for the client's reviewer. That document gives the email address as
-  info@medvillediabetics.com in the footer, and as info@medvillediabetes.com on
-  the contact page and the referral page. The site uses the second spelling,
-  which matches the company name and two of the three mentions. If the first
-  spelling is the correct mailbox, change EMAIL below and nothing else.
+  The email address was checked against DNS on 2026-08-28 rather than guessed.
+  The domain's MX record points at
+  medvillediabetes-com.mail.protection.outlook.com, so mail runs on Microsoft
+  365 and the mail domain is spelled "diabetes". The client's copy document
+  gives info@medvillediabetics.com in its footer, which is a typo: that is a
+  different domain and it does not carry their mail.
 */
 
 export const PHONE_DISPLAY = "800-394-3917";

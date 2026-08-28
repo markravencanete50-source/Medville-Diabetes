@@ -174,11 +174,14 @@ only change made to their wording.
      page, the real address (28863 Industry Dr, Valencia, CA 91355) and the
      phone number 800-394-3917 are in place, and the Refer a Patient page
      exists at /refer-a-patient. Shared facts live in `src/data/company.ts`.
-   - `info@medvillediabetes.com` — confirm the real email. The copy document
-     spells it `info@medvillediabetics.com` in the footer and
-     `info@medvillediabetes.com` on the contact and referral pages; the site
-     uses the second spelling. Change `EMAIL` in `src/data/company.ts` alone
-     if the first is correct.
+   - Done 2026-08-28: `info@medvillediabetes.com` is confirmed correct. The
+     domain's MX record points at
+     `medvillediabetes-com.mail.protection.outlook.com`, so mail runs on
+     Microsoft 365, and the mail domain is spelled "diabetes". The
+     `info@medvillediabetics.com` in the client's copy document is a typo.
+     Still worth asking the client whether anyone actually reads the `info@`
+     mailbox: an MX record proves the domain receives mail, not that that
+     particular address exists.
    - `REPLACE-WITH-REFERRAL-PACKET-PDF` (`src/data/company.ts`) — the referral
      form and requirements PDF. Until it is set, the referral buttons ask
      providers to request the packet by email instead of offering a download
