@@ -74,7 +74,7 @@ gcloud functions deploy qualifyIntake \
   --gen2 --runtime=nodejs20 --region=us-central1 \
   --source=. --entry-point=qualifyIntake \
   --trigger-http --allow-unauthenticated \
-  --set-env-vars=ALLOWED_ORIGIN=https://www.medvillediabetes.com
+  --set-env-vars=^|^ALLOWED_ORIGIN=https://medville-diabetes.web.app,https://www.medvillediabetes.com
 
 # dashboard API
 cd ../functions/admin
@@ -82,8 +82,14 @@ gcloud functions deploy adminApi \
   --gen2 --runtime=nodejs20 --region=us-central1 \
   --source=. --entry-point=adminApi \
   --trigger-http --allow-unauthenticated \
-  --set-env-vars=ALLOWED_ORIGIN=https://www.medvillediabetes.com
+  --set-env-vars=^|^ALLOWED_ORIGIN=https://medville-diabetes.web.app,https://www.medvillediabetes.com
 ```
+
+`ALLOWED_ORIGIN` takes a comma-separated list, so the Firebase address and the
+custom domain both work and the functions do not need redeploying when DNS
+moves. The `^|^` before it is a Windows Command Prompt escape that stops the
+comma being read as a separator between two variables; on macOS, Linux or
+PowerShell drop it and write `--set-env-vars=ALLOWED_ORIGIN=...` as normal.
 
 `--allow-unauthenticated` lets the browser reach the function. It does not
 make the data public: `adminApi` rejects any request without a valid Identity

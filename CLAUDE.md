@@ -205,7 +205,7 @@ only change made to their wording.
      --gen2 --runtime=nodejs20 --region=us-central1 \
      --source=. --entry-point=qualifyIntake \
      --trigger-http --allow-unauthenticated \
-     --set-env-vars=ALLOWED_ORIGIN=https://www.medvillediabetes.com
+     --set-env-vars=^|^ALLOWED_ORIGIN=https://medville-diabetes.web.app,https://www.medvillediabetes.com
    ```
    Put the resulting URL in `.env` as `VITE_QUALIFY_ENDPOINT` (this variable
    is safe to expose; it is only a URL).

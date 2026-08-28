@@ -40,7 +40,36 @@ initializeApp({ credential: applicationDefault() });
 const db = new Firestore();
 const auth = getAuth();
 
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "";
+/*
+  Allowed origins.
+
+  ALLOWED_ORIGIN takes one origin or several separated by commas, so the
+  Firebase address and the custom domain can both work without redeploying
+  when DNS moves:
+
+    ALLOWED_ORIGIN=https://medville-diabetes.web.app,https://www.medvillediabetes.com
+
+  Access-Control-Allow-Origin may only ever name a single origin, so the
+  request's own Origin is echoed back when it is on the list, and the header
+  is omitted entirely when it is not, which is what makes the browser refuse.
+  Vary: Origin is set either way so a shared cache cannot serve one site's
+  response to another.
+
+  Matching is exact. A prefix match would let evil-medvillediabetes.com
+  through, and a suffix match would let medvillediabetes.com.evil.com through.
+*/
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/$/, ""))
+  .filter(Boolean);
+
+function applyCors(req, res) {
+  res.set("Vary", "Origin");
+  const origin = (req.get("Origin") || "").replace(/\/$/, "");
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.set("Access-Control-Allow-Origin", origin);
+  }
+}
 
 /* Sessions are short by design. Section 3.4(b) requires automatic session
    timeouts rather than shared credentials that stay signed in. The dashboard
@@ -50,13 +79,10 @@ const MAX_TOKEN_AGE_SECONDS = 60 * 60;
 
 const LEAD_STATUSES = new Set(["new", "contacted", "qualified", "not-qualified", "closed"]);
 
-function send(res, status, body) {
+function send(req, res, status, body) {
   res.set("Cache-Control", "no-store");
   res.set("Pragma", "no-cache");
-  if (ALLOWED_ORIGIN) {
-    res.set("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
-    res.set("Vary", "Origin");
-  }
+  applyCors(req, res);
   if (body === undefined) return res.status(status).send("");
   return res.status(status).json(body);
 }
@@ -309,27 +335,27 @@ http("adminApi", async (req, res) => {
     res.set("Access-Control-Allow-Methods", "POST");
     res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.set("Access-Control-Max-Age", "3600");
-    return send(res, 204);
+    return send(req, res, 204);
   }
-  if (req.method !== "POST") return send(res, 405, { error: "Method not allowed." });
+  if (req.method !== "POST") return send(req, res, 405, { error: "Method not allowed." });
 
   const actor = await authenticate(req);
-  if (!actor) return send(res, 401, { error: "Please sign in again." });
+  if (!actor) return send(req, res, 401, { error: "Please sign in again." });
 
   const body = req.body ?? {};
   const route = ROUTES[body.action];
-  if (!route) return send(res, 400, { error: "Unknown request." });
+  if (!route) return send(req, res, 400, { error: "Unknown request." });
   if (!route.roles.includes(actor.role)) {
     await audit(actor, "access.denied", { attempted: body.action });
-    return send(res, 403, { error: "You do not have access to that." });
+    return send(req, res, 403, { error: "You do not have access to that." });
   }
 
   try {
     const result = await route.run(actor, body);
-    if (result.error) return send(res, 400, result);
-    return send(res, 200, result);
+    if (result.error) return send(req, res, 400, result);
+    return send(req, res, 200, result);
   } catch {
     /* No error details out, no request body in the logs. */
-    return send(res, 500, { error: "That did not work. Please try again." });
+    return send(req, res, 500, { error: "That did not work. Please try again." });
   }
 });

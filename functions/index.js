@@ -15,8 +15,36 @@ import { Firestore, FieldValue } from "@google-cloud/firestore";
 
 const db = new Firestore();
 
-/* Set ALLOWED_ORIGIN to the production site origin at deploy time. */
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "";
+/*
+  Allowed origins.
+
+  ALLOWED_ORIGIN takes one origin or several separated by commas, so the
+  Firebase address and the custom domain can both work without redeploying
+  when DNS moves:
+
+    ALLOWED_ORIGIN=https://medville-diabetes.web.app,https://www.medvillediabetes.com
+
+  Access-Control-Allow-Origin may only ever name a single origin, so the
+  request's own Origin is echoed back when it is on the list, and the header
+  is omitted entirely when it is not, which is what makes the browser refuse.
+  Vary: Origin is set either way so a shared cache cannot serve one site's
+  response to another.
+
+  Matching is exact. A prefix match would let evil-medvillediabetes.com
+  through, and a suffix match would let medvillediabetes.com.evil.com through.
+*/
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/$/, ""))
+  .filter(Boolean);
+
+function applyCors(req, res) {
+  res.set("Vary", "Origin");
+  const origin = (req.get("Origin") || "").replace(/\/$/, "");
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.set("Access-Control-Allow-Origin", origin);
+  }
+}
 
 const US_STATES = new Set([
   "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
@@ -42,10 +70,7 @@ function isNonEmptyString(v, max) {
 }
 
 http("qualifyIntake", async (req, res) => {
-  if (ALLOWED_ORIGIN) {
-    res.set("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
-    res.set("Vary", "Origin");
-  }
+  applyCors(req, res);
   res.set("Cache-Control", "no-store");
 
   if (req.method === "OPTIONS") {
