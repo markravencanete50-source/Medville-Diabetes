@@ -78,18 +78,20 @@ only change made to their wording.
   (navy #00293B, cyan #18BADA, orange #FF9E1B, Poppins + Inter). No raw hex
   in components; extend tokens, do not bypass them.
 - Logo: the client's own artwork, delivered 2026-08-28. The untouched original
-  is `brand/MD_Logo_Transparent.svg`. The site renders two files from
-  `public/brand/`, both with the viewBox cropped to the artwork (the delivered
-  canvas is 400x350 and the artwork occupies the middle 180 units):
-  `medville-logo.svg` for light surfaces, and `medville-logo-on-dark.svg` for
-  the footer, whose only difference is a white wordmark instead of the navy
-  #002a3b, because the footer gradient ends on #00293b and navy on navy is
-  invisible. `src/components/Logo.tsx` picks between them with `onDark`.
-  `public/favicon.svg` and `public/apple-touch-icon.png` are the logo's own
-  "M" path reversed on brand cyan; the full wordmark is unreadable at 16 px,
-  and the cyan field keeps the mark legible against light and dark browser
-  chrome alike. Everything is vector, so nothing blurs at any size.
-  `brand/Medville_Logo.svg` is the earlier cyan-tile lockup, kept for reference.
+  is `brand/MD_Logo_Transparent.svg`; the site renders
+  `public/brand/medville-logo.svg`, the same file with its viewBox cropped to
+  the artwork (the delivered canvas is 400x350 and the artwork occupies the
+  middle 180 units). One file everywhere, on the client's instruction, so
+  `src/components/Logo.tsx` takes no variant. `public/favicon.svg` is the whole
+  logo fitted to a square; `public/apple-touch-icon.png` is the same on white,
+  because iOS fills a transparent touch icon with black. All vector, so nothing
+  blurs at any size. `brand/Medville_Logo.svg` is the earlier cyan-tile lockup,
+  kept for reference.
+- Known contrast issue, raised with the client and their call: the logo's
+  wordmark is navy #002a3b and the footer gradient runs #0a3d2e to #00293b, so
+  the wordmark measures 1.19:1 against the footer and is effectively invisible
+  there. The cyan "DIABETES" line and the leaves still read. A reversed logo
+  from the client, or a light panel behind it, fixes it whenever they want.
 - Cache rules in `firebase.json`: only `/assets/**` may be immutable, because
   Vite fingerprints those names. Anything with a stable name (the icons, the
   logo, images in `public/`) must revalidate, or a replacement will not reach
