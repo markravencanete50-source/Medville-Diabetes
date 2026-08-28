@@ -70,7 +70,7 @@ gcloud functions deploy qualifyIntake \
   --gen2 --runtime=nodejs20 --region=us-central1 \
   --source=. --entry-point=qualifyIntake \
   --trigger-http --allow-unauthenticated \
-  --set-env-vars=ALLOWED_ORIGIN=https://THE-FINAL-DOMAIN
+  --set-env-vars=ALLOWED_ORIGIN=https://www.medvillediabetes.com
 
 # dashboard API
 cd ../functions/admin
@@ -78,7 +78,7 @@ gcloud functions deploy adminApi \
   --gen2 --runtime=nodejs20 --region=us-central1 \
   --source=. --entry-point=adminApi \
   --trigger-http --allow-unauthenticated \
-  --set-env-vars=ALLOWED_ORIGIN=https://THE-FINAL-DOMAIN
+  --set-env-vars=ALLOWED_ORIGIN=https://www.medvillediabetes.com
 ```
 
 `--allow-unauthenticated` lets the browser reach the function. It does not

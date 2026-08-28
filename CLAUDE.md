@@ -150,9 +150,13 @@ only change made to their wording.
      placeholder quote ever reaches a visitor.
    - A provider photograph for the Refer a Patient hero, which currently
      borrows a services photograph.
-   - `REPLACE-WITH-FINAL-DOMAIN` (robots.txt, sitemap.xml, and the canonical,
-     og:url, og:image and twitter:image tags in index.html, which must be
-     absolute addresses)
+   - Done 2026-08-28: the production domain is www.medvillediabetes.com,
+     bought through GoDaddy. It is written into robots.txt, sitemap.xml, and
+     the canonical, og:url, og:image and twitter:image tags in index.html,
+     which have to be absolute. The apex medvillediabetes.com should redirect
+     to the www host so one address is canonical. Adding the custom domain in
+     the Firebase console and the DNS records at GoDaddy are console jobs and
+     are not done from this repository.
    - `REPLACE-WITH-CLIENT-GCP-PROJECT-ID` (.firebaserc)
 3. Replace placeholder product art with real supplier photos (front and back
    per product) once the client provides them. Keep the same file paths or
@@ -164,7 +168,7 @@ only change made to their wording.
      --gen2 --runtime=nodejs20 --region=us-central1 \
      --source=. --entry-point=qualifyIntake \
      --trigger-http --allow-unauthenticated \
-     --set-env-vars=ALLOWED_ORIGIN=https://THE-FINAL-DOMAIN
+     --set-env-vars=ALLOWED_ORIGIN=https://www.medvillediabetes.com
    ```
    Put the resulting URL in `.env` as `VITE_QUALIFY_ENDPOINT` (this variable
    is safe to expose; it is only a URL).
