@@ -214,7 +214,10 @@ export default function Qualify() {
             <p className="m-0 text-caption leading-relaxed text-grey-dark">
               Your privacy matters. Information submitted through this form will be
               handled according to our{" "}
-              <Link to="/privacy-policy" className="font-semibold text-brand underline underline-offset-2">
+              <Link
+                to="/privacy-policy"
+                className="inline-block py-1 font-semibold text-brand underline underline-offset-2"
+              >
                 Privacy Policy
               </Link>{" "}
               and applicable privacy requirements.

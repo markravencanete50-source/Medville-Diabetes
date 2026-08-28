@@ -91,7 +91,7 @@ export default function Products({ line }: { line: ProductLine }) {
           <p className="rise-in m-0">
             <Link
               to="/products"
-              className="mb-4 inline-flex items-center gap-1.5 text-small font-semibold text-brand"
+              className="mb-4 inline-flex items-center gap-1.5 py-1 text-small font-semibold text-brand"
             >
               <ArrowLeft size={15} strokeWidth={2.2} />
               All product types
