@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "optimize:images": "node scripts/optimize-product-photos.mjs",
     "optimize:services": "node scripts/optimize-services-photos.mjs",
-    "build:og": "node scripts/build-og-image.mjs"
+    "build:og": "node scripts/build-og-image.mjs",
+    "grant:owner": "node scripts/grant-owner.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

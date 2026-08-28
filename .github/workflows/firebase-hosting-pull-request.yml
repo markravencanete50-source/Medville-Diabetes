@@ -13,7 +13,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The dashboard and the qualify form call two Cloud Run functions. Their
+      # addresses are read at build time, so a build with these unset ships a
+      # bundle with nowhere to send anything, and the dashboard's Enquiries
+      # screen fails with no way to tell why. They are addresses, not secrets,
+      # but they live in repository settings because they differ per
+      # environment and are not known until the functions are deployed.
+      # An unset secret is an empty string, which the app already treats as
+      # "not configured" and says so on screen.
+      #
+      # Repository settings -> Secrets and variables -> Actions:
+      #   VITE_ADMIN_API         the adminApi function URL
+      #   VITE_QUALIFY_ENDPOINT  the qualifyIntake function URL
       - run: npm ci && npm run build
+        env:
+          VITE_ADMIN_API: ${{ secrets.VITE_ADMIN_API }}
+          VITE_QUALIFY_ENDPOINT: ${{ secrets.VITE_QUALIFY_ENDPOINT }}
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

@@ -95,14 +95,15 @@ an owner first, so the first one is set once from a machine with gcloud
 credentials for the project:
 
 ```
-node -e "
-const { getAuth } = require('firebase-admin/auth');
-const { initializeApp, applicationDefault } = require('firebase-admin/app');
-initializeApp({ credential: applicationDefault() });
-getAuth().setCustomUserClaims('THE-UID-FROM-STEP-2', { role: 'owner' })
-  .then(() => console.log('done'));
-"
+gcloud auth application-default login
+gcloud config set project medville-diabetes
+
+node scripts/grant-owner.mjs someone@medvillediabetes.com
 ```
+
+The script finds the account, or creates it and prints a temporary password
+once, then sets the `owner` claim. The role reaches the browser in the next
+identity token, so anyone already signed in has to sign out and back in.
 
 After that, the owner adds everyone else from **Administrators** in the
 dashboard. The three roles are:
@@ -119,25 +120,54 @@ signs in as themselves.
 
 ---
 
-## 6. Fill in the site environment
+## 6. Give the build the two function addresses
 
-Copy `.env.example` to `.env` and fill it in from the Google Cloud console.
-Every value is safe to publish: a web API key identifies the project, it does
-not grant access. Access is decided by the security rules and the token.
+The Firebase web configuration is already committed in
+`src/lib/firebaseConfig.ts`, so nothing needs to be set for sign-in to work.
+Only the two function addresses are missing, and they are not known until
+step 4 has run.
+
+They are read at build time, which means a build made before they are set
+ships a bundle with nowhere to send anything. Add them as **repository
+secrets** (GitHub, Settings, Secrets and variables, Actions):
 
 ```
-VITE_QUALIFY_ENDPOINT=https://...qualifyIntake...
-VITE_ADMIN_API=https://...adminApi...
-VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=...
-VITE_FIREBASE_PROJECT_ID=medville-diabetes
-VITE_FIREBASE_STORAGE_BUCKET=...
-VITE_FIREBASE_APP_ID=...
+VITE_ADMIN_API         https://...adminApi...
+VITE_QUALIFY_ENDPOINT  https://...qualifyIntake...
 ```
 
-These are build-time values, so add them to the GitHub Actions workflow as
-repository secrets and pass them into the build step. Redeploy after changing
-any of them.
+Both deploy workflows already read those two names and pass them into
+`npm run build`, so nothing else changes. **Re-run the deploy afterwards**:
+these are compiled into the JavaScript, so adding a secret does nothing until
+the next build.
+
+Until `VITE_ADMIN_API` is set, the dashboard signs in and the whole Website
+half works, while Overview, Enquiries and the access log say on screen that
+enquiries are not connected yet.
+
+For local work, copy `.env.example` to `.env` and put the same two values
+there.
+
+---
+
+## Current state, verified 2026-08-28
+
+Checked directly against the project rather than assumed:
+
+| | |
+|---|---|
+| Firebase project and web config | done, committed |
+| Email / password sign-in | enabled and answering |
+| Firestore database | live |
+| Security rules | deployed and correct: the public content collections read, `leads` refuses the browser |
+| Content collections | empty, so the site serves its built-in wording, which is the intended fallback |
+| Blaze plan and BAA (step 1) | not confirmed |
+| Identity Platform upgrade (step 2) | not confirmed; plain Firebase Auth is not BAA covered |
+| The two functions (step 4) | not deployed |
+| First owner (step 5) | not granted |
+| `VITE_ADMIN_API` secret (step 6) | not set |
+
+Steps 1, 2, 4, 5 and 6 all need Google Cloud console or `gcloud` access.
 
 ---
 

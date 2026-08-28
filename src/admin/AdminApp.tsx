@@ -16,7 +16,8 @@ import {
   X,
 } from "lucide-react";
 import "./admin.css";
-import { AdminAuthProvider, canOpen, isAdminConfigured, useAdminAuth, type AdminRole } from "./auth";
+import { AdminAuthProvider, canOpen, useAdminAuth, type AdminRole } from "./auth";
+import { isAdminApiConfigured } from "./api";
 import { Banner, Card, Field, ToastProvider, useAdminTheme } from "./ui";
 import { usePageMeta } from "../lib/usePageMeta";
 
@@ -341,6 +342,26 @@ function Shell() {
         </aside>
 
         <main className="admin-main">
+          {/*
+            The website half of the dashboard talks to Firestore directly. The
+            enquiry half talks to the adminApi function, and its address is a
+            build-time value, so a build made before that function was deployed
+            has nowhere to send anything. Saying so here is the difference
+            between "this screen is broken" and "this half is not switched on
+            yet"; without it, Enquiries and the access log fail with an error
+            that explains nothing.
+          */}
+          {!isAdminApiConfigured() && (section === "overview" || section === "leads" || section === "audit") && (
+            <div className="mb-4">
+              <Banner tone="warn">
+                Enquiries are not connected yet. The adminApi function has not been
+                deployed, or its address has not been added to the build, so this
+                screen has nothing to read. Everything under Website works as
+                normal. See ADMIN-SETUP.md, steps 4 and 6.
+              </Banner>
+            </div>
+          )}
+
           {idleWarning && (
             <div className="mb-4">
               <Banner tone="warn">
@@ -417,10 +438,11 @@ export default function AdminApp() {
     };
   }, []);
 
-  if (!isAdminConfigured()) {
-    /* Still render the shell so the client can see the dashboard exists and
-       read what is missing, rather than meeting a blank screen. */
-  }
+  /*
+    A missing Firebase configuration is handled inside AdminAuthProvider, which
+    renders the shell and explains what is missing rather than showing a blank
+    screen or a sign-in form that could never succeed.
+  */
 
   return (
     <AdminAuthProvider>
