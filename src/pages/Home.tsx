@@ -22,11 +22,13 @@ import Button from "../components/Button";
 import GlucoseWave from "../components/GlucoseWave";
 import ProductCard from "../components/ProductCard";
 import QuickView from "../components/QuickView";
-import Faq, { type FaqItem } from "../components/Faq";
+import Faq from "../components/Faq";
+import { FALLBACK_FAQS, type FaqItem } from "../data/faqs";
 import { Blob, Eyebrow, Grain } from "../components/Decor";
 import HeroViewer from "../components/HeroViewer";
 import { useFaqs, usePosts, useProduct, useProducts, useTestimonials } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
+import { metaFor } from "../data/pageMeta";
 import { useParallax, useReveal } from "../lib/useReveal";
 import { useCountUp } from "../lib/useCountUp";
 import { formatPostDate, readingMinutes } from "../data/blog";
@@ -54,28 +56,6 @@ import { formatPostDate, readingMinutes } from "../data/blog";
   through useParallax.
 */
 
-const FALLBACK_FAQS: FaqItem[] = [
-  {
-    question: "Does insurance cover continuous glucose monitors?",
-    answer:
-      "Many insurance plans offer CGM coverage for eligible members, but coverage requirements and out-of-pocket costs vary by plan and individual circumstances. We can review your information to help you understand your potential eligibility.",
-  },
-  {
-    question: "How do I check if I may qualify?",
-    answer:
-      "Start by completing our short eligibility form. We will review the information you provide and contact you to explain potential next steps.",
-  },
-  {
-    question: "Does submitting the form mean I am approved?",
-    answer:
-      "No. Submitting the form does not guarantee eligibility, insurance coverage, payment, or receipt of a CGM. Final coverage depends on your insurance plan, applicable requirements, documentation, and other factors.",
-  },
-  {
-    question: "What happens after I submit my information?",
-    answer:
-      "Our team reviews your information and may contact you to discuss potential eligibility, answer questions, request additional information if needed, and explain what comes next.",
-  },
-];
 
 const NUMBERS: { key: "years" | "products" | "makers" | "providers"; icon: LucideIcon; label: string }[] = [
   { key: "years", icon: Building2, label: "Years of medical supply experience" },
@@ -140,10 +120,7 @@ const CAPTIONS = [
 
 
 export default function Home() {
-  usePageMeta(
-    "Medville Diabetes | CGMs & Diabetes Supplies Made Simpler",
-    "Explore CGMs, insulin pumps, and diabetes supplies with support from Medville Diabetes. Check your potential CGM eligibility and learn what comes next.",
-  );
+  usePageMeta(metaFor("/"));
 
   const revealRef = useReveal<HTMLDivElement>();
   const parallaxRef = useParallax<HTMLDivElement>();

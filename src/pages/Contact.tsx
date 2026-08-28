@@ -3,6 +3,7 @@ import Container from "../components/Container";
 import Button from "../components/Button";
 import { Blob, Eyebrow, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
+import { metaFor } from "../data/pageMeta";
 import { useReveal } from "../lib/useReveal";
 import {
   ADDRESS_LINE_1,
@@ -24,10 +25,7 @@ import {
   eligibility panel resolves out of a blur behind them.
 */
 export default function Contact() {
-  usePageMeta(
-    "Contact Medville Diabetes | CGM & Diabetes Supply Support",
-    "Contact Medville Diabetes for help with continuous glucose monitors, diabetes supplies, potential eligibility, and next steps.",
-  );
+  usePageMeta(metaFor("/contact"));
   const revealRef = useReveal<HTMLDivElement>();
 
   return (

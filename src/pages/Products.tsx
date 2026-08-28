@@ -15,19 +15,20 @@ import {
 import { PRODUCT_DISCLAIMER } from "../data/company";
 import { useLineProducts } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
+import { metaFor } from "../data/pageMeta";
 import { useReveal } from "../lib/useReveal";
 
 type Filter = "All Products" | Brand;
 
 /* Copy for each product line, from the client's copy document. Everything
-   else on the page is shared between the two listings. */
+   else on the page is shared between the two listings. The search title and
+   description are not here: they live in data/pageMeta.ts, which the
+   prerender script reads too, so the two can never disagree. */
 const LINE_COPY: Record<
   ProductLine,
   {
     eyebrow: string;
     title: string;
-    metaTitle: string;
-    metaDescription: string;
     intro: string[];
     closingTitle: string;
     closingBody: string;
@@ -38,9 +39,6 @@ const LINE_COPY: Record<
   cgm: {
     eyebrow: "Continuous Glucose Monitors",
     title: "Find a CGM That Fits Your Day",
-    metaTitle: "Continuous Glucose Monitors & CGM Supplies | Medville Diabetes",
-    metaDescription:
-      "Explore FreeStyle Libre and Dexcom continuous glucose monitors, sensors, and CGM supplies through Medville Diabetes.",
     intro: [
       "Explore CGM systems, sensors, and accessories from FreeStyle Libre and Dexcom. Compare available products and find the technology that may fit your diabetes care and daily routine.",
     ],
@@ -53,9 +51,6 @@ const LINE_COPY: Record<
   "insulin-pump": {
     eyebrow: "Insulin Pumps",
     title: "Insulin Delivery Designed Around Your Day",
-    metaTitle: "Insulin Pumps & Diabetes Technology | Medville Diabetes",
-    metaDescription:
-      "Explore insulin pump technology available through Medville Diabetes, including the Tandem t:slim X2 insulin pump.",
     intro: [
       "Explore insulin pump technology designed to provide continuous insulin delivery and work with compatible diabetes management systems.",
       "Insulin pumps require a prescription and should be used under the direction of a qualified healthcare professional.",
@@ -70,7 +65,7 @@ const LINE_COPY: Record<
 
 export default function Products({ line }: { line: ProductLine }) {
   const copy = LINE_COPY[line];
-  usePageMeta(copy.metaTitle, copy.metaDescription);
+  usePageMeta(metaFor(line === "cgm" ? "/products/cgm" : "/products/insulin-pumps"));
 
   const revealRef = useReveal<HTMLDivElement>();
   const [filter, setFilter] = useState<Filter>("All Products");

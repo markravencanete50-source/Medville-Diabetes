@@ -6,6 +6,7 @@ import type { ProductLine } from "../data/products";
 import { PRODUCT_DISCLAIMER } from "../data/company";
 import { useProducts } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
+import { metaFor } from "../data/pageMeta";
 import { useParallax, useReveal } from "../lib/useReveal";
 
 /* The two product lines a visitor can browse. Each card routes to the
@@ -45,10 +46,7 @@ const LINES: {
 ];
 
 export default function ProductsLanding() {
-  usePageMeta(
-    "CGMs, Insulin Pumps & Diabetes Supplies | Medville Diabetes",
-    "Explore continuous glucose monitors, CGM sensors, accessories, and insulin pump technology available through Medville Diabetes.",
-  );
+  usePageMeta(metaFor("/products"));
   const revealRef = useReveal<HTMLDivElement>();
   const parallaxRef = useParallax<HTMLDivElement>();
   const catalogue = useProducts();

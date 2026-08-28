@@ -1,5 +1,6 @@
 import LegalLayout, { LegalHeading, LegalText } from "../components/LegalLayout";
 import { usePageMeta } from "../lib/usePageMeta";
+import { metaFor } from "../data/pageMeta";
 
 /*
   The client's privacy policy, reproduced verbatim from the document
@@ -8,10 +9,7 @@ import { usePageMeta } from "../lib/usePageMeta";
   wording is not edited. Changes to this text must come from the client.
 */
 export default function PrivacyPolicy() {
-  usePageMeta(
-    "Privacy Policy | Medville Diabetes",
-    "The Medville Diabetes privacy policy: how we collect, use, and protect your information.",
-  );
+  usePageMeta(metaFor("/privacy-policy"));
 
   return (
     <LegalLayout title="Privacy Policy">

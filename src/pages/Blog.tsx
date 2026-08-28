@@ -7,6 +7,7 @@ import { formatPostDate, readingMinutes } from "../data/blog";
 import { PHONE_DISPLAY, PHONE_TEL } from "../data/company";
 import { usePosts } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
+import { metaFor } from "../data/pageMeta";
 import { useParallax, useReveal } from "../lib/useReveal";
 
 /*
@@ -21,10 +22,7 @@ import { useParallax, useReveal } from "../lib/useReveal";
   offers the phone number, rather than showing invented articles.
 */
 export default function Blog() {
-  usePageMeta(
-    "Blog | Medville Diabetes",
-    "Plain English articles about continuous glucose monitors, insurance coverage, and living with diabetes, from the team at Medville Diabetes.",
-  );
+  usePageMeta(metaFor("/blog"));
 
   const revealRef = useReveal<HTMLDivElement>();
   const parallaxRef = useParallax<HTMLDivElement>();

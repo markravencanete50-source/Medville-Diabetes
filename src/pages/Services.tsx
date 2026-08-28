@@ -12,6 +12,7 @@ import Container from "../components/Container";
 import Button from "../components/Button";
 import { Blob, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
+import { metaFor } from "../data/pageMeta";
 import { prefersReducedMotion } from "../lib/useReveal";
 
 /*
@@ -160,10 +161,7 @@ function CycleFallback() {
 }
 
 export default function Services() {
-  usePageMeta(
-    "Our Services | Medville Diabetes",
-    "See the ten steps Medville handles from your first conversation to ongoing CGM supplies.",
-  );
+  usePageMeta(metaFor("/services"));
 
   const [revealed, setRevealed] = useState<Set<number>>(() => new Set<number>());
   const [motion, setMotion] = useState(false);

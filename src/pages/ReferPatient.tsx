@@ -13,6 +13,7 @@ import Container from "../components/Container";
 import Button from "../components/Button";
 import { Blob, Eyebrow, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
+import { metaFor } from "../data/pageMeta";
 import { useParallax, useReveal } from "../lib/useReveal";
 import {
   EMAIL,
@@ -69,10 +70,7 @@ const PACKET_HREF = PACKET_READY
   : `${EMAIL_HREF}?subject=Referral%20form%20and%20requirements%20request`;
 
 export default function ReferPatient() {
-  usePageMeta(
-    "Refer a Patient | Medville Diabetes",
-    "Refer patients to Medville Diabetes for CGMs and diabetes supplies. Download the referral form and requirements and send your referral through our secure process.",
-  );
+  usePageMeta(metaFor("/refer-a-patient"));
 
   const revealRef = useReveal<HTMLDivElement>();
   const parallaxRef = useParallax<HTMLDivElement>();

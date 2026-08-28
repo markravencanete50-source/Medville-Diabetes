@@ -1,5 +1,6 @@
 import LegalLayout, { LegalHeading, LegalText } from "../components/LegalLayout";
 import { usePageMeta } from "../lib/usePageMeta";
+import { metaFor } from "../data/pageMeta";
 
 /*
   The client's terms of service, reproduced verbatim from the document
@@ -9,10 +10,7 @@ import { usePageMeta } from "../lib/usePageMeta";
   text must come from the client.
 */
 export default function TermsOfService() {
-  usePageMeta(
-    "Terms of Service | Medville Diabetes",
-    "The Medville Diabetes terms of service.",
-  );
+  usePageMeta(metaFor("/terms-of-service"));
 
   return (
     <LegalLayout title="Terms of Service">

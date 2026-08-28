@@ -15,6 +15,7 @@ import Button from "../components/Button";
 import GlucoseWave from "../components/GlucoseWave";
 import { Blob, Eyebrow, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
+import { metaFor } from "../data/pageMeta";
 import { useParallax, useReveal } from "../lib/useReveal";
 
 /*
@@ -86,10 +87,7 @@ const PROMISES = [
 ];
 
 export default function About() {
-  usePageMeta(
-    "About Medville Diabetes | CGMs & Diabetes Supplies",
-    "Medville Diabetes brings the medical supply experience of Medville into a service focused on diabetes, making access to CGMs and supplies simpler.",
-  );
+  usePageMeta(metaFor("/about"));
   const revealRef = useReveal<HTMLDivElement>();
   const parallaxRef = useParallax<HTMLDivElement>();
 

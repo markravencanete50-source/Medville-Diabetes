@@ -94,6 +94,22 @@ only change made to their wording.
   the wordmark measures 1.19:1 against the footer and is effectively invisible
   there. The cyan "DIABETES" line and the leaves still read. A reversed logo
   from the client, or a light panel behind it, fixes it whenever they want.
+- Search visibility. This is a single-page app, so a crawler that does not run
+  JavaScript would otherwise be served the home page's title on every address.
+  `scripts/prerender.mjs` runs after `vite build` and writes a real
+  `dist/<path>/index.html` per address, with that page's title, description,
+  canonical link, Open Graph and Twitter tags and its JSON-LD. Firebase serves
+  a matching static file before applying the catch-all rewrite, so those files
+  are what a crawler receives; React boots from the same bundle and takes over.
+  Wording is never duplicated: fixed pages come from `src/data/pageMeta.ts`
+  (which the pages themselves read through `usePageMeta`), products from
+  `src/data/products.ts`, questions from `src/data/faqs.ts`, and articles from
+  the published posts in Firestore, fetched best-effort so a network failure
+  cannot fail a deploy. Structured data: MedicalBusiness on the home and
+  contact pages, FAQPage on the home questions, Product on each product page,
+  BlogPosting on each article. An article published after a deploy has no file
+  of its own until the next build; it still renders, only its crawler-visible
+  tags wait.
 - Administrator invitations. An owner invites by email from the dashboard's
   Administrators screen. `admins.invite` in `functions/admin/index.js` creates
   the Identity Platform account and sets the role claim but never a password,

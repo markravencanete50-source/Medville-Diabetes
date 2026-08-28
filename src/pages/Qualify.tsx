@@ -20,6 +20,7 @@ import Container from "../components/Container";
 import Button from "../components/Button";
 import { Blob, Eyebrow, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
+import { metaFor } from "../data/pageMeta";
 import { useReveal } from "../lib/useReveal";
 import { EMAIL_HREF, HOURS_LONG, PHONE_DISPLAY, PHONE_TEL } from "../data/company";
 
@@ -83,10 +84,7 @@ const STEPS = [
 ];
 
 export default function Qualify() {
-  usePageMeta(
-    "Check Your Potential Eligibility | Medville Diabetes",
-    "Complete the short Medville Diabetes eligibility form. Our team will review your information and explain your potential eligibility and next steps.",
-  );
+  usePageMeta(metaFor("/qualify"));
   const [status, setStatus] = useState<Status>("idle");
   const revealRef = useReveal<HTMLElement>();
   const {

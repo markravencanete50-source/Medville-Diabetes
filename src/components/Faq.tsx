@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import type { FaqItem } from "../data/faqs";
 
 /*
   Accordion with one panel open at a time.
@@ -9,11 +10,6 @@ import { ChevronDown } from "lucide-react";
   height is measured from the panel content instead. The transition still runs
   over 320ms because max-height has a real number on both ends.
 */
-
-export interface FaqItem {
-  question: string;
-  answer: string;
-}
 
 export default function Faq({ items }: { items: FaqItem[] }) {
   const [open, setOpen] = useState(0);

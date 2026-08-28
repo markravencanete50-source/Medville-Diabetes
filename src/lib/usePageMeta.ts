@@ -1,7 +1,21 @@
 import { useEffect } from "react";
 
-/* Sets the document title and meta description for each page. */
-export function usePageMeta(title: string, description?: string) {
+/*
+  Sets the document title and meta description for each page.
+
+  Takes either two strings, for a page whose wording is built at render time
+  from a product or an article, or the object from data/pageMeta.ts, which is
+  the same source the prerender script reads. Fixed pages use the object so
+  the tag a crawler is served and the title a visitor sees cannot drift.
+*/
+export function usePageMeta(
+  titleOrMeta: string | { title: string; description: string },
+  maybeDescription?: string,
+) {
+  const title = typeof titleOrMeta === "string" ? titleOrMeta : titleOrMeta.title;
+  const description =
+    typeof titleOrMeta === "string" ? maybeDescription : titleOrMeta.description;
+
   useEffect(() => {
     document.title = title;
     if (description) {
