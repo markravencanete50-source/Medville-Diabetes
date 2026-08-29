@@ -157,7 +157,11 @@ only change made to their wording.
 - Cache rules in `firebase.json`: only `/assets/**` may be immutable, because
   Vite fingerprints those names. Anything with a stable name (the icons, the
   logo, images in `public/`) must revalidate, or a replacement will not reach
-  visitors who have been to the site before.
+  visitors who have been to the site before. `/brand/**` is deliberately short
+  at five minutes: those files change rarely but when they do the change is
+  usually being looked at, and a day-long window meant a replaced logo kept
+  showing on a phone that had already been to the site. The files are a few
+  kilobytes and revalidate as a 304, so the cost is nothing.
 - `ProductViewer` component: drag to rotate front/back, wheel and pinch zoom,
   double-tap zoom, keyboard support, reduced-motion support.
 - Scroll-motion system in `src/lib/useReveal.ts` and the reveal block of
