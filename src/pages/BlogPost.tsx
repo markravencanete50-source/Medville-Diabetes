@@ -7,6 +7,7 @@ import { Blob, Grain } from "../components/Decor";
 import { formatPostDate, postPlainText, readingMinutes } from "../data/blog";
 import { usePost, usePosts } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
+import { metaFor } from "../data/pageMeta";
 import { useParallax, useReveal } from "../lib/useReveal";
 import NotFound from "./NotFound";
 
@@ -28,9 +29,18 @@ export default function BlogPost() {
   const revealRef = useReveal<HTMLDivElement>();
   const parallaxRef = useParallax<HTMLDivElement>();
 
+  /* Set here rather than in the 404 this renders for an unknown slug: a
+     child's effect runs first, so that component's tags would be overwritten
+     by these. A draft and a deleted post take the same branch. */
   usePageMeta(
-    post ? `${post.title} | Medville Diabetes` : "Article not found | Medville Diabetes",
-    post ? post.excerpt || postPlainText(post.body).slice(0, 155) : undefined,
+    post
+      ? {
+          title: `${post.title} | Medville Diabetes`,
+          description: post.excerpt || postPlainText(post.body).slice(0, 155),
+          image: post.image || undefined,
+          type: "article",
+        }
+      : { ...metaFor("/404"), noindex: true },
   );
 
   if (!post) return <NotFound />;

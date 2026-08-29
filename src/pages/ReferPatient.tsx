@@ -135,6 +135,8 @@ export default function ReferPatient() {
               <img
                 src="/services/journey/journey-stage-02-confirm.webp"
                 alt="A care coordinator reviews a patient's records during a routine appointment."
+                width={1100}
+                height={825}
                 data-parallax="0.5"
                 className="aspect-[4/3] w-full object-cover"
               />

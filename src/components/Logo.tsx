@@ -17,14 +17,19 @@
 export default function Logo({
   className = "h-11",
   onDark = false,
+  loading = "eager",
 }: {
   className?: string;
   onDark?: boolean;
+  /* The header's copy is the first thing on the page and must not wait. The
+     footer's is below every fold on the site, so it waits. */
+  loading?: "eager" | "lazy";
 }) {
   return (
     <img
       src={onDark ? "/brand/medville-logo-on-dark.svg" : "/brand/medville-logo.svg"}
       alt="Medville Diabetes"
+      loading={loading}
       /* The intrinsic ratio of the cropped lockup. Giving it here reserves the
          right box before the file loads, so the header never jumps. */
       width={400}

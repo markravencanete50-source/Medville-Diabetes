@@ -84,6 +84,9 @@ export default function HeroViewer({ product }: { product: Product }) {
               <img
                 src={product.imageFront}
                 alt=""
+                /* The home page's largest paint. Asking for it at high
+                   priority moves the request ahead of everything below. */
+                fetchPriority="high"
                 draggable={false}
                 className="absolute inset-0 h-full w-full object-contain p-7"
                 style={{ backfaceVisibility: "hidden" }}

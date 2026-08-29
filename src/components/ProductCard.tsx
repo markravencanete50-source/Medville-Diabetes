@@ -23,10 +23,20 @@ export default function ProductCard({
   product,
   delay = 0,
   motion = "",
+  priority = false,
+  eager = false,
   onQuickView,
 }: {
   product: Product;
   delay?: number;
+  /* True for the one card whose front photograph is the page's largest
+     paint. High priority on more than one picture is no priority at all. */
+  priority?: boolean;
+  /* True for the cards in the first row. A picture above the fold marked
+     lazy is not fetched until layout has run, which delays the paint it is
+     part of. The back photograph stays lazy either way: it is only ever
+     seen on hover. */
+  eager?: boolean;
   /* Which scroll-reveal shape this card arrives with. A grid picks one so
      the cards do not repeat the arrival of the section above them. */
   motion?: string;
@@ -46,7 +56,8 @@ export default function ProductCard({
           <img
             src={product.imageFront}
             alt={`${product.name}, front`}
-            loading="lazy"
+            loading={priority || eager ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
             className="absolute inset-0 h-full w-full rounded-md object-contain transition-opacity duration-[420ms] ease-(--ease-out-quart)"
             style={{ opacity: showBack ? 0 : 1 }}
           />
@@ -63,7 +74,7 @@ export default function ProductCard({
         >
           {product.brand}
         </span>
-        <span className="absolute right-4 top-4 rounded-full bg-ink/60 px-3.5 py-1.5 text-[0.72rem] font-semibold text-on-dark backdrop-blur-[4px]">
+        <span className="absolute right-4 top-4 rounded-full bg-ink/60 px-3.5 py-1.5 text-caption font-semibold text-on-dark backdrop-blur-[4px]">
           {showBack ? "Back" : "Front"}
         </span>
       </div>

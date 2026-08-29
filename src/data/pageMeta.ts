@@ -43,7 +43,7 @@ export const PAGE_META: Record<string, PageMeta> = {
       "Explore continuous glucose monitors, CGM sensors, accessories, and insulin pump technology available through Medville Diabetes.",
   },
   "/products/cgm": {
-    title: "Continuous Glucose Monitors & CGM Supplies | Medville Diabetes",
+    title: "Continuous Glucose Monitors (CGM) | Medville Diabetes",
     description:
       "Explore FreeStyle Libre and Dexcom continuous glucose monitors, sensors, and CGM supplies through Medville Diabetes.",
   },
@@ -81,6 +81,11 @@ export const PAGE_META: Record<string, PageMeta> = {
     title: "Contact Medville Diabetes | CGM & Diabetes Supply Support",
     description:
       "Contact Medville Diabetes for help with continuous glucose monitors, diabetes supplies, potential eligibility, and next steps.",
+  },
+  "/404": {
+    title: "Page Not Found | Medville Diabetes",
+    description:
+      "This address does not match a page on the Medville Diabetes website. Return to the home page or browse continuous glucose monitors and diabetes supplies.",
   },
   "/privacy-policy": {
     title: "Privacy Policy | Medville Diabetes",

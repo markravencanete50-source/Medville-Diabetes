@@ -107,9 +107,40 @@ only change made to their wording.
   the published posts in Firestore, fetched best-effort so a network failure
   cannot fail a deploy. Structured data: MedicalBusiness on the home and
   contact pages, FAQPage on the home questions, Product on each product page,
-  BlogPosting on each article. An article published after a deploy has no file
-  of its own until the next build; it still renders, only its crawler-visible
-  tags wait.
+  BlogPosting on each article, Blog on the article index, and a BreadcrumbList
+  on everything below the home page. An article published after a deploy has no
+  file of its own until the next build; it still renders, only its
+  crawler-visible tags wait.
+- `dist/sitemap.xml` is written by the same script, from the addresses it just
+  emitted, so a new page or a published article cannot reach the site without
+  reaching the sitemap. There is deliberately no `public/sitemap.xml`: the
+  hand-kept file it replaced could not list an article and drifted from the
+  routes. `lastmod` appears only where the date is real, which today means
+  articles; stamping the build date on every address would claim every page
+  changed on every deploy.
+- `usePageMeta` writes the title, description, canonical, robots directive and
+  the whole Open Graph and Twitter set, on every page, including back to the
+  default. That completeness is the point: React Router changes the address
+  without reloading, and a tag holding the previous page's value is worse than
+  no tag. It also removes `og:image:width`, `og:image:height` and
+  `og:image:type` when a page supplies its own picture, because those describe
+  `og-image.jpg` and a declared size that does not match the file makes a
+  preview crop badly.
+- The unknown-address page. Firebase rewrites everything it does not recognise
+  to the app, so a mistyped or stale link answers 200 rather than 404. Without
+  a directive a search engine would index each of those as another copy of the
+  home page. `NotFound` sets `noindex, follow` with a self-referencing
+  canonical, which is what Google reads off the rendered page; the no-script
+  view still carries the home page's canonical, which consolidates rather than
+  duplicates. Narrowing the rewrite to fix this properly is not possible: an
+  article published after a deploy has no file, and only the catch-all serves
+  it.
+- Image loading is decided per position, not per component. The one picture
+  that is a page's largest paint carries `fetchPriority="high"`; the rest of a
+  first row is `loading="eager"` because a lazy image above the fold is not
+  even requested until layout has run; everything below the fold, the footer
+  logo included, stays lazy. A product card's back photograph is always lazy:
+  it is only seen on hover.
 - Administrator invitations. An owner invites by email from the dashboard's
   Administrators screen. `admins.invite` in `functions/admin/index.js` creates
   the Identity Platform account and sets the role claim but never a password,

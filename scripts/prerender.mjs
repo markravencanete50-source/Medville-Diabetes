@@ -33,6 +33,13 @@
   An article published after a deploy has no file of its own until the next
   one. It still works: the rewrite serves index.html and React renders the
   article. Only the crawler-visible tags wait for the next build.
+
+  The sitemap
+  -----------
+  dist/sitemap.xml is written here too, from the addresses this script just
+  emitted. It used to be a file kept by hand in public/, which meant a new
+  page or a published article could reach the site without reaching the
+  sitemap. Building it from what was actually written removes that gap.
 */
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
@@ -75,7 +82,7 @@ function clamp(text, limit = 158) {
   return `${value.slice(0, value.lastIndexOf(" ", limit - 1))}…`;
 }
 
-function pageHtml(template, { path, title, description, image, jsonLd, origin }) {
+function pageHtml(template, { path, title, description, image, jsonLd, origin, type, noindex, extraMeta }) {
   const url = `${origin}${path}`;
   const picture = image ? (image.startsWith("http") ? image : `${origin}${image}`) : `${origin}/og-image.jpg`;
   const desc = clamp(description);
@@ -108,6 +115,12 @@ function pageHtml(template, { path, title, description, image, jsonLd, origin })
       `<meta ${attr}="${tag}" content="${escape(desc)}" />`,
     );
   }
+  /* An article is og:type article, which is what a preview card and a search
+     engine use to tell a post from a page. Everything else stays a website. */
+  html = html.replace(
+    /<meta property="og:type" content="[^"]*" \/>/,
+    `<meta property="og:type" content="${escape(type ?? "website")}" />`,
+  );
   for (const tag of ["og:image", "twitter:image"]) {
     const attr = tag.startsWith("og:") ? "property" : "name";
     html = html.replace(
@@ -115,6 +128,31 @@ function pageHtml(template, { path, title, description, image, jsonLd, origin })
       `<meta ${attr}="${tag}" content="${escape(picture)}" />`,
     );
   }
+  /* The template declares the size, type and wording of the home page card.
+     A page that supplies its own picture, such as a product photograph,
+     matches none of them, and a declared size that does not match the file
+     makes a preview crop badly. Drop them and describe the picture instead:
+     everything reads the file to find its real size. */
+  if (image) {
+    for (const tag of ["og:image:type", "og:image:width", "og:image:height"]) {
+      html = html.replace(new RegExp(`\\s*<meta property="${tag}" content="[^"]*" />`), "");
+    }
+    html = html.replace(
+      /<meta property="og:image:alt" content="[\s\S]*?" \/>/,
+      `<meta property="og:image:alt" content="${escape(title)}" />`,
+    );
+  }
+  /* Firebase rewrites an unrecognised address to the app, so it answers 200
+     rather than 404. Saying so here is the only way to keep a mistyped link
+     out of the index; follow keeps the links on the page worth crawling. */
+  if (noindex) {
+    html = html.replace("</head>", `  <meta name="robots" content="noindex, follow" />\n  </head>`);
+  }
+
+  for (const [key, value] of Object.entries(extraMeta ?? {})) {
+    html = html.replace("</head>", `  <meta property="${escape(key)}" content="${escape(value)}" />\n  </head>`);
+  }
+
   /* A page may carry more than one block: the home page is both the business
      and a set of questions. Each goes in its own script tag, which is what
      Google expects. */
@@ -128,7 +166,12 @@ function pageHtml(template, { path, title, description, image, jsonLd, origin })
 }
 
 async function emit(path, html) {
-  const file = path === "/" ? join(DIST, "index.html") : join(DIST, path, "index.html");
+  const file =
+    path === "/"
+      ? join(DIST, "index.html")
+      : path === "/404"
+        ? join(DIST, "404.html")
+        : join(DIST, path, "index.html");
   await mkdir(dirname(file), { recursive: true });
   await writeFile(file, html, "utf-8");
 }
@@ -190,6 +233,44 @@ function productSchema(product, origin) {
   };
 }
 
+/*
+  Where a page sits in the site. Google shows this trail in place of the raw
+  address in a result, and it is the only machine-readable statement that a
+  product belongs to a line rather than sitting loose at the top level.
+*/
+function breadcrumbs(trail, origin) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: trail.map((step, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: step.name,
+      item: `${origin}${step.path}`,
+    })),
+  };
+}
+
+/* The blog index, as the list of articles it is. Without this the page is
+   just prose to a crawler and the articles are found only by following the
+   links. */
+function blogIndexSchema(posts, origin) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    name: "Medville Diabetes Blog",
+    url: `${origin}/blog`,
+    publisher: { "@type": "Organization", name: "Medville Diabetes" },
+    blogPost: posts.map((post) => ({
+      "@type": "BlogPosting",
+      headline: post.title,
+      ...(post.excerpt ? { description: post.excerpt } : {}),
+      ...(post.publishedAt ? { datePublished: post.publishedAt } : {}),
+      url: `${origin}/blog/${post.slug}`,
+    })),
+  };
+}
+
 function articleSchema(post, origin) {
   return {
     "@context": "https://schema.org",
@@ -198,6 +279,7 @@ function articleSchema(post, origin) {
     description: post.excerpt,
     ...(post.image ? { image: post.image.startsWith("http") ? post.image : `${origin}${post.image}` } : {}),
     datePublished: post.publishedAt,
+    dateModified: post.updatedAt || post.publishedAt,
     author: { "@type": "Organization", name: post.author || "Medville Diabetes" },
     publisher: { "@type": "Organization", name: "Medville Diabetes" },
     mainEntityOfPage: `${origin}/blog/${post.slug}`,
@@ -206,16 +288,40 @@ function articleSchema(post, origin) {
 
 /* ---- run ---- */
 
-const template = await readFile(join(DIST, "index.html"), "utf-8");
+/*
+  The home page is written back over dist/index.html, which is also the
+  template. Running this script twice without a rebuild in between would
+  therefore stack the home page's blocks onto every address. Stripping what
+  this script adds makes it safe to run on its own, which `npm run prerender`
+  invites.
+*/
+const template = (await readFile(join(DIST, "index.html"), "utf-8"))
+  .replace(/\s*<script type="application\/ld\+json">[\s\S]*?<\/script>/g, "")
+  .replace(/\s*<meta name="robots" content="[^"]*" \/>/g, "")
+  .replace(/\s*<meta property="article:[^"]*" content="[^"]*" \/>/g, "");
 const meta = await loadModule("src/data/pageMeta.ts");
 const catalog = await loadModule("src/data/products.ts");
 const company = await loadModule("src/data/company.ts");
 const faqs = await loadModule("src/data/faqs.ts");
 const origin = meta.SITE_ORIGIN;
 
-let count = 0;
+/* Every address this build produced, so the sitemap is a record of what was
+   written rather than a second list kept by hand. The 404 is emitted but
+   never listed: it carries noindex. */
+const sitemap = [];
+const HOME = { name: "Home", path: "/" };
+
+/* The trail above each fixed page. A page absent from here sits directly
+   under the home page. */
+const TRAIL = {
+  "/products/cgm": [{ name: "Products", path: "/products" }],
+  "/products/insulin-pumps": [{ name: "Products", path: "/products" }],
+};
 
 for (const [path, entry] of Object.entries(meta.PAGE_META)) {
+  const noindex = path === "/404";
+  const trail = [HOME, ...(TRAIL[path] ?? []), { name: entry.title.split(" | ")[0], path }];
+
   await emit(
     path,
     pageHtml(template, {
@@ -223,32 +329,52 @@ for (const [path, entry] of Object.entries(meta.PAGE_META)) {
       title: entry.title,
       description: entry.description,
       origin,
+      noindex,
       /* The company card belongs on the home page and the contact page, the
-         two a search engine treats as the business itself. */
-      jsonLd:
-        path === "/"
-          ? [organisation(company, origin), faqSchema(faqs.FALLBACK_FAQS)]
-          : path === "/contact"
-            ? organisation(company, origin)
-            : null,
+         two a search engine treats as the business itself. The breadcrumb
+         belongs on everything below the home page. */
+      jsonLd: [
+        path === "/" ? organisation(company, origin) : null,
+        path === "/" ? faqSchema(faqs.FALLBACK_FAQS) : null,
+        path === "/contact" ? organisation(company, origin) : null,
+        path === "/" || noindex ? null : breadcrumbs(trail, origin),
+      ].filter(Boolean),
     }),
   );
-  count++;
+  if (!noindex) sitemap.push({ loc: `${origin}${path === "/" ? "/" : path}` });
 }
 
+const LINE_TRAIL = {
+  cgm: { name: "Continuous Glucose Monitors", path: "/products/cgm" },
+  "insulin-pump": { name: "Insulin Pumps", path: "/products/insulin-pumps" },
+};
+
 for (const product of catalog.products) {
-  await emit(`/products/${product.slug}`, pageHtml(template, {
-    path: `/products/${product.slug}`,
+  const path = `/products/${product.slug}`;
+  await emit(path, pageHtml(template, {
+    path,
     title: `${product.name} | Medville Diabetes`,
     description: product.shortDescription,
     image: product.imageFront,
-    jsonLd: productSchema(product, origin),
+    jsonLd: [
+      productSchema(product, origin),
+      breadcrumbs(
+        [
+          HOME,
+          { name: "Products", path: "/products" },
+          LINE_TRAIL[product.line],
+          { name: product.name, path },
+        ].filter(Boolean),
+        origin,
+      ),
+    ],
     origin,
   }));
-  count++;
+  sitemap.push({ loc: `${origin}${path}` });
 }
 
 /* Articles, best effort. */
+let posts = [];
 try {
   const { firebaseConfig } = await loadModule("src/lib/firebaseConfig.ts");
   const url =
@@ -259,7 +385,7 @@ try {
   const body = await res.json();
 
   const read = (fields, key) => fields?.[key]?.stringValue ?? "";
-  const posts = (body.documents ?? [])
+  posts = (body.documents ?? [])
     .map((doc) => ({
       slug: (doc.name ?? "").split("/").pop(),
       title: read(doc.fields, "title"),
@@ -267,24 +393,78 @@ try {
       image: read(doc.fields, "image"),
       author: read(doc.fields, "author"),
       publishedAt: read(doc.fields, "publishedAt"),
+      /* Firestore stamps this on every write. It is the honest answer to
+         "when did this last change", which is what lastmod asks. */
+      updatedAt: (doc.updateTime ?? "").slice(0, 10),
       published: doc.fields?.published?.booleanValue === true,
     }))
     .filter((post) => post.published && post.slug && post.title);
 
   for (const post of posts) {
-    await emit(`/blog/${post.slug}`, pageHtml(template, {
-      path: `/blog/${post.slug}`,
+    const path = `/blog/${post.slug}`;
+    await emit(path, pageHtml(template, {
+      path,
       title: `${post.title} | Medville Diabetes`,
       description: post.excerpt || post.title,
       image: post.image,
-      jsonLd: articleSchema(post, origin),
+      type: "article",
+      extraMeta: {
+        ...(post.publishedAt ? { "article:published_time": post.publishedAt } : {}),
+        ...(post.updatedAt ? { "article:modified_time": post.updatedAt } : {}),
+      },
+      jsonLd: [
+        articleSchema(post, origin),
+        breadcrumbs(
+          [HOME, { name: "Blog", path: "/blog" }, { name: post.title, path }],
+          origin,
+        ),
+      ],
       origin,
     }));
-    count++;
+    sitemap.push({ loc: `${origin}${path}`, lastmod: post.updatedAt || post.publishedAt });
   }
   console.log(`  articles: ${posts.length}`);
 } catch (problem) {
   console.log(`  articles skipped (${problem?.message ?? problem}); the build continues`);
 }
 
-console.log(`  prerendered ${count} addresses`);
+/* The blog index is rewritten last, now that the articles are known, so it
+   can name them. Everything else about the page is unchanged. */
+if (posts.length) {
+  const entry = meta.PAGE_META["/blog"];
+  await emit("/blog", pageHtml(template, {
+    path: "/blog",
+    title: entry.title,
+    description: entry.description,
+    origin,
+    jsonLd: [
+      blogIndexSchema(posts, origin),
+      breadcrumbs([HOME, { name: "Blog", path: "/blog" }], origin),
+    ],
+  }));
+}
+
+/*
+  The sitemap.
+
+  It used to be a file kept by hand in public/, which meant a new page or a
+  published article reached the site without reaching the sitemap. Building
+  it from the addresses this script just wrote makes that impossible.
+
+  lastmod appears only where the date is real. Stamping the build date on
+  every address would say every page changed whenever anything was deployed,
+  which is worth less than saying nothing.
+*/
+const xml = [
+  '<?xml version="1.0" encoding="UTF-8"?>',
+  "<!-- Written by scripts/prerender.mjs at build time. Do not edit. -->",
+  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+  ...sitemap.map(({ loc, lastmod }) =>
+    `  <url><loc>${escape(loc)}</loc>${lastmod ? `<lastmod>${escape(lastmod)}</lastmod>` : ""}</url>`,
+  ),
+  "</urlset>",
+  "",
+].join("\n");
+await writeFile(join(DIST, "sitemap.xml"), xml, "utf-8");
+
+console.log(`  prerendered ${sitemap.length + 1} addresses, sitemap lists ${sitemap.length}`);

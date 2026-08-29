@@ -103,7 +103,11 @@ export default function ProductsLanding() {
                       <img
                         src={entry.image}
                         alt={entry.alt}
-                        loading="lazy"
+                        /* Both cards are above the fold on a desktop, so
+                           neither waits for scroll. Only the first is the
+                           largest paint, so only it asks to jump the queue. */
+                        loading="eager"
+                        fetchPriority={index === 0 ? "high" : "auto"}
                         data-parallax="0.4"
                         className="h-full w-full object-cover"
                       />

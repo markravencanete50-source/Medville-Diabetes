@@ -10,6 +10,7 @@ import { isEnquirable, PRODUCT_STATUS_LABEL } from "../data/products";
 import { PRODUCT_DISCLAIMER } from "../data/company";
 import { useProduct, useProducts } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
+import { metaFor } from "../data/pageMeta";
 import { useParallax, useReveal } from "../lib/useReveal";
 import NotFound from "./NotFound";
 
@@ -21,9 +22,17 @@ export default function ProductDetail() {
   const parallaxRef = useParallax<HTMLDivElement>();
   const [quickView, setQuickView] = useState<string | null>(null);
 
+  /* A slug that matches nothing renders the 404 below. Its own tags are set
+     here rather than by that component, because a child's effect runs before
+     its parent's and this one would otherwise overwrite them. */
   usePageMeta(
-    product ? `${product.name} | Medville Diabetes` : "Product not found | Medville Diabetes",
-    product?.shortDescription,
+    product
+      ? {
+          title: `${product.name} | Medville Diabetes`,
+          description: product.shortDescription,
+          image: product.imageFront,
+        }
+      : { ...metaFor("/404"), noindex: true },
   );
 
   if (!product) return <NotFound />;

@@ -71,6 +71,8 @@ const STEPS = [
     title: "Tell Us About Yourself",
     body: "Complete our short eligibility form with your basic information so we can get started.",
     image: "/home/step-1-short-form.webp",
+    width: 900,
+    height: 762,
     alt: "A person completes a short eligibility form on a smartphone at home.",
   },
   {
@@ -79,6 +81,8 @@ const STEPS = [
     title: "We Review Your Potential Eligibility",
     body: "Our team reviews the information you provide and checks available coverage information to help determine your potential eligibility.",
     image: "/home/step-2-review.webp",
+    width: 900,
+    height: 720,
     alt: "A Medville Diabetes team member reviews information at a computer.",
   },
   {
@@ -87,6 +91,8 @@ const STEPS = [
     title: "We Walk You Through What Comes Next",
     body: "We will contact you to explain what we found, answer your questions, and help you understand the next steps.",
     image: "/home/step-3-delivery.webp",
+    width: 900,
+    height: 720,
     alt: "A customer speaks with a Medville Diabetes representative by phone at home.",
   },
 ];
@@ -286,6 +292,11 @@ export default function Home() {
                       src={step.image}
                       alt={step.alt}
                       loading="lazy"
+                      /* The real size of the file. The frame below already
+                         fixes the ratio, so this is for the browser rather
+                         than for layout, but it costs nothing to be exact. */
+                      width={step.width}
+                      height={step.height}
                       data-parallax="0.5"
                       className="aspect-[5/4] w-full object-cover"
                     />

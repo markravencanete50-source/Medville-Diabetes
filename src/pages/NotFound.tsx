@@ -1,9 +1,17 @@
 import Container from "../components/Container";
 import Button from "../components/Button";
 import { usePageMeta } from "../lib/usePageMeta";
+import { metaFor } from "../data/pageMeta";
 
+/*
+  Firebase rewrites every address it does not recognise to the app, so a
+  mistyped or stale link answers 200 rather than 404. Without the directive
+  below a search engine would index each of those addresses as another copy
+  of the home page. noindex keeps them out; follow keeps the links here worth
+  crawling.
+*/
 export default function NotFound() {
-  usePageMeta("Page Not Found | Medville Diabetes");
+  usePageMeta({ ...metaFor("/404"), noindex: true });
   return (
     <section className="py-24 md:py-32">
       <Container className="max-w-xl text-center">

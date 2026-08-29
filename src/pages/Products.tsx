@@ -158,6 +158,8 @@ export default function Products({ line }: { line: ProductLine }) {
                 product={product}
                 delay={(index % 3) * 170}
                 motion={`${SHAPES[index % SHAPES.length]} reveal-slow`}
+                priority={index === 0}
+                eager={index < 4}
                 onQuickView={setQuickView}
               />
             ))}
