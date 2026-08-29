@@ -28,6 +28,25 @@ import { Badge, Banner, Card, Empty, Field, PageHeader, Spinner, formatDateTime,
   expire.
 */
 
+/*
+  Kept in step with SHARED_MAILBOXES in functions/admin/index.js. The list is
+  duplicated rather than shared because the function is deployed on its own and
+  has no import path into this bundle; the server copy is the one that decides,
+  and this one only saves a round trip.
+*/
+const SHARED_MAILBOXES = new Set([
+  "accounts", "admin", "administrator", "billing", "contact", "enquiries",
+  "hello", "help", "info", "inquiries", "mail", "marketing", "no-reply",
+  "noreply", "office", "orders", "sales", "staff", "support", "team",
+]);
+
+function isSharedMailbox(email: string) {
+  return SHARED_MAILBOXES.has(email.split("@")[0]);
+}
+
+const SHARED_MAILBOX_REFUSAL =
+  "That is a shared mailbox. Every administrator needs their own address, because the access log records who opened a patient record and a shared login cannot answer that.";
+
 const ROLE_NOTE: Record<string, string> = {
   owner: "Everything, including these settings and the access log.",
   editor: "The website only. Cannot open enquiries or patient details.",
@@ -54,6 +73,10 @@ export default function Team() {
   const invite = async () => {
     const email = inviteEmail.trim().toLowerCase();
     if (!email) return toast("Please enter an email address.", "danger");
+    /* The server refuses this too, and the server is what decides. Saying so
+       here means the owner finds out while they are still typing rather than
+       after a round trip. */
+    if (isSharedMailbox(email)) return toast(SHARED_MAILBOX_REFUSAL, "danger");
 
     setInviting(true);
     try {
@@ -133,8 +156,9 @@ export default function Team() {
           <p className="admin-label">Invite an administrator</p>
           <p className="admin-help" style={{ marginTop: 2 }}>
             They receive an email, choose their own password, and can then sign in here. Give
-            each person the narrowest role that lets them do their job, and never share a
-            login: the access log records every action against whoever signed in.
+            each person the narrowest role that lets them do their job. A shared mailbox such
+            as sales@ or info@ is refused: the access log records every action against whoever
+            signed in, and a shared login cannot say who that was.
           </p>
           <div className="mt-3 flex flex-wrap items-end gap-2.5">
             <div className="min-w-[240px] flex-1">

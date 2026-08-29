@@ -59,6 +59,22 @@ change.
 4. Enable **Data Access audit logs** for Firestore in the console. They are off
    by default, and Section 3.4(c) needs them.
 
+5. Turn on **point-in-time recovery** for the database. It is off by default,
+   which means a mistaken bulk delete of enquiries is unrecoverable. Seven days
+   of history costs very little at this volume and never leaves the project, so
+   it stays inside the same BAA:
+
+   ```
+   gcloud firestore databases update --database='(default)' --enable-pitr
+   ```
+
+   Confirm with `gcloud firestore databases describe --database='(default)'`;
+   `pointInTimeRecoveryEnablement` should read `POINT_IN_TIME_RECOVERY_ENABLED`.
+
+   Do not export a backup to anywhere outside this project. A copy of the
+   enquiries in a personal Drive or an ordinary bucket is patient data sitting
+   outside every safeguard on this page.
+
 ---
 
 ## 4. Deploy the two functions
@@ -232,6 +248,87 @@ database being reachable.
 
 ---
 
+## The Section 3.6 record
+
+Section 3.6 of the agreement promises the client a written record of where
+patient information lives, what protects it, and who can reach it. This is
+that record. Three of its four parts are settled; the fourth waits on the
+client.
+
+### 1. Where PHI is stored
+
+One place, and one route into it.
+
+| | |
+|---|---|
+| Collection | Firestore `leads`, in the client's dedicated Google Cloud project |
+| Route in | `/qualify` form, HTTPS POST of JSON, to the `qualifyIntake` Cloud Run function, which writes to Firestore. Nothing else writes to it |
+| Route out | The `adminApi` function only, after checking the caller's token and role. No browser can read the collection directly |
+| Fields held | First name, last name, email address, telephone, city, state, whether the person injects insulin daily, the product they were looking at, a status, and the time it arrived |
+
+It is the insulin question sitting beside the name and telephone number that
+makes the record PHI. Either alone would not be.
+
+A second collection, `auditLog`, records who opened which enquiry and when. It
+holds no values from the enquiry itself: actor, action, record identifier,
+timestamp, and nothing more.
+
+What holds no PHI, which is the question an auditor asks next: Firebase
+Hosting serves static files and never receives a submission; the functions log
+no request body; every enquiry request is a POST, so nothing reaches a URL or
+a browser history; no export, email or third-party service is in the path; and
+the site loads no analytics or tracking of any kind. Verified in the code on
+2026-08-29, not assumed.
+
+### 2. What is encrypted, and what is kept
+
+| | |
+|---|---|
+| At rest | AES-256, keys managed by Google, automatic for Firestore. No customer-managed keys, and none needed |
+| In transit | TLS 1.2 or better throughout. Hosting is HTTPS only |
+| In the browser | Every response carrying enquiry data sets `Cache-Control: no-store`, so nothing is written to browser or proxy cache |
+| Sessions | Held in session storage, so closing the tab ends them. Idle sign-out at 20 minutes; the server independently refuses a token over an hour old |
+| Recovery | Firestore point-in-time recovery, seven days. Step 3.5 above; it is off until somebody turns it on |
+
+### 3. Who has access
+
+Three roles, checked on the server rather than in the browser. The role lives
+in an Identity Platform custom claim, so it cannot be escalated by writing to
+Firestore.
+
+| Role | Who | Enquiries | Website | Administrators |
+|---|---|---|---|---|
+| `owner` | Ann, Rose | Yes, and the access log | Yes | Invite and remove |
+| `agent` | The sales team | Yes: list, open, change status | No | No |
+| `editor` | Whoever writes articles or page copy | **No** | Yes | No |
+
+`agent` is the right role for sales: it reaches enquiries and nothing else.
+Nobody needs `owner` in order to work a lead.
+
+Two rules that hold this together:
+
+- **One login per person. Shared mailboxes are refused.** An address such as
+  `sales@` or `info@` cannot be given a role, in the dashboard or through the
+  function behind it. The audit log names the account that acted, so a shared
+  login turns the whole trail into "somebody at this company", which is not an
+  answer. Section 3.4(b) asks for individual logins and HIPAA requires unique
+  user identification.
+- **Access is removed the day somebody leaves**, by setting their role to
+  `none` on this screen. That revokes their current session immediately rather
+  than at the next token refresh. The owners should read through the list once
+  a quarter.
+
+The developer's own `owner` account exists only to build and hand over the
+site. Remove it at handover; the date belongs in the handover note.
+
+### 4. Which agreements are in place
+
+Outstanding, and the client's to complete. The Google Cloud BAA has not been
+accepted yet and is a blocker for launch; see step 1 at the top of this file.
+Fill this section in once it is signed.
+
+---
+
 ## The HIPAA safeguards, and where each one lives
 
 Section 3.4 of the agreement lists five technical safeguards. For the record
@@ -240,7 +337,7 @@ promised in Section 3.6:
 | Safeguard | Where it is implemented |
 |---|---|
 | (a) Encryption in transit and at rest | Google managed, on Firestore, Cloud Run and Cloud Storage |
-| (b) Individual logins, roles, session timeout | `src/admin/auth.tsx`. Session storage rather than local storage, so closing the tab ends the session, and an idle session signs out after 20 minutes with a warning at 18. The server independently refuses a token older than an hour |
+| (b) Individual logins, roles, session timeout | `src/admin/auth.tsx`. Session storage rather than local storage, so closing the tab ends the session, and an idle session signs out after 20 minutes with a warning at 18. The server independently refuses a token older than an hour. A shared mailbox cannot be given a role at all: `functions/admin/index.js` refuses one on invitation and on any later role change |
 | (c) Audit log of PHI access | `functions/admin/index.js`. Every read, every change and every refusal writes an `auditLog` entry before the data is returned. The browser has no path to the leads collection at all, so no access can go unrecorded |
 | (d) No third-party scripts on PHI pages | The site loads no analytics, advertising or tracking of any kind, on any page |
 | (e) No PHI in URLs, logs or cache | Every lead request is a POST, a lead is opened in a panel rather than at its own address, the function logs no request body, and every lead response carries `Cache-Control: no-store` |

@@ -270,11 +270,46 @@ async function listAdmins() {
 */
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
+/*
+  Shared mailboxes cannot hold an administrator account.
+
+  Every audit entry records the account that acted. If a team signs in as one
+  address, the trail says "sales@ opened this record" and can never say who,
+  which makes it useless for the one purpose it exists to serve. Section
+  3.4(b) of the agreement asks for individual logins, and HIPAA's Technical
+  Safeguards require unique user identification (164.312(a)(2)(i)).
+
+  This is a hard refusal rather than a warning, because the dashboard cannot
+  tell later that a login was shared: by then there is only a name on a
+  record. It is checked here rather than only in the browser, since the
+  browser is not what decides.
+
+  The list is the local parts a role address actually uses. A real person is
+  not called "billing", so a false refusal is close to impossible; a shared
+  address that slips through under some other name is still worth stopping
+  at the point somebody notices.
+*/
+const SHARED_MAILBOXES = new Set([
+  "accounts", "admin", "administrator", "billing", "contact", "enquiries",
+  "hello", "help", "info", "inquiries", "mail", "marketing", "no-reply",
+  "noreply", "office", "orders", "sales", "staff", "support", "team",
+]);
+
+function isSharedMailbox(email) {
+  return SHARED_MAILBOXES.has(email.split("@")[0]);
+}
+
+const SHARED_MAILBOX_REFUSAL =
+  "That is a shared mailbox. Every administrator needs their own address, " +
+  "because the access log records who opened a patient record and a shared " +
+  "login cannot answer that.";
+
 async function inviteAdmin(actor, body) {
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const role = body.role;
 
   if (!EMAIL.test(email)) return { error: "Please enter a valid email address." };
+  if (isSharedMailbox(email)) return { error: SHARED_MAILBOX_REFUSAL };
   if (!["owner", "editor", "agent"].includes(role)) {
     return { error: "That role is not allowed." };
   }
@@ -309,6 +344,15 @@ async function setAdminRole(actor, body) {
   }
   if (uid === actor.uid && role !== "owner") {
     return { error: "You cannot remove your own owner access." };
+  }
+  /* An account created before this rule, or outside the dashboard, must not
+     be granted a role now. Taking access away is always allowed: refusing
+     that would strand exactly the account most worth closing. */
+  if (role !== "none") {
+    const target = await auth.getUser(uid).catch(() => null);
+    if (target?.email && isSharedMailbox(target.email.toLowerCase())) {
+      return { error: SHARED_MAILBOX_REFUSAL };
+    }
   }
   await auth.setCustomUserClaims(uid, role === "none" ? {} : { role });
   /* Force the next request from that person to carry the new role. */

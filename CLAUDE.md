@@ -141,6 +141,16 @@ only change made to their wording.
   even requested until layout has run; everything below the fold, the footer
   logo included, stays lazy. A product card's back photograph is always lazy:
   it is only seen on hover.
+- Administrator access is one login per person, and that is enforced rather
+  than advised. A shared mailbox such as `sales@` or `info@` cannot be given a
+  role: `functions/admin/index.js` refuses it on invitation and on any later
+  role change, and the dashboard says so before the request is sent. The
+  reason is the audit log, which names the account that acted; a shared login
+  reduces every entry to "somebody at this company". Taking access away is
+  never refused, so the rule cannot strand an account that already exists.
+  The role each person gets: `owner` for the two business owners, `agent` for
+  the sales team, which reaches enquiries and nothing else, and `editor` for
+  anyone writing content, which reaches no patient data at all.
 - Administrator invitations. An owner invites by email from the dashboard's
   Administrators screen. `admins.invite` in `functions/admin/index.js` creates
   the Identity Platform account and sets the role claim but never a password,
@@ -268,7 +278,9 @@ only change made to their wording.
    Put the resulting URL in `.env` as `VITE_QUALIFY_ENDPOINT` (this variable
    is safe to expose; it is only a URL).
 6. Deploy Firestore rules: `firebase deploy --only firestore:rules`.
-7. Enable Data Access audit logs for Firestore in the console.
+7. Enable Data Access audit logs for Firestore in the console, and turn on
+   point-in-time recovery for the database. Both are off by default; the
+   commands are in ADMIN-SETUP.md, step 3.
 8. Build and deploy hosting: `npm run build && firebase deploy --only hosting`.
 9. Set a Google Cloud budget alert (10 USD) on the project, per Section 7.3
    of the agreement.
