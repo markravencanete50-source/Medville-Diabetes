@@ -3,6 +3,7 @@ import { Download, Search } from "lucide-react";
 import {
   adminApi,
   AdminApiError,
+  isAdminApiConfigured,
   leadName,
   LEAD_STATUSES,
   LEAD_STATUS_LABEL,
@@ -59,9 +60,16 @@ export default function Leads() {
   const [search, setSearch] = useState("");
   const [openLead, setOpenLead] = useState<Lead | null>(null);
   const [saving, setSaving] = useState(false);
+  const connected = isAdminApiConfigured();
 
   const load = useCallback(async () => {
     setError("");
+    /* Nowhere to ask. The layout banner already explains that, so asking and
+       showing the refusal would only repeat it as an error. */
+    if (!connected) {
+      setLeads([]);
+      return;
+    }
     try {
       const result = await adminApi.listLeads(getToken);
       setLeads(result.leads);
@@ -69,7 +77,7 @@ export default function Leads() {
       setLeads([]);
       setError(problem instanceof AdminApiError ? problem.message : "That did not work.");
     }
-  }, [getToken]);
+  }, [getToken, connected]);
 
   useEffect(() => {
     void load();
@@ -210,7 +218,11 @@ export default function Leads() {
           <Spinner label="Loading enquiries" />
         ) : !visible.length ? (
           <Empty>
-            {leads.length ? "No enquiries match that search." : "No enquiries have arrived yet."}
+            {!connected
+              ? "Enquiries will appear here once the enquiry service is connected."
+              : leads.length
+                ? "No enquiries match that search."
+                : "No enquiries have arrived yet."}
           </Empty>
         ) : (
           <div className="admin-table-wrap">

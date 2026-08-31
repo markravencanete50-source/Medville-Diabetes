@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
-import { adminApi, AdminApiError, LEAD_STATUS_LABEL, type LeadStats } from "../api";
+import {
+  adminApi,
+  AdminApiError,
+  isAdminApiConfigured,
+  LEAD_STATUS_LABEL,
+  type LeadStats,
+} from "../api";
 import { useAdminAuth } from "../auth";
-import { Banner, Card, PageHeader, Spinner } from "../ui";
+import { Banner, Card, Empty, PageHeader, Spinner } from "../ui";
 import { BarList, ChartFrame, StatTile, TrendChart, toBarItems, toTrendPoints } from "../charts";
 import { products as builtInProducts } from "../../data/products";
 
@@ -20,8 +26,10 @@ export default function Overview() {
   const { getToken } = useAdminAuth();
   const [stats, setStats] = useState<LeadStats | null>(null);
   const [error, setError] = useState("");
+  const connected = isAdminApiConfigured();
 
   useEffect(() => {
+    if (!connected) return;
     let live = true;
     adminApi
       .stats(getToken)
@@ -32,7 +40,26 @@ export default function Overview() {
     return () => {
       live = false;
     };
-  }, [getToken]);
+  }, [getToken, connected]);
+
+  /*
+    The adminApi address is a build-time value, so a build made before that
+    function was deployed has nothing to count. That is a configuration state,
+    not a failure, and the layout above already carries the banner that says
+    what to do about it. Asking anyway would only turn it into an error
+    message, and printing a second banner here would put two identical
+    warnings on one screen, which is what the client saw.
+  */
+  if (!connected) {
+    return (
+      <>
+        <PageHeader title="Overview" lede="How enquiries are arriving and where they stand." />
+        <Card>
+          <Empty>Figures will appear here once the enquiry service is connected.</Empty>
+        </Card>
+      </>
+    );
+  }
 
   if (error) {
     return (

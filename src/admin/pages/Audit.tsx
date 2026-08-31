@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { adminApi, AdminApiError, type AuditEntry } from "../api";
+import { adminApi, AdminApiError, isAdminApiConfigured, type AuditEntry } from "../api";
 import { useAdminAuth } from "../auth";
 import { Badge, Banner, Card, Empty, PageHeader, Spinner, formatDateTime } from "../ui";
 
@@ -28,9 +28,16 @@ export default function Audit() {
   const { getToken } = useAdminAuth();
   const [entries, setEntries] = useState<AuditEntry[] | null>(null);
   const [error, setError] = useState("");
+  const connected = isAdminApiConfigured();
 
   const refresh = useCallback(async () => {
     setError("");
+    /* Same reasoning as the enquiry list: with no address to call, the layout
+       banner is the explanation and an error here would only echo it. */
+    if (!connected) {
+      setEntries([]);
+      return;
+    }
     try {
       const result = await adminApi.listAudit(getToken);
       setEntries(result.entries);
@@ -38,7 +45,7 @@ export default function Audit() {
       setEntries([]);
       setError(problem instanceof AdminApiError ? problem.message : "That did not work.");
     }
-  }, [getToken]);
+  }, [getToken, connected]);
 
   useEffect(() => {
     void refresh();
@@ -68,7 +75,11 @@ export default function Audit() {
         {entries === null ? (
           <Spinner label="Loading the access log" />
         ) : !entries.length ? (
-          <Empty>Nothing has been recorded yet.</Empty>
+          <Empty>
+            {connected
+              ? "Nothing has been recorded yet."
+              : "The access log will appear here once the enquiry service is connected."}
+          </Empty>
         ) : (
           <div className="admin-table-wrap">
             <table className="admin-table">
