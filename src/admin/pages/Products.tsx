@@ -6,7 +6,16 @@ import {
   type Product,
   type ProductStatus,
 } from "../../data/products";
-import { hideProduct, loadProducts, saveProduct, toSlug, uploadImage } from "../data";
+import {
+  hideProduct,
+  isImageAddress,
+  loadProducts,
+  saveProduct,
+  toSlug,
+  UPLOAD_HELP,
+  uploadImage,
+  uploadProblem,
+} from "../data";
 import { Badge, Banner, Card, Drawer, Empty, Field, PageHeader, Spinner, useToast } from "../ui";
 
 /*
@@ -212,7 +221,14 @@ function ProductForm({
 }) {
   const toast = useToast();
   const [draft, setDraft] = useState<Product>(product);
-  const [busy, setBusy] = useState(false);
+  /*
+    Uploading and saving are two different waits and used to share one flag,
+    so the submit button read "Saving" while a picture was still going up and
+    nothing was being saved. They are separate now, and only the picture that
+    is actually uploading is disabled.
+  */
+  const [uploading, setUploading] = useState<"imageFront" | "imageBack" | null>(null);
+  const [saving, setSaving] = useState(false);
   const isNew = !product.slug;
 
   const set = <K extends keyof Product>(key: K, value: Product[K]) =>
@@ -220,15 +236,15 @@ function ProductForm({
 
   const pickImage = async (side: "imageFront" | "imageBack", file: File | undefined) => {
     if (!file) return;
-    setBusy(true);
+    setUploading(side);
     try {
       const url = await uploadImage(file, "products");
       set(side, url);
       toast("Picture uploaded.");
     } catch (problem) {
-      toast(problem instanceof Error ? problem.message : "The upload did not work.", "danger");
+      toast(uploadProblem(problem), "danger");
     } finally {
-      setBusy(false);
+      setUploading(null);
     }
   };
 
@@ -240,8 +256,18 @@ function ProductForm({
       return toast("A product with that name already exists.", "danger");
     }
     if (!draft.imageFront) return toast("Please add the front picture.", "danger");
+    /* A picture given as an address is only useful if it is one. Catching it
+       here keeps a broken image out of the catalog rather than out of view. */
+    for (const [label, value] of [
+      ["front", draft.imageFront],
+      ["back", draft.imageBack],
+    ] as const) {
+      if (value && !value.startsWith("/") && !isImageAddress(value)) {
+        return toast(`The ${label} picture address is not a web address.`, "danger");
+      }
+    }
 
-    setBusy(true);
+    setSaving(true);
     try {
       await saveProduct(slug, { ...draft, slug });
       toast("Product saved.");
@@ -249,7 +275,7 @@ function ProductForm({
     } catch {
       toast("That product could not be saved.", "danger");
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
   };
 
@@ -350,50 +376,75 @@ function ProductForm({
         <ImagePicker
           label="Front picture"
           value={draft.imageFront}
-          busy={busy}
+          busy={uploading === "imageFront"}
           onPick={(file) => void pickImage("imageFront", file)}
+          onAddress={(value) => set("imageFront", value)}
           onClear={() => set("imageFront", "")}
         />
         <ImagePicker
           label="Back picture"
           value={draft.imageBack}
-          busy={busy}
+          busy={uploading === "imageBack"}
           onPick={(file) => void pickImage("imageBack", file)}
+          onAddress={(value) => set("imageBack", value)}
           onClear={() => set("imageBack", "")}
         />
       </div>
 
-      <button type="submit" className="admin-btn admin-btn-primary" disabled={busy}>
-        {busy ? "Saving" : "Save product"}
+      <p className="admin-help">{UPLOAD_HELP}</p>
+
+      <button
+        type="submit"
+        className="admin-btn admin-btn-primary"
+        disabled={saving || uploading !== null}
+      >
+        {saving ? "Saving" : uploading ? "Waiting for the picture" : "Save product"}
       </button>
     </form>
   );
 }
 
+/*
+  A picture is either uploaded or given as a web address, and both write the
+  same field, so nothing changes here when Cloud Storage is switched on. The
+  address is the route that works on the free tier, and it was missing from
+  this form entirely: the only control was a file input pointed at a bucket
+  that does not exist yet, and the front picture is required to save, so no
+  product could be added at all.
+*/
 function ImagePicker({
   label,
   value,
   busy,
   onPick,
+  onAddress,
   onClear,
 }: {
   label: string;
   value: string;
   busy: boolean;
   onPick: (file: File | undefined) => void;
+  onAddress: (value: string) => void;
   onClear: () => void;
 }) {
+  /* A pasted address is shown as typed and only judged once there is
+     something to judge, so the field does not turn red at the first
+     character. A path starting with "/" is one of the pictures shipped with
+     the site, which is how every built-in product refers to its own art. */
+  const looksWrong =
+    value.trim() !== "" && !value.startsWith("/") && !isImageAddress(value);
+
   return (
     <Field label={label} help="JPG, PNG or WebP, up to 5 MB.">
       <div
         className="mb-2 flex h-28 items-center justify-center overflow-hidden rounded"
         style={{ background: "var(--a-surface-2)", border: "1px solid var(--a-line)" }}
       >
-        {value ? (
+        {value && !looksWrong ? (
           <img src={value} alt="" className="h-full w-full object-contain" />
         ) : (
           <span className="text-[12px]" style={{ color: "var(--a-text-faint)" }}>
-            No picture
+            {busy ? "Uploading" : "No picture"}
           </span>
         )}
       </div>
@@ -405,6 +456,20 @@ function ImagePicker({
         style={{ padding: 6 }}
         onChange={(event) => onPick(event.target.files?.[0])}
       />
+      <input
+        type="text"
+        className="admin-input mt-2"
+        value={value}
+        disabled={busy}
+        placeholder="Or paste a picture address: https://..."
+        aria-label={`${label} web address`}
+        onChange={(event) => onAddress(event.target.value.trim())}
+      />
+      {looksWrong && (
+        <p className="admin-help mt-1" style={{ color: "var(--a-warn)" }}>
+          That does not look like a web address.
+        </p>
+      )}
       {value && (
         <button type="button" className="admin-help mt-1 underline" onClick={onClear}>
           Remove this picture

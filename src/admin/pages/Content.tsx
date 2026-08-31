@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { PAGES, type PageId, type PageValues, fieldPath } from "../../content/schema";
-import { loadPage, savePage, uploadImage } from "../data";
+import {
+  isImageAddress,
+  loadPage,
+  savePage,
+  UPLOAD_HELP,
+  uploadImage,
+  uploadProblem,
+} from "../data";
 import { Banner, Card, Field, PageHeader, Spinner, useToast } from "../ui";
 
 /*
@@ -187,6 +194,10 @@ function ImageField({
 }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  /* A path starting with "/" is a picture shipped with the site, which is
+     what every built-in page picture is. */
+  const looksWrong =
+    value.trim() !== "" && !value.startsWith("/") && !isImageAddress(value);
 
   const pick = async (file: File | undefined) => {
     if (!file) return;
@@ -195,7 +206,7 @@ function ImageField({
       onChange(await uploadImage(file, "pages"));
       toast("Picture uploaded.");
     } catch (problem) {
-      toast(problem instanceof Error ? problem.message : "The upload did not work.", "danger");
+      toast(uploadProblem(problem), "danger");
     } finally {
       setBusy(false);
     }
@@ -211,11 +222,11 @@ function ImageField({
         className="mb-2 flex h-36 items-center justify-center overflow-hidden rounded"
         style={{ background: "var(--a-surface-2)", border: "1px solid var(--a-line)" }}
       >
-        {value ? (
+        {value && !looksWrong ? (
           <img src={value} alt="" className="h-full w-full object-cover" />
         ) : (
           <span className="text-[12px]" style={{ color: "var(--a-text-faint)" }}>
-            No picture
+            {busy ? "Uploading" : "No picture"}
           </span>
         )}
       </div>
@@ -228,6 +239,24 @@ function ImageField({
         style={{ padding: 6 }}
         onChange={(event) => void pick(event.target.files?.[0])}
       />
+      {/* The address is the route that works before Cloud Storage exists.
+          Both controls write the same field, so switching Storage on changes
+          nothing here. */}
+      <input
+        type="text"
+        className="admin-input mt-2"
+        value={value}
+        disabled={busy}
+        placeholder="Or paste a picture address: https://..."
+        aria-label={`${label} web address`}
+        onChange={(event) => onChange(event.target.value.trim())}
+      />
+      {looksWrong && (
+        <p className="admin-help mt-1" style={{ color: "var(--a-warn)" }}>
+          That does not look like a web address.
+        </p>
+      )}
+      <p className="admin-help mt-1">{UPLOAD_HELP}</p>
       {!isDefault && (
         <button type="button" className="admin-help mt-1 underline" onClick={() => onChange("")}>
           Go back to the built-in picture

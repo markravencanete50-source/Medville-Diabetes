@@ -89,7 +89,20 @@ export function adminDb() {
 }
 
 export function adminStorage() {
-  if (!storageInstance) storageInstance = getStorage(ensureApp());
+  if (!storageInstance) {
+    storageInstance = getStorage(ensureApp());
+    /*
+      A project on the free tier has no Cloud Storage bucket, because Firebase
+      only creates the default one on the Blaze plan. Uploading to a bucket
+      that does not exist fails in a way the SDK treats as retryable, so with
+      the stock two minute window the button sat on "Saving" for two minutes
+      before saying anything. Fifteen seconds is far longer than a real 5 MB
+      upload needs and short enough that a missing bucket is reported while
+      the person is still looking at the screen.
+    */
+    storageInstance.maxUploadRetryTime = 15_000;
+    storageInstance.maxOperationRetryTime = 15_000;
+  }
   return storageInstance;
 }
 

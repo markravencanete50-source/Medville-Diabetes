@@ -11,11 +11,13 @@ import {
 } from "lucide-react";
 import {
   deletePost,
+  isImageAddress,
   loadPosts,
   postSlugExists,
   savePost,
   toSlug,
   uploadImage,
+  uploadProblem,
   type PostRecord,
 } from "../data";
 import {
@@ -54,29 +56,6 @@ const BLOCK_TYPES: PostBlock["type"][] = [
   "callout",
   "divider",
 ];
-
-/*
-  Uploading needs a Cloud Storage bucket, and a project on the free tier does
-  not have one: Firebase only creates the default bucket on the Blaze plan. So
-  a picture can also be given as a web address, which needs nothing enabled
-  and works today. When Storage is switched on, upload starts working with no
-  change here.
-*/
-const UPLOAD_HELP =
-  "Upload needs Cloud Storage, which is not switched on for this project yet. Paste a web address instead, or ask for Storage to be enabled.";
-
-function uploadProblem(problem: unknown) {
-  const message = problem instanceof Error ? problem.message : "";
-  /* A missing bucket surfaces as an unhelpful storage error, so say the
-     useful thing rather than repeating it. */
-  return /bucket|not found|404|unknown/i.test(message) ? UPLOAD_HELP : message || UPLOAD_HELP;
-}
-
-/* Only a real web address is accepted, so a stray paste cannot become a
-   broken picture or a javascript: address in a published article. */
-function isImageAddress(value: string) {
-  return /^https?:\/\/\S+$/i.test(value.trim());
-}
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);

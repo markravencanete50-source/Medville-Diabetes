@@ -178,6 +178,37 @@ export async function uploadImage(file: File, folder: string): Promise<string> {
   return getDownloadURL(target);
 }
 
+/*
+  Uploading needs a Cloud Storage bucket, and a project on the free tier does
+  not have one: Firebase only creates the default bucket on the Blaze plan. So
+  every picture on the dashboard can also be given as a web address, which
+  needs nothing enabled and works today. When Storage is switched on, upload
+  starts working with no change to any screen.
+
+  This wording used to live in the blog editor alone, which is how the product
+  form ended up with no web-address field and no explanation: the client could
+  pick a file, watch it fail, and had no other route to a picture. One copy
+  here, used by both.
+*/
+export const UPLOAD_HELP =
+  "Upload needs Cloud Storage, which is not switched on for this project yet. Paste a web address instead, or ask for Storage to be enabled.";
+
+export function uploadProblem(problem: unknown) {
+  const message = problem instanceof Error ? problem.message : "";
+  /* A missing bucket surfaces as an unhelpful storage error, and a retry that
+     runs out of time surfaces as a timeout. Both mean the same thing to the
+     person at the screen, so say the useful sentence rather than repeat it. */
+  return /bucket|not found|404|unknown|retry|timeout|exceeded/i.test(message)
+    ? UPLOAD_HELP
+    : message || UPLOAD_HELP;
+}
+
+/* Only a real web address is accepted, so a stray paste cannot become a
+   broken picture or a javascript: address on the live site. */
+export function isImageAddress(value: string) {
+  return /^https?:\/\/\S+$/i.test(value.trim());
+}
+
 /* ---- slugs ---- */
 
 export function toSlug(value: string) {
