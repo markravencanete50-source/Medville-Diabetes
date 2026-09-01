@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, X } from "lucide-react";
+import { X } from "lucide-react";
 import type { Product } from "../data/products";
 import { PRODUCT_TINT } from "./ProductCard";
 import Button from "./Button";
@@ -125,8 +125,7 @@ export default function QuickView({
             </p>
             <ul className="mt-4 flex list-none flex-col gap-2.5 p-0">
               {product.keyFacts.map((fact) => (
-                <li key={fact} className="flex items-start gap-2.5 text-small text-grey-dark">
-                  <Check size={15} className="mt-0.5 flex-none text-brand-bright" strokeWidth={2.4} />
+                <li key={fact} className="text-small text-grey-dark">
                   {fact}
                 </li>
               ))}

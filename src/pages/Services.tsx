@@ -2,11 +2,9 @@ import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "re
 import {
   ArrowDown,
   ArrowRight,
-  Check,
-  PackageCheck,
+  ClipboardList,
+  Headset,
   PhoneCall,
-  ShieldCheck,
-  Stethoscope,
 } from "lucide-react";
 import Container from "../components/Container";
 import Button from "../components/Button";
@@ -18,9 +16,12 @@ import { prefersReducedMotion } from "../lib/useReveal";
 /*
   Our Services: the customer journey told as one scroll.
 
-  A visitor reads four stages in seconds, then finds all ten steps our team
-  completes inside those stages. The care cycle above them is the same route
-  drawn once, so the shape of the process is clear before any detail arrives.
+  A visitor reads the same three steps the home page shows, then finds all
+  ten pieces of work our team completes inside those steps. The care cycle
+  above them is the same route drawn once, so the shape of the process is
+  clear before any detail arrives. The step titles and summaries repeat the
+  home page's "Getting started" cards word for word, on the client's
+  instruction of 2026-09-01: one process, told the same way everywhere.
 
   The three.js cycle is lazy-loaded: nobody downloads it until the section
   approaches.
@@ -31,7 +32,6 @@ const IMAGES = {
   mark: "/services/journey/journey-mark.webp",
   hero: "/services/journey/journey-hero.webp",
   start: "/services/journey/journey-stage-01-start.webp",
-  confirm: "/services/journey/journey-stage-02-confirm.webp",
   approve: "/services/journey/journey-stage-03-approve.webp",
   deliver: "/services/journey/journey-stage-04-deliver.webp",
 };
@@ -40,10 +40,10 @@ const STAGES = [
   {
     id: "stage-01",
     number: "01",
-    title: "Start your request.",
-    copy: "Tell us what you need. A short conversation is enough to begin.",
+    title: "Tell Us About Yourself",
+    copy: "Complete our short eligibility form with your basic information so we can get started.",
     label: "Your first conversation",
-    icon: PhoneCall,
+    icon: ClipboardList,
     image: IMAGES.start,
     alt: "A woman at home begins a phone conversation about her CGM supplies.",
     steps: [
@@ -57,12 +57,12 @@ const STAGES = [
   {
     id: "stage-02",
     number: "02",
-    title: "Confirm care and coverage.",
-    copy: "We coordinate with your clinic and review the requirements that apply to your request.",
-    label: "Clinic and eligibility",
-    icon: Stethoscope,
-    image: IMAGES.confirm,
-    alt: "A care coordinator gathers medical records for a CGM supply request.",
+    title: "We Review Your Potential Eligibility",
+    copy: "Our team reviews the information you provide and checks available coverage information to help determine your potential eligibility.",
+    label: "Coverage and eligibility",
+    icon: Headset,
+    image: IMAGES.approve,
+    alt: "A coordinator verifies insurance information for continuous glucose monitor coverage.",
     steps: [
       {
         number: "02",
@@ -74,18 +74,6 @@ const STAGES = [
         title: "Qualification",
         team: "We evaluate clinical and insurance information against the applicable CGM coverage requirements.",
       },
-    ],
-  },
-  {
-    id: "stage-03",
-    number: "03",
-    title: "Gather details and secure approval.",
-    copy: "We collect the right records, check the paperwork, and work through insurance authorization.",
-    label: "Records and authorization",
-    icon: ShieldCheck,
-    image: IMAGES.approve,
-    alt: "A coordinator verifies insurance information for continuous glucose monitor coverage.",
-    steps: [
       {
         number: "04",
         title: "Documentation retrieval",
@@ -104,12 +92,12 @@ const STAGES = [
     ],
   },
   {
-    id: "stage-04",
-    number: "04",
-    title: "Receive supplies and ongoing support.",
-    copy: "We prepare your order, deliver your supplies, and stay available for the next shipment.",
-    label: "Delivery and resupply",
-    icon: PackageCheck,
+    id: "stage-03",
+    number: "03",
+    title: "We Walk You Through What Comes Next",
+    copy: "We will contact you to explain what we found, answer your questions, and help you understand the next steps.",
+    label: "Delivery and ongoing support",
+    icon: PhoneCall,
     image: IMAGES.deliver,
     alt: "A CGM supply kit is carefully prepared in a white box.",
     steps: [
@@ -230,7 +218,7 @@ export default function Services() {
                 <ArrowDown size={16} strokeWidth={2.2} />
               </Button>
             </div>
-            <p className="journey-hero-note">Ten steps, made clear in four stages.</p>
+            <p className="journey-hero-note">The whole process, made clear in three steps.</p>
           </div>
 
           <div className="journey-hero-photo">
@@ -243,9 +231,7 @@ export default function Services() {
             <div className="journey-hero-card">
               <span>One coordinated team</span>
               <strong>We make the next step easier to see.</strong>
-              <p>
-                <Check size={14} strokeWidth={2.5} /> From call to resupply
-              </p>
+              <p>From call to resupply</p>
             </div>
           </div>
         </Container>
@@ -255,15 +241,15 @@ export default function Services() {
         <CareCycle3D />
       </Suspense>
 
-      <section className="journey-stages" aria-label="The four stages of the Medville care process">
+      <section className="journey-stages" aria-label="The three steps of the Medville care process">
         <Container wide>
           <div className="journey-stages-intro">
             <p className="journey-eyebrow">The detailed process</p>
             <h2>
-              Four clear stages. <em>Every step, clearly explained.</em>
+              Three clear steps. <em>The whole process, explained.</em>
             </h2>
             <p className="journey-stages-lede">
-              Each stage outlines the work our team completes to keep your CGM
+              Each step outlines the work our team completes to keep your CGM
               supplies moving forward.
             </p>
           </div>
@@ -294,7 +280,7 @@ export default function Services() {
                       height={825}
                     />
                     <figcaption>
-                      <span>Stage {stage.number}</span>
+                      <span>Step {stage.number}</span>
                       <strong>{stage.label}</strong>
                     </figcaption>
                   </figure>
@@ -304,12 +290,12 @@ export default function Services() {
                       <span>
                         <Icon size={17} strokeWidth={2.1} />
                       </span>
-                      Stage {stage.number} · {stage.label}
+                      Step {stage.number} · {stage.label}
                     </p>
                     <h2>{stage.title}</h2>
                     <p className="journey-stage-summary">{stage.copy}</p>
                     <div className="journey-step-list">
-                      <strong>Detailed steps in this stage</strong>
+                      <strong>What our team does in this step</strong>
                       {stage.steps.map((step) => (
                         <div className="journey-step" key={step.number}>
                           <span>{step.number}</span>

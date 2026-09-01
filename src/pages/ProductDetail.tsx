@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Check, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import Container from "../components/Container";
 import Button from "../components/Button";
 import ProductViewer from "../components/ProductViewer";
@@ -100,9 +100,8 @@ export default function ProductDetail() {
                   {product.keyFacts.map((fact) => (
                     <li
                       key={fact}
-                      className="inline-flex items-center gap-2 rounded-full border border-brand-mint bg-brand-tint px-4 py-2 text-caption font-medium text-grey-dark"
+                      className="inline-flex items-center rounded-full border border-brand-mint bg-brand-tint px-4 py-2 text-caption font-medium text-grey-dark"
                     >
-                      <Check size={14} strokeWidth={2.4} className="flex-none text-brand-bright" aria-hidden="true" />
                       {fact}
                     </li>
                   ))}
