@@ -10,7 +10,7 @@ import { PHONE_DISPLAY, PHONE_TEL } from "../data/company";
 const links = [
   { to: "/", label: "Home" },
   { to: "/products", label: "Our Products" },
-  { to: "/services", label: "Our Services" },
+  { to: "/services", label: "How It Works" },
   { to: "/refer-a-patient", label: "Refer a Patient" },
   { to: "/about", label: "About Us" },
   { to: "/contact", label: "Contact" },
