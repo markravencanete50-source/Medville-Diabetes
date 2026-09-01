@@ -5,7 +5,6 @@ import {
   BarChart3,
   Bell,
   Building2,
-  Check,
   ClipboardList,
   Factory,
   Headset,
@@ -169,8 +168,7 @@ export default function Home() {
 
           <Container wide className="relative grid items-center gap-10 py-14 md:py-24 lg:grid-cols-2 lg:gap-16">
             <div>
-              <p className="rise-in m-0 inline-flex items-center gap-2 rounded-full border border-brand/25 bg-canvas/70 px-4 py-1.5 text-caption font-semibold uppercase tracking-[0.08em] text-brand">
-                <span className="h-[7px] w-[7px] rounded-full bg-brand-bright" aria-hidden="true" />
+              <p className="rise-in m-0 inline-flex items-center rounded-full border border-brand/25 bg-canvas/70 px-4 py-1.5 text-caption font-semibold uppercase tracking-[0.08em] text-brand">
                 Diabetes Supplies Made Simpler
               </p>
               <h1
@@ -200,10 +198,9 @@ export default function Home() {
                 </Button>
               </div>
               <p
-                className="rise-in mt-4.5 flex items-start gap-2 text-caption text-grey-muted"
+                className="rise-in mt-4.5 text-caption text-grey-muted"
                 style={{ "--rise-delay": "620ms" } as React.CSSProperties}
               >
-                <Check size={14} strokeWidth={2.5} className="mt-0.5 flex-none text-brand-bright" />
                 Quick to get started. No obligation. Coverage and eligibility vary by plan.
               </p>
             </div>

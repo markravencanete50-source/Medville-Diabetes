@@ -13,9 +13,9 @@ import { prefersReducedMotion } from "../lib/useReveal";
 */
 
 const CHIPS = [
-  { text: "New reading every minute", dot: "bg-brand-bright", className: "-left-[4%] top-[6%]", duration: "6s", delay: "0s" },
-  { text: "Up to 14-day wear", dot: "bg-accent", className: "-left-[6%] bottom-[10%]", duration: "7s", delay: "0.8s" },
-  { text: "No routine finger sticks", dot: "bg-brand", className: "-right-[4%] top-[38%]", duration: "8s", delay: "0.4s" },
+  { text: "New reading every minute", className: "-left-[4%] top-[6%]", duration: "6s", delay: "0s" },
+  { text: "Up to 14-day wear", className: "-left-[6%] bottom-[10%]", duration: "7s", delay: "0.8s" },
+  { text: "No routine finger sticks", className: "-right-[4%] top-[38%]", duration: "8s", delay: "0.4s" },
 ];
 
 export default function HeroViewer({ product }: { product: Product }) {
@@ -112,7 +112,7 @@ export default function HeroViewer({ product }: { product: Product }) {
         {CHIPS.map((chip) => (
           <div
             key={chip.text}
-            className={`floaty2 absolute inline-flex items-center gap-2 rounded-full bg-surface-raised px-4 py-2.5 text-caption font-semibold text-ink shadow-pill max-lg:hidden ${chip.className}`}
+            className={`floaty2 absolute inline-flex items-center rounded-full bg-surface-raised px-4 py-2.5 text-caption font-semibold text-ink shadow-pill max-lg:hidden ${chip.className}`}
             style={
               {
                 "--floaty-duration": chip.duration,
@@ -120,7 +120,6 @@ export default function HeroViewer({ product }: { product: Product }) {
               } as React.CSSProperties
             }
           >
-            <span className={`h-2 w-2 rounded-full ${chip.dot}`} aria-hidden="true" />
             {chip.text}
           </div>
         ))}
