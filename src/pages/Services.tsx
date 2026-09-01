@@ -29,7 +29,6 @@ import { prefersReducedMotion } from "../lib/useReveal";
 const CareCycle3D = lazy(() => import("../components/CareCycle3D"));
 
 const IMAGES = {
-  mark: "/services/journey/journey-mark.webp",
   hero: "/services/journey/journey-hero.webp",
   start: "/services/journey/journey-stage-01-start.webp",
   approve: "/services/journey/journey-stage-03-approve.webp",
@@ -317,7 +316,6 @@ export default function Services() {
       <section className="journey-closing bg-why-band">
         <Grain />
         <Container className="journey-closing-content">
-          <img src={IMAGES.mark} alt="" loading="lazy" className="journey-closing-mark" width={58} height={58} />
           <p className="journey-eyebrow">The full care path</p>
           <h2>
             We handle the process. <em>You focus on your health.</em>
