@@ -27,14 +27,13 @@ const dir = join(here, "..", "public", "services", "journey");
    Widths are twice the largest size each image renders at, so the art stays
    sharp on high density screens without paying for pixels nobody sees.
    The hero fills a little over half of the 1200 px frame; each stage photo
-   takes half of it. The orbit mark never renders above 58 px. */
+   takes half of it. */
 const MAP = {
   "medville-services-hero.png": ["journey-hero", 1600],
   "medville-cycle-call.png": ["journey-stage-01-start", 1100],
   "medville-step-02-clinic-confirmation.png": ["journey-stage-02-confirm", 1100],
   "medville-step-06-insurance.png": ["journey-stage-03-approve", 1100],
   "medville-step-08-delivery.png": ["journey-stage-04-deliver", 1100],
-  "medville-orbit-mark.png": ["journey-mark", 240],
 };
 
 const present = await readdir(dir);

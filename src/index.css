@@ -1039,12 +1039,6 @@ video[data-parallax] {
   text-align: center;
 }
 
-.journey-closing-mark {
-  width: 58px;
-  height: 58px;
-  margin-bottom: 21px;
-}
-
 .journey-closing-content h2 {
   max-width: 16ch;
   margin: 16px 0 0;
