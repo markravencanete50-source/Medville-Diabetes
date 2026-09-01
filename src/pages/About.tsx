@@ -133,7 +133,6 @@ export default function About() {
                     aria-hidden="true"
                   >
                     <span className="h-px w-20 bg-line-strong" />
-                    <span className="h-[7px] w-[7px] rounded-full bg-brand-bright" />
                   </div>
                   <p
                     className="rise-in mt-7 max-w-[48ch] text-body-lg leading-relaxed text-grey-dark"
