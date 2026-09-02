@@ -10,6 +10,9 @@ import { prefersReducedMotion } from "../lib/useReveal";
 
   The drag mechanics are the simple subset of ProductViewer (rotate only, no
   zoom), because the hero card is a display piece, not the full inspector.
+  A tap that never travels turns the card over to its other face: on a phone
+  a tap is the first thing anyone tries, and a card that ignores it reads as
+  stuck.
 */
 
 const CHIPS = [
@@ -18,32 +21,38 @@ const CHIPS = [
   { text: "No routine finger sticks", className: "-right-[4%] top-[38%]", duration: "8s", delay: "0.4s" },
 ];
 
+/* Travel under this, in pixels, is a tap rather than a drag. */
+const TAP_TRAVEL = 4;
+
 export default function HeroViewer({ product }: { product: Product }) {
   const [angle, setAngle] = useState(0);
   const [snapping, setSnapping] = useState(false);
-  const drag = useRef<{ x: number } | null>(null);
+  const drag = useRef<{ x: number; startX: number; moved: boolean } | null>(null);
   const reduced = prefersReducedMotion();
 
   const showingBack = Math.abs(Math.round(angle / 180)) % 2 === 1;
 
   const onPointerDown = (e: React.PointerEvent) => {
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    drag.current = { x: e.clientX };
+    drag.current = { x: e.clientX, startX: e.clientX, moved: false };
     setSnapping(false);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
     if (!drag.current) return;
     const dx = e.clientX - drag.current.x;
-    drag.current = { x: e.clientX };
+    drag.current.x = e.clientX;
+    if (Math.abs(e.clientX - drag.current.startX) > TAP_TRAVEL) drag.current.moved = true;
     setAngle((a) => a + dx * 0.6);
   };
 
   const onPointerEnd = () => {
-    if (!drag.current) return;
+    const current = drag.current;
+    if (!current) return;
     drag.current = null;
     setSnapping(true);
-    setAngle((a) => Math.round(a / 180) * 180);
+    /* A drag settles on whichever face is nearer; a tap goes to the other. */
+    setAngle((a) => Math.round(a / 180) * 180 + (current.moved ? 0 : 180));
   };
 
   return (
@@ -59,14 +68,17 @@ export default function HeroViewer({ product }: { product: Product }) {
       <div className={`relative ${reduced ? "" : "floaty"}`}>
         <div
           role="img"
-          aria-label={`${product.name} sensor. Drag to see the back.`}
+          aria-label={`${product.name} sensor. Tap or drag to see the back.`}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerEnd}
           onPointerCancel={onPointerEnd}
           onPointerLeave={onPointerEnd}
           className="relative mx-auto max-w-[480px] cursor-grab select-none overflow-hidden rounded-sheet bg-surface-raised shadow-overlay active:cursor-grabbing"
-          style={{ touchAction: "none" }}
+          /* touch-action keeps the page from scrolling under a drag; the
+             callout setting keeps iOS from offering to save the picture when
+             a finger rests on it a moment too long. */
+          style={{ touchAction: "none", WebkitTouchCallout: "none" }}
         >
           <div className="aspect-square" style={{ perspective: "1400px" }}>
             <div
@@ -105,7 +117,7 @@ export default function HeroViewer({ product }: { product: Product }) {
           </span>
           <span className="pointer-events-none absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-ink/75 px-3.5 py-1.5 text-[0.75rem] font-medium text-on-dark backdrop-blur-[4px]">
             <RotateCw size={13} strokeWidth={2} />
-            Drag to flip
+            Tap or drag to flip
           </span>
         </div>
 

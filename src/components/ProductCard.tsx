@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Eye } from "lucide-react";
 import type { Product } from "../data/products";
@@ -6,9 +6,18 @@ import type { Product } from "../data/products";
 /*
   Product card for the redesign.
 
-  Hovering crossfades the front photograph into the back photograph over
-  420ms, and the corner label follows. On touch, where there is no hover, the
-  Quick view button is the way to see the back, so nothing is lost.
+  With a mouse, hovering crossfades the front photograph into the back
+  photograph over 420ms, and the corner label follows. On touch there is no
+  hover, so a tap on the photograph turns it over instead, and a second tap
+  turns it back. The Quick view button remains the fuller way to inspect
+  either face, and the keyboard way.
+
+  The hover listens to pointer events rather than mouse events on purpose. A
+  tap on a touch screen also fires the browser's compatibility mouseenter,
+  which used to flip the card to its back and leave it there: that emulated
+  hover only moves on to the next thing tapped, so tapping the same card
+  again did nothing. Pointer events say which kind of pointer they came
+  from, so the hover path can be kept for the mouse alone.
 */
 
 /*
@@ -43,21 +52,39 @@ export default function ProductCard({
   onQuickView: (slug: string) => void;
 }) {
   const [showBack, setShowBack] = useState(false);
+  /* The kind of pointer behind the click that is about to arrive. A mouse
+     click leaves the card alone, because its hover already shows the back;
+     a tap toggles. Read from pointerdown, since not every browser hands a
+     pointer type to the click event itself. */
+  const pointerType = useRef("mouse");
+
+  const hoverOnly = (show: boolean) => (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse") setShowBack(show);
+  };
 
   return (
     <div
       data-reveal={delay}
-      onMouseEnter={() => setShowBack(true)}
-      onMouseLeave={() => setShowBack(false)}
+      onPointerEnter={hoverOnly(true)}
+      onPointerLeave={hoverOnly(false)}
       className={`${motion} flex flex-col overflow-hidden rounded-card bg-surface-raised shadow-raised transition-all duration-(--duration-slow) ease-(--ease-out-quart) hover:-translate-y-1.5 hover:shadow-raised-hover`}
     >
-      <div className={`relative p-7 ${PRODUCT_TINT}`}>
+      <div
+        className={`relative p-7 ${PRODUCT_TINT}`}
+        onPointerDown={(e) => {
+          pointerType.current = e.pointerType;
+        }}
+        onClick={() => {
+          if (pointerType.current !== "mouse") setShowBack((show) => !show);
+        }}
+      >
         <div className="relative aspect-square w-full">
           <img
             src={product.imageFront}
             alt={`${product.name}, front`}
             loading={priority || eager ? "eager" : "lazy"}
             fetchPriority={priority ? "high" : "auto"}
+            draggable={false}
             className="absolute inset-0 h-full w-full rounded-md object-contain transition-opacity duration-[420ms] ease-(--ease-out-quart)"
             style={{ opacity: showBack ? 0 : 1 }}
           />
@@ -65,6 +92,7 @@ export default function ProductCard({
             src={product.imageBack}
             alt={`${product.name}, back`}
             loading="lazy"
+            draggable={false}
             className="absolute inset-0 h-full w-full rounded-md object-contain transition-opacity duration-[420ms] ease-(--ease-out-quart)"
             style={{ opacity: showBack ? 1 : 0 }}
           />
