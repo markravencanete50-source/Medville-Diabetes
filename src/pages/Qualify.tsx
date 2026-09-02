@@ -344,9 +344,12 @@ export default function Qualify() {
             {status === "error" && (
               <div role="alert" className="flex items-start gap-3 rounded-md border border-danger/30 bg-danger/5 p-4">
                 <AlertCircle size={18} className="mt-0.5 flex-none text-danger" aria-hidden="true" />
+                {/* The client's copy document, section 6e. It does not name
+                    the phone number, and the header and footer both carry it
+                    on this page, so it is not repeated here. */}
                 <p className="m-0 text-small text-ink">
                   Something went wrong while submitting your information. Please try
-                  again or contact our team for assistance at {PHONE_DISPLAY}.
+                  again or contact our team for assistance.
                 </p>
               </div>
             )}
