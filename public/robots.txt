@@ -6,4 +6,4 @@ Allow: /
 # search results.
 Disallow: /admin
 
-Sitemap: https://www.medvillediabetes.com/sitemap.xml
+Sitemap: https://medville-diabetes.web.app/sitemap.xml
