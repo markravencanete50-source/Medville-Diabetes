@@ -39,16 +39,16 @@ export default function Blog() {
           <Grain opacity={0.05} />
           <Container wide className="relative py-12 md:py-20">
             <p className="rise-in m-0">
-              <Eyebrow>Learn</Eyebrow>
+              <Eyebrow onDark>Learn</Eyebrow>
             </p>
             <h1
-              className="rise-in mt-3 max-w-[20ch] font-display text-h1 font-bold text-ink"
+              className="rise-in mt-3 max-w-[20ch] font-display text-h1 font-bold text-on-dark"
               style={{ "--rise-delay": "150ms" } as React.CSSProperties}
             >
               Simple Answers for Everyday Diabetes Questions
             </h1>
             <p
-              className="rise-in mt-4 max-w-[62ch] text-body-lg leading-relaxed text-grey-dark"
+              className="rise-in mt-4 max-w-[62ch] text-body-lg leading-relaxed text-on-dark-brand"
               style={{ "--rise-delay": "320ms" } as React.CSSProperties}
             >
               Straightforward articles about continuous glucose monitors, insurance

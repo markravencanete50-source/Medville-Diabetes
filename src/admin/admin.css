@@ -31,8 +31,8 @@
   --a-warn-soft: #fdf1dc;
   --a-danger: #b03030;
   --a-danger-soft: #fbeaea;
-  --a-ok: #1d7a4f;
-  --a-ok-soft: #e6f4ec;
+  --a-ok: #0a6d8a;
+  --a-ok-soft: #e2f5fa;
   /* The data mark. Computed against the light surface, not picked by eye:
      the brand blue fails the chroma floor and reads as grey in a chart. */
   --a-chart: #0e86a8;
@@ -63,8 +63,8 @@
   --a-warn-soft: #33260f;
   --a-danger: #f08a8a;
   --a-danger-soft: #341a1a;
-  --a-ok: #63c795;
-  --a-ok-soft: #102c20;
+  --a-ok: #4bc6e2;
+  --a-ok-soft: #10323d;
   /* Its own step for the dark surface, chosen the same way. A dark theme is
      selected, never an automatic flip of the light one. */
   --a-chart: #1f9cbe;

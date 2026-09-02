@@ -55,8 +55,8 @@ export default function Footer() {
     <footer className="relative">
       {/*
         Wave divider. The ground above the wave is transparent rather than a
-        fixed grey, so the footer sits correctly under any section: the grey
-        resources band on the home page, plain white elsewhere.
+        fixed tint, so the footer sits correctly under any section: the
+        deeper band on the home page, the plain canvas elsewhere.
       */}
       <div aria-hidden="true" className="h-16 overflow-hidden">
         <svg viewBox="0 0 1440 64" preserveAspectRatio="none" className="block h-full w-full">
@@ -72,7 +72,7 @@ export default function Footer() {
         </svg>
       </div>
 
-      <div className="bg-[linear-gradient(135deg,#0a3d2e_0%,#00293b_100%)]">
+      <div className="bg-dark-band">
         <Container
           wide
           className="grid gap-10 pb-12 pt-14 [grid-template-columns:repeat(auto-fit,minmax(210px,1fr))]"

@@ -35,7 +35,6 @@ const SiteDataContext = createContext<SiteData>(EMPTY_SITE_DATA);
 const THEME_VARIABLES: Record<keyof ThemeOverrides, string[]> = {
   brand: ["--color-brand"],
   brandBright: ["--color-brand-bright", "--color-accent"],
-  cta: ["--color-cta"],
   ink: ["--color-ink"],
   surface: ["--color-surface"],
 };

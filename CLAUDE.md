@@ -1,4 +1,4 @@
-# Medville Diabetes — project brief for Claude Code
+# Medville Diabetes: project brief for Claude Code
 
 Read this file completely before making any change.
 
@@ -12,7 +12,7 @@ percent of the content substance, rewritten) with an original, better design.
 The signed agreement commits to a specific stack and to HIPAA-compliant
 handling of the qualification form. Both are contractual, not preferences.
 
-## The agreed stack (contractual — do not substitute)
+## The agreed stack (contractual, do not substitute)
 
 | Layer | Product | Why |
 |---|---|---|
@@ -25,7 +25,7 @@ handling of the qualification form. Both are contractual, not preferences.
 Do not deploy this site to Vercel. Vercel's free tier does not permit
 commercial client work, and the agreement names Firebase Hosting.
 
-## HIPAA rules (contractual — Section 3 of the signed agreement)
+## HIPAA rules (contractual, Section 3 of the signed agreement)
 
 The qualify form asks whether the visitor injects insulin daily, next to
 name, email, phone, city, and state. That combination is Protected Health
@@ -59,7 +59,7 @@ Firestore `leads` collection. Rules that must survive every future change:
 
 All site copy is plain English: no idioms, no contractions ("do not", never
 "don't"), short sentences, one idea per sentence. Keep this in every new
-string. Product descriptions must stay original — never paste text from the
+string. Product descriptions must stay original. Never paste text from the
 reference site.
 
 Since 2026-08-28 the wording of every public page comes from the client's
@@ -74,9 +74,23 @@ only change made to their wording.
   CGM listing, insulin pump listing), Product detail, Our Services, Refer a
   Patient, Qualify form, About, Contact, Privacy Policy, Terms of Service,
   404, and the /admin dashboard.
-- Design token system in `src/index.css` derived from `brand/Medville_Brand.svg`
-  (navy #00293B, cyan #18BADA, orange #FF9E1B, Poppins + Inter). No raw hex
-  in components; extend tokens, do not bypass them.
+- Design token system in `src/index.css`. Since 2026-09-02, on the client's
+  instruction, the palette is three colours only: navy #00293B, cyan #18BADA
+  and white, with Poppins + Inter. Orange and green are gone from the whole
+  site, including the dashboard and the 3D care cycle. Every "grey" text
+  token is navy let down towards the cyan tint, and every light ground is a
+  cyan tint, so no surface is pure white: white is for type on navy and for
+  small marks. Every page opens on the navy hero wash, and the light
+  sections below it are the relief. The one colour outside the palette is
+  the form error red, which appears only beside a field a visitor got
+  wrong, always with an icon and a sentence. No raw hex in components;
+  extend tokens, do not bypass them.
+- Buttons are cyan or navy, nothing else, and hovering swaps one for the
+  other (`src/components/Button.tsx`). Text on cyan is always navy, text on
+  navy always white; white on cyan fails contrast and is never paired.
+  Filled pills that act as buttons elsewhere (filters, Front and Back
+  toggles, the Yes and No answers) follow the same rule: navy fill when
+  selected, navy outline when not.
 - Logo: the client's own artwork, delivered 2026-08-28. The untouched original
   is `brand/MD_Logo_Transparent.svg`; the site renders
   `public/brand/medville-logo.svg`, the same file with its viewBox cropped to
@@ -89,11 +103,11 @@ only change made to their wording.
   unreadable. White because the navy mark vanished against a dark tab bar. All vector, so nothing
   blurs at any size. `brand/Medville_Logo.svg` is the earlier cyan-tile lockup,
   kept for reference.
-- Known contrast issue, raised with the client and their call: the logo's
-  wordmark is navy #002a3b and the footer gradient runs #0a3d2e to #00293b, so
-  the wordmark measures 1.19:1 against the footer and is effectively invisible
-  there. The cyan "DIABETES" line and the leaves still read. A reversed logo
-  from the client, or a light panel behind it, fixes it whenever they want.
+- The footer sits on the navy band gradient and renders
+  `public/brand/medville-logo-on-dark.svg`, the client's artwork with the
+  wordmark fill changed from navy to white and nothing else, because the
+  navy wordmark measured 1.19:1 on the footer and was invisible. The cyan
+  "DIABETES" line and the leaves are identical in both files.
 - Search visibility. This is a single-page app, so a crawler that does not run
   JavaScript would otherwise be served the home page's title on every address.
   `scripts/prerender.mjs` runs after `vite build` and writes a real
@@ -214,6 +228,19 @@ only change made to their wording.
   kilobytes and revalidate as a 304, so the cost is nothing.
 - `ProductViewer` component: drag to rotate front/back, wheel and pinch zoom,
   double-tap zoom, keyboard support, reduced-motion support.
+- `QuickView` is a centred dialog that settles forward into the middle of
+  the screen, on the client's instruction of 2026-09-02. It used to be a
+  bottom sheet that slid up from the edge; do not bring that back.
+- Our Services, "The process at a glance": the care cycle canvas sits on the
+  left and the copy on the right from the two-column width up, on the
+  client's instruction of 2026-09-02. The swap is CSS `order` only, so the
+  markup keeps the heading first for a screen reader and for a phone.
+- The Refer a Patient buttons always say "Download Referral Form &
+  Requirements", on the client's instruction of 2026-09-02, even while the
+  packet PDF is missing and the button opens an email instead. Supplying the
+  PDF (see `REPLACE-WITH-REFERRAL-PACKET-PDF`) makes the label true.
+- No em dashes anywhere: not in copy, not in code comments, not in these
+  notes. Use a comma, a colon or a full stop.
 - Scroll-motion system in `src/lib/useReveal.ts` and the reveal block of
   `src/index.css`. `useReveal` reveals anything carrying `data-reveal`;
   a second class picks the shape (`reveal-left`, `reveal-right`, `reveal-drop`,
@@ -232,7 +259,7 @@ only change made to their wording.
 
 ## What remains (in order)
 
-1. `npm install && npm run dev` — confirm the site runs, review all pages.
+1. `npm install && npm run dev`, then confirm the site runs and review all pages.
 2. Replace placeholders, searchable by these strings:
    - Done 2026-08-26: real phone 888-564-2595 is in place (Footer, Contact,
      Qualify error, Header drawer; the header top strip was removed).
@@ -252,11 +279,11 @@ only change made to their wording.
      Still worth asking the client whether anyone actually reads the `info@`
      mailbox: an MX record proves the domain receives mail, not that that
      particular address exists.
-   - `REPLACE-WITH-REFERRAL-PACKET-PDF` (`src/data/company.ts`) — the referral
+   - `REPLACE-WITH-REFERRAL-PACKET-PDF` (`src/data/company.ts`): the referral
      form and requirements PDF. Until it is set, the referral buttons ask
      providers to request the packet by email instead of offering a download
      that would not resolve.
-   - `REPLACE-WITH-REFERRAL-VIDEO-EMBED` (`src/data/company.ts`) — the 30 to
+   - `REPLACE-WITH-REFERRAL-VIDEO-EMBED` (`src/data/company.ts`): the 30 to
      60 second referral explainer video. Until it is set, the video frame
      shows a placeholder panel.
    - Verified customer testimonials. The home page testimonials band renders
@@ -305,7 +332,7 @@ only change made to their wording.
 - Client's recurring costs: domain 8 to 15 USD per year; Google Cloud
   estimated 0 to 5 USD per month. Do not add services that break this.
 - Timeline: 7 days from receipt of client materials (logo, content, brand
-  colors — already in hand, see `brand/`).
+  colors, already in hand, see `brand/`).
 - One round of consolidated revisions at the review stage before launch.
 
 ## Design system rules
@@ -313,7 +340,9 @@ only change made to their wording.
 - Tokens live in `src/index.css` under `@theme`. Never write raw hex or
   arbitrary pixel values in components.
 - One container (`src/components/Container.tsx`); never re-declare widths.
-- Orange (`--color-cta`) is reserved for the qualify call to action only.
+- Cyan (`--color-brand-bright`) is the only filled call to action colour, and
+  navy the only other button colour. There is no orange token and no green
+  token; do not add either back.
 - Radius stance: soft consumer (`--radius-*`); do not mix in sharp corners.
 - Respect `prefers-reduced-motion` in any new animation.
 - Mobile first: build at 375 px, enhance upward; touch targets 44 px minimum.

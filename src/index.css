@@ -3,13 +3,19 @@
 /*
   Medville Diabetes design tokens.
 
-  Base palette is derived from brand/Medville_Brand.svg:
-    navy #00293B · cyan #18BADA · orange #FF9E1B · Poppins.
+  The palette is three colours, on the client's instruction of 2026-09-02:
+    cyan #18BADA, navy #00293B, and white.
 
-  The 2026-08-26 redesign adds a brand and grey system on top of that brand
-  base. Green now carries every call to action; cyan is demoted to data
-  visuals only (the glucose wave lines and the Libre brand pill). Orange is
-  kept as a token but is no longer used on any call to action.
+  Everything below is one of those three or a mix of two of them. There is
+  no orange, no green and no neutral grey anywhere on the site: the "grey"
+  text steps are navy let down towards the cyan tint, and every light
+  surface is cyan let down towards white. Pure white is kept for type on
+  navy and for very small marks, so the page ground is never plain white.
+
+  Two blends carry text duty, because cyan itself reaches only 2.31:1 on a
+  light ground: --color-brand (cyan pulled towards navy, 5.9:1) for links and
+  small controls, and --color-teal (3.3:1) for the accent word in a large
+  heading only.
 
   Rules: no raw hex in component files. If a value is used twice, it is a
   token. Backgrounds are never plain: use one of the gradient utilities below.
@@ -29,68 +35,64 @@
   --text-small: 0.875rem;
   --text-caption: 0.8125rem;
 
-  /* neutrals and brand base */
-  --color-canvas: #ffffff;
-  --color-surface: #f0f7fa;
-  --color-surface-raised: #ffffff;
-  --color-ink: #00293b;
-  --color-ink-muted: #46626f;
-  --color-ink-subtle: #78909c;
-  --color-line: #dae8ee;
-  --color-line-strong: #b4cfda;
-
   /*
-    Brand cyan system. The client's palette is cyan #18bada, navy #00293b and
-    orange #ff9e1b; the 2026-08-26 brand experiment is reverted, so cyan now
-    carries interface accent duty and brand survives only as the success
-    colour below.
-
-    Brand cyan itself only reaches 2.31:1 on white, so it is reserved for
-    fills, marks and data visuals. Text and controls use --color-brand
-    (5.89:1) and --color-brand-hover (7.10:1).
+    Grounds. The page canvas is a cyan tint rather than white, the alternate
+    band is a deeper tint, and a raised card is the lightest tint of all so
+    it still lifts off the canvas. None of the three is #ffffff.
   */
+  --color-canvas: #e6f4f9;
+  --color-surface: #d3ebf3;
+  --color-surface-raised: #f3fafc;
+  --color-ink: #00293b;
+  --color-ink-muted: #3d6273;
+  --color-ink-subtle: #5f8394;
+  --color-line: #bfdde8;
+  --color-line-strong: #9dc9da;
+
+  /* brand cyan system: the fills, the tints and the text-safe blends */
   --color-brand-abyss: #001824;
   --color-brand-deep: #00293b;
   --color-brand: #0a6d8a;
   --color-brand-hover: #086079;
   --color-brand-bright: #18bada;
-  --color-brand-soft: #e2f5fa;
-  --color-brand-mint: #c3e8f3;
-  --color-brand-tint: #f4fbfd;
-  --color-line-brand: #dde9ed;
-  --color-line-input: #d9e3e7;
-  --color-line-filter: #d7e2e6;
+  --color-brand-soft: #cdeaf3;
+  --color-brand-mint: #a9dcec;
+  --color-brand-tint: #eef8fb;
+  --color-line-brand: #b9dbe7;
+  --color-line-input: #a9cfdd;
+  --color-line-filter: #a9cfdd;
 
-  /* grey system */
-  --color-grey-light: #f4f6f7;
-  --color-grey-dark: #3e4c55;
-  --color-grey-muted: #5c6b73;
-  --color-grey-faint: #8a969c;
+  /*
+    The text steps. Named "grey" for history, but each is navy softened
+    towards the cyan tint, never a neutral. All four pass 4.5:1 on the
+    canvas; grey-faint is for the disclaimer lines only.
+  */
+  --color-grey-light: #d3ebf3;
+  --color-grey-dark: #1d4a5e;
+  --color-grey-muted: #3d6273;
+  --color-grey-faint: #56798a;
 
-  /* cyan aliases kept for data visuals and the Libre brand pill */
+  /* cyan aliases for data visuals and the brand pill */
   --color-accent: #18bada;
   /* display teal: heading accent words only. 3.34:1, which passes the 3:1
      minimum for large bold text; never use it for body copy. */
   --color-teal: #0d99bb;
-  --color-accent-soft: #e2f5fa;
+  --color-accent-soft: #cdeaf3;
   --color-accent-deep: #0b7c9d;
 
-  /*
-    Brand orange, back on the qualify call to action only, per the original
-    palette. White on orange is 2.07:1 and unusable, so every orange control
-    carries navy text (--color-ink), which reads at 7.36:1.
-  */
-  --color-cta: #ff9e1b;
-  --color-cta-hover: #f08c00;
-
-  /* on dark surfaces */
+  /* on dark surfaces: white, and white let down towards cyan */
   --color-navy-raised: #0b3a52;
   --color-on-dark: #ffffff;
   --color-on-dark-brand: #c5e3ee;
   --color-on-dark-muted: #a3c6d4;
   --color-on-dark-accent: #6fc4e0;
 
-  --color-success: #1d7a4f;
+  /*
+    The one colour outside the palette. It appears only beside a form field
+    a visitor has left wrong, always with an icon and a sentence, because an
+    error that is the same colour as everything else is an error nobody
+    sees. Nothing else on the site may use it.
+  */
   --color-danger: #b03030;
 
   /* radius: soft consumer stance, held everywhere */
@@ -108,9 +110,11 @@
   --shadow-soft: 0 1px 3px rgb(0 41 59 / 0.05), 0 12px 30px -18px rgb(0 41 59 / 0.18);
   --shadow-soft-hover: 0 2px 6px rgb(0 41 59 / 0.06), 0 20px 44px -18px rgb(0 41 59 / 0.25);
   --shadow-overlay: 0 2px 8px rgb(0 41 59 / 0.06), 0 30px 60px -24px rgb(0 41 59 / 0.28);
-  --shadow-cta: 0 2px 6px rgb(150 88 0 / 0.2), 0 14px 30px -10px rgb(150 88 0 / 0.42);
+  /* under a cyan button: the shadow is cyan, so the button glows rather
+     than sits in a grey puddle */
+  --shadow-cta: 0 2px 6px rgb(24 186 218 / 0.22), 0 14px 30px -10px rgb(24 186 218 / 0.5);
   --shadow-pill: 0 2px 6px rgb(0 41 59 / 0.08), 0 12px 28px -12px rgb(0 41 59 / 0.25);
-  --shadow-sheet: 0 -10px 50px rgb(0 20 12 / 0.35);
+  --shadow-sheet: 0 24px 70px -20px rgb(0 24 36 / 0.55);
 
   /* motion */
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
@@ -139,21 +143,26 @@
   utility classes below are the supported way to apply them.
 */
 :root {
-  --gradient-wash: linear-gradient(160deg, #ffffff 0%, #eef8fb 45%, #e1f1f8 100%);
+  /*
+    The hero ground. Every page opens on navy: the site's first impression
+    is the brand's own colour, and the light sections below it read as the
+    relief. Copy inside a .bg-wash section uses the on-dark text tokens.
+  */
+  --gradient-wash: linear-gradient(160deg, #00293b 0%, #063b55 52%, #001824 100%);
   --gradient-dark: linear-gradient(135deg, #00293b 0%, #06405a 100%);
   --gradient-cta-band: linear-gradient(120deg, #00293b 0%, #0a5a76 55%, #001824 100%);
-  --gradient-why: linear-gradient(180deg, #e2f5fa 0%, #eef8fb 100%);
-  --gradient-hero-fade: linear-gradient(90deg, #eef8fb 0%, rgb(238 248 251 / 0.92) 34%, rgb(238 248 251 / 0) 66%);
-  --overlay-wash: linear-gradient(180deg, rgb(238 248 251 / 0.9) 0%, rgb(238 248 251 / 0.62) 55%, rgb(238 248 251 / 0.85) 100%);
+  --gradient-why: linear-gradient(180deg, #cfe8f1 0%, #dff0f6 100%);
+  --gradient-hero-fade: linear-gradient(90deg, #00293b 0%, rgb(0 41 59 / 0.92) 34%, rgb(0 41 59 / 0) 66%);
+  --overlay-wash: linear-gradient(180deg, rgb(0 41 59 / 0.9) 0%, rgb(0 41 59 / 0.62) 55%, rgb(0 41 59 / 0.85) 100%);
   /* fades the left edge of a right-hand hero photograph to nothing */
   --mask-fade-left: linear-gradient(90deg, transparent 0%, rgb(0 0 0 / 0.25) 18%, rgb(0 0 0 / 0.75) 42%, #000 66%);
   /* One stage tint behind every product photograph. Per-brand tints made the
      grid look mismatched, so the cyan the client picked is used throughout. */
-  --gradient-tint-product: linear-gradient(140deg, #e2f5fa 0%, #d4ecf5 100%);
+  --gradient-tint-product: linear-gradient(140deg, #dcf0f7 0%, #c9e6f0 100%);
   /* the services care-cycle panel is lit from its centre, not from a corner */
-  --gradient-journey-cycle: radial-gradient(circle at 55% 44%, #ffffff 0%, #f1fafc 52%, #e3f3f7 100%);
+  --gradient-journey-cycle: radial-gradient(circle at 55% 44%, #f3fafc 0%, #e0f1f7 52%, #cfe8f1 100%);
   /* the panel that wipes off a services stage photograph as it enters */
-  --gradient-journey-mask: linear-gradient(135deg, #d8f0f5 0%, #f7fcfd 100%);
+  --gradient-journey-mask: linear-gradient(135deg, #c9e6f0 0%, #eef8fb 100%);
   --grain: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22160%22 height=%22160%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%222%22/%3E%3C/filter%3E%3Crect width=%22160%22 height=%22160%22 filter=%22url(%23n)%22 opacity=%220.5%22/%3E%3C/svg%3E");
 }
 
@@ -240,8 +249,13 @@ h1, h2, h3, h4 {
   50% { transform: translate(30px, -20px) scale(1.08); }
 }
 
-@keyframes sheet-up {
-  from { opacity: 0; transform: translateY(48px); }
+/*
+  A dialog arriving in the middle of the screen. It settles from slightly
+  small and slightly low, so it reads as coming forward to the visitor
+  rather than sliding up from under the page the way a bottom sheet does.
+*/
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.94); }
   to { opacity: 1; transform: none; }
 }
 
@@ -274,7 +288,7 @@ h1, h2, h3, h4 {
   animation: draw var(--draw-duration, 3s) var(--ease-out-quart) var(--draw-delay, 0s) both;
 }
 
-.sheet-up { animation: sheet-up 380ms var(--ease-out-quart) both; }
+.dialog-in { animation: dialog-in 340ms var(--ease-out-quart) both; }
 
 .fade-in { animation: fade-in 220ms both; }
 
@@ -443,7 +457,7 @@ video[data-parallax] {
   .floaty2,
   .blob-drift,
   .wave-draw,
-  .sheet-up { animation: none; }
+  .dialog-in { animation: none; }
   .wave-dot::after { animation: none; opacity: 0; }
   .reveal-start {
     opacity: 1;
@@ -498,13 +512,25 @@ video[data-parallax] {
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-}/* ---- hero ---- */
+}
 
+/* ---- hero ---- */
+
+/*
+  The hero sits on the navy wash like every other page's, so its copy takes
+  the on-dark tokens and the accent word goes to the bright cyan, which
+  reads at 6.4:1 on navy.
+*/
 .journey-hero {
   position: relative;
   overflow: hidden;
   padding: 72px 0 90px;
+  color: var(--color-on-dark);
 }
+
+.journey-hero .journey-eyebrow { color: var(--color-on-dark-accent); }
+.journey-hero h1 { color: var(--color-on-dark); }
+.journey-hero em { color: var(--color-brand-bright); }
 
 .journey-hero-grid {
   position: relative;
@@ -524,7 +550,7 @@ video[data-parallax] {
 .journey-hero-lede {
   max-width: 37ch;
   margin: 24px 0 0;
-  color: var(--color-grey-muted);
+  color: var(--color-on-dark-brand);
   font-size: var(--text-body-lg);
   line-height: 1.5;
 }
@@ -541,7 +567,7 @@ video[data-parallax] {
   align-items: center;
   gap: 10px;
   margin-top: 19px;
-  color: var(--color-grey-muted);
+  color: var(--color-on-dark-muted);
   font-size: var(--text-small);
   font-weight: 600;
 }
@@ -551,7 +577,7 @@ video[data-parallax] {
   width: 38px;
   height: 1px;
   flex: none;
-  background: var(--color-accent-deep);
+  background: var(--color-brand-bright);
 }
 
 .journey-hero-photo {
@@ -623,12 +649,21 @@ video[data-parallax] {
   padding: 110px 0 100px;
 }
 
+/*
+  The cycle sits on the left and the copy on the right, on the client's
+  instruction of 2026-09-02. The markup keeps the copy first, so a screen
+  reader and a phone both meet the heading before the picture; the swap is
+  visual only, done with grid order from the two-column width up.
+*/
 .journey-cycle-grid {
   display: grid;
   align-items: center;
   gap: clamp(24px, 6vw, 88px);
-  grid-template-columns: minmax(0, 0.78fr) minmax(430px, 1.22fr);
+  grid-template-columns: minmax(430px, 1.22fr) minmax(0, 0.78fr);
 }
+
+.journey-cycle-copy { order: 2; }
+.journey-cycle-canvas { order: 1; }
 
 .journey-cycle-copy h2,
 .journey-stages-intro h2 {
@@ -663,7 +698,7 @@ video[data-parallax] {
   place-items: center;
   border-radius: var(--radius-full);
   color: var(--color-ink);
-  background: var(--color-cta);
+  background: var(--color-brand-bright);
   font-family: var(--font-display);
   font-size: 0.6875rem;
   font-weight: 800;
@@ -720,9 +755,9 @@ video[data-parallax] {
 }
 
 .journey-cycle-labels li.is-active i {
-  border-color: var(--color-cta);
+  border-color: var(--color-brand-bright);
   color: var(--color-ink);
-  background: var(--color-cta);
+  background: var(--color-brand-bright);
 }
 
 .journey-cycle-canvas {
@@ -785,8 +820,8 @@ video[data-parallax] {
 
 .journey-node.is-active {
   color: var(--color-ink);
-  background: var(--color-cta);
-  box-shadow: 0 0 0 4px rgb(255 158 27 / 0.16);
+  background: var(--color-brand-bright);
+  box-shadow: 0 0 0 4px rgb(24 186 218 / 0.22);
 }
 
 .journey-core {
@@ -924,7 +959,7 @@ video[data-parallax] {
 }
 
 .journey-stage-visual figcaption span {
-  color: var(--color-cta);
+  color: var(--color-on-dark-accent);
   font-family: var(--font-display);
   font-size: 0.625rem;
   font-weight: 700;
@@ -1154,7 +1189,9 @@ video[data-parallax] {
   .journey-hero-grid { grid-template-columns: 1fr; gap: 48px; }
   .journey-hero-photo { max-width: 650px; margin: 0 auto; }
   .journey-cycle-grid { grid-template-columns: 1fr; }
-  .journey-cycle-canvas { height: 430px; max-width: 720px; width: 100%; margin: 0 auto; }
+  /* one column: back to reading order, heading before picture */
+  .journey-cycle-copy { order: 1; }
+  .journey-cycle-canvas { order: 2; height: 430px; max-width: 720px; width: 100%; margin: 0 auto; }
   .journey-stage-grid { gap: 45px; }
   .journey-stage-visual > img { min-height: 400px; }
 }

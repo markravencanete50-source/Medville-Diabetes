@@ -60,16 +60,16 @@ export default function ProductsLanding() {
           <Grain opacity={0.05} />
           <Container wide className="relative py-12 md:py-20">
             <p className="rise-in m-0">
-              <Eyebrow>Our Products</Eyebrow>
+              <Eyebrow onDark>Our Products</Eyebrow>
             </p>
             <h1
-              className="rise-in mt-3 max-w-[20ch] font-display text-h1 font-bold text-ink"
+              className="rise-in mt-3 max-w-[20ch] font-display text-h1 font-bold text-on-dark"
               style={{ "--rise-delay": "140ms" } as React.CSSProperties}
             >
               Diabetes Technology That Fits Into Real Life
             </h1>
             <p
-              className="rise-in mt-4 max-w-[62ch] text-body-lg leading-relaxed text-grey-dark"
+              className="rise-in mt-4 max-w-[62ch] text-body-lg leading-relaxed text-on-dark-brand"
               style={{ "--rise-delay": "300ms" } as React.CSSProperties}
             >
               Explore continuous glucose monitors, sensors, supplies, and insulin
@@ -99,7 +99,7 @@ export default function ProductsLanding() {
                       left a band of dead space above the copy. Matching the frame
                       to the source ratio lets the product fill the card.
                     */}
-                    <div className="aspect-[4/3] overflow-hidden bg-canvas">
+                    <div className="aspect-[4/3] overflow-hidden bg-surface-raised">
                       <img
                         src={entry.image}
                         alt={entry.alt}

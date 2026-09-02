@@ -55,10 +55,13 @@ export interface PostRecord {
   published: boolean;
 }
 
+/* There is no button colour here. Every button is cyan or navy, on the
+   client's instruction of 2026-09-02, so the buttons follow the two brand
+   colours above and cannot drift from them. A `cta` value left in an older
+   saved document is ignored. */
 export interface ThemeRecord {
   brand: string;
   brandBright: string;
-  cta: string;
   ink: string;
   surface: string;
 }
@@ -68,9 +71,8 @@ export interface ThemeRecord {
 export const THEME_DEFAULTS: ThemeRecord = {
   brand: "#0a6d8a",
   brandBright: "#18bada",
-  cta: "#ff9e1b",
   ink: "#00293b",
-  surface: "#f0f7fa",
+  surface: "#d3ebf3",
 };
 
 /* ---- page content ---- */

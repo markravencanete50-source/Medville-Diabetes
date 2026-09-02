@@ -6,7 +6,15 @@ import { PRODUCT_TINT } from "./ProductCard";
 import Button from "./Button";
 
 /*
-  Quick view: a bottom sheet that shows one product without leaving the grid.
+  Quick view: a centred dialog that shows one product without leaving the
+  grid.
+
+  It opens in the middle of the screen and settles forward into place, on
+  the client's instruction of 2026-09-02; the earlier build slid up from the
+  bottom edge like a phone sheet, which on a wide screen looked like the
+  page had broken. The panel is padded away from every viewport edge and
+  scrolls inside itself when the product has more to say than the screen
+  has room for.
 
   It is the touch equivalent of the card hover, so the Front and Back toggle
   is the important control here. Escape closes it, the page behind is locked
@@ -50,12 +58,14 @@ export default function QuickView({
 
   const image = face === "back" ? product.imageBack : product.imageFront;
 
+  /* The selected face is a navy fill, the other a navy outline: the same
+     two-colour rule every button on the site follows. */
   const toggle = (value: "front" | "back") => {
     const selected = face === value;
     return `min-h-[42px] rounded-full border-[1.5px] px-6 py-2 font-display text-[0.84rem] font-semibold transition-all duration-(--duration-micro) ${
       selected
-        ? "border-brand bg-brand text-on-dark"
-        : "border-line-filter bg-canvas text-grey-dark hover:border-brand"
+        ? "border-ink bg-ink text-on-dark"
+        : "border-ink/30 bg-surface-raised text-ink hover:border-ink"
     }`;
   };
 
@@ -64,34 +74,27 @@ export default function QuickView({
       role="dialog"
       aria-modal="true"
       aria-label={`${product.name} quick view`}
-      className="fixed inset-0 z-[60] flex items-end justify-center"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6"
     >
       <button
         type="button"
         aria-label="Close the quick view"
         onClick={onClose}
-        className="fade-in absolute inset-0 cursor-pointer border-none bg-[rgb(0_26_18/0.55)] backdrop-blur-[3px]"
+        className="fade-in absolute inset-0 cursor-pointer border-none bg-ink/70 backdrop-blur-[3px]"
       />
 
-      <div className="sheet-up relative max-h-[88vh] w-[min(100%,880px)] overflow-auto rounded-t-sheet bg-surface-raised shadow-sheet">
-        <div
-          aria-hidden="true"
-          className="sticky top-0 z-10 flex justify-center bg-gradient-to-b from-surface-raised to-transparent pt-2.5"
-        >
-          <span className="h-[5px] w-11 rounded-full bg-line-brand" />
-        </div>
-
+      <div className="dialog-in relative max-h-[min(88vh,820px)] w-[min(100%,880px)] overflow-auto rounded-sheet bg-surface-raised shadow-sheet">
         <button
           ref={closeRef}
           type="button"
           aria-label="Close"
           onClick={onClose}
-          className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-grey-light text-ink transition-colors duration-(--duration-micro) hover:bg-line-brand"
+          className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-brand-soft text-ink transition-colors duration-(--duration-micro) hover:bg-ink hover:text-on-dark"
         >
           <X size={18} />
         </button>
 
-        <div className="grid gap-7 px-7 pb-8 pt-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))]">
+        <div className="grid gap-7 px-6 pb-7 pt-7 sm:px-8 sm:pb-8 sm:pt-8 [grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))]">
           <div>
             <div className={`relative rounded-well p-5 ${PRODUCT_TINT}`}>
               <img
@@ -99,7 +102,7 @@ export default function QuickView({
                 alt={`${product.name}, ${face}`}
                 className="aspect-square w-full rounded-sm object-contain"
               />
-              <span className="absolute left-3.5 top-3.5 rounded-full bg-canvas/90 px-3.5 py-1.5 text-[0.78rem] font-semibold text-brand">
+              <span className="absolute left-3.5 top-3.5 rounded-full bg-surface-raised px-3.5 py-1.5 text-[0.78rem] font-semibold text-brand">
                 {face === "back" ? "Back" : "Front"}
               </span>
             </div>
@@ -113,7 +116,7 @@ export default function QuickView({
             </div>
           </div>
 
-          <div>
+          <div className="pr-10 sm:pr-8">
             <p className="m-0 text-[0.78rem] font-semibold uppercase tracking-[0.18em] text-brand">
               {product.brand} · {product.category}
             </p>
@@ -136,7 +139,7 @@ export default function QuickView({
               </Button>
               <Link
                 to={`/products/${product.slug}`}
-                className="inline-flex min-h-[46px] items-center justify-center rounded-full border-[1.5px] border-brand-mint px-6 py-2.5 font-display text-[0.875rem] font-semibold text-brand transition-colors duration-(--duration-micro) hover:border-brand"
+                className="inline-flex min-h-[46px] items-center justify-center rounded-full border-[1.5px] border-ink/30 px-6 py-2.5 font-display text-[0.875rem] font-semibold text-ink transition-colors duration-(--duration-micro) hover:border-ink hover:bg-ink hover:text-on-dark"
               >
                 Full details
               </Link>

@@ -198,8 +198,8 @@ export default function Services() {
   return (
     <div className={`journey ${motion ? "journey-motion" : ""}`}>
       <section className="journey-hero bg-wash">
-        <Blob tone="brand" strength={0.16} blur={48} size={500} className="-left-[205px] -top-[210px]" />
-        <Blob tone="brand" strength={0.11} blur={48} size={520} className="-bottom-[250px] -right-[220px]" />
+        <Blob tone="brand" strength={0.28} blur={48} size={500} className="-left-[205px] -top-[210px]" />
+        <Blob tone="brand" strength={0.2} blur={48} size={520} className="-bottom-[250px] -right-[220px]" />
         <Grain />
         <Container wide className="journey-hero-grid">
           <div className="journey-hero-copy">
@@ -212,7 +212,7 @@ export default function Services() {
               provider, making the process simple from start to finish.
             </p>
             <div className="journey-hero-actions">
-              <Button variant="ghost" onClick={() => goToStage(0)}>
+              <Button variant="ghost-dark" onClick={() => goToStage(0)}>
                 See the journey
                 <ArrowDown size={16} strokeWidth={2.2} />
               </Button>

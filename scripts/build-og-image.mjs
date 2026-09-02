@@ -14,7 +14,7 @@
   - The page is captured at 1440x756 and scaled down to 1200x630. Both are the
     same 1.905 ratio, and the extra room stops the hero's last line being
     sliced in half at the bottom edge of the card.
-  - "Drag to flip" and the Front/Back badge are hidden first. They invite an
+  - The "drag to flip" badge and the Front/Back badge are hidden first. They invite an
     action nobody can take inside a chat preview.
 
   Output is JPEG at quality 86, which lands around 70 kB. WhatsApp quietly
@@ -62,7 +62,7 @@ try {
   await page.evaluate(() => {
     for (const el of document.querySelectorAll("span")) {
       const text = (el.textContent ?? "").trim();
-      if (text === "Drag to flip" || text === "Front" || text === "Back") {
+      if (/drag to flip$/i.test(text) || text === "Front" || text === "Back") {
         el.style.display = "none";
       }
     }

@@ -6,8 +6,10 @@ import { Banner, Card, Field, PageHeader, Spinner, useToast } from "../ui";
 /*
   Colours.
 
-  The client can change five brand colours, and every change is checked for
-  readability before it can be saved. This is the guarded approach on purpose:
+  The client can change four brand colours, and every change is checked for
+  readability before it can be saved. Buttons are not among them: every
+  button is the highlight colour or the text colour, so they follow those
+  two and cannot be set apart from them. This is the guarded approach on purpose:
   a free colour picker on a medical supply site produces grey text on a pale
   background within a week, and the people reading this site are checking
   glucose information.
@@ -55,24 +57,13 @@ const TOKENS: TokenDef[] = [
   {
     key: "brandBright",
     label: "Highlight colour",
-    help: "Marks, underlines and the glucose wave. Never used for small text.",
+    help: "The main buttons, marks, underlines and the glucose wave. Button text on it is always the text colour.",
     check: {
       against: "#ffffff",
       ratio: 3,
       reason:
         "Below 3 to 1 this is fine behind decoration, but do not use it for text or for an icon that has to be understood.",
       blocking: false,
-    },
-  },
-  {
-    key: "cta",
-    label: "Button colour",
-    help: "The Check if you Qualify button. Its text is always navy.",
-    check: {
-      against: "ink",
-      ratio: 4.5,
-      reason: "The button text sits on it, so it needs 4.5 to 1 against the text colour.",
-      blocking: true,
     },
   },
   {
@@ -310,9 +301,9 @@ export default function Appearance() {
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <span
               className="inline-flex min-h-[42px] items-center rounded-full px-6 font-display text-[14px] font-semibold"
-              style={{ background: theme.cta, color: theme.ink }}
+              style={{ background: theme.brandBright, color: theme.ink }}
             >
-              Check if you Qualify
+              Check My Eligibility
             </span>
             <span className="h-1.5 w-24 rounded-full" style={{ background: theme.brandBright }} />
           </div>

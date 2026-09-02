@@ -32,9 +32,10 @@ import {
 
   Two things on this page wait on the client. The referral packet PDF and the
   explainer video do not exist yet, so both are read from constants in
-  data/company.ts. Until the packet is supplied the download buttons ask
-  providers to request it by email, which is a working route rather than a
-  link to a file that is not there; until the video is supplied its frame
+  data/company.ts. The download buttons say "Download" whatever the state,
+  on the client's instruction of 2026-09-02; until the packet is supplied
+  they open an email asking for it, which is a working route rather than a
+  link to a file that is not there. Until the video is supplied its frame
   shows a placeholder panel. Setting either constant switches the page over
   with no other change.
 
@@ -62,9 +63,7 @@ const STEPS = [
 ];
 
 const PACKET_READY = REFERRAL_PACKET_URL !== "";
-const PACKET_LABEL = PACKET_READY
-  ? "Download Referral Form & Requirements"
-  : "Request Referral Form & Requirements";
+const PACKET_LABEL = "Download Referral Form & Requirements";
 const PACKET_HREF = PACKET_READY
   ? REFERRAL_PACKET_URL
   : `${EMAIL_HREF}?subject=Referral%20form%20and%20requirements%20request`;
@@ -86,16 +85,16 @@ export default function ReferPatient() {
           <Container wide className="relative grid items-center gap-10 py-14 md:py-20 lg:grid-cols-2 lg:gap-14">
             <div>
               <p className="rise-in m-0">
-                <Eyebrow>For healthcare providers</Eyebrow>
+                <Eyebrow onDark>For healthcare providers</Eyebrow>
               </p>
               <h1
-                className="rise-in mt-3 max-w-[20ch] font-display text-h1 font-bold leading-[1.08] text-ink"
+                className="rise-in mt-3 max-w-[20ch] font-display text-h1 font-bold leading-[1.08] text-on-dark"
                 style={{ "--rise-delay": "150ms" } as React.CSSProperties}
               >
                 A Simpler Way to Refer Patients for Diabetes Supplies
               </h1>
               <p
-                className="rise-in mt-5 max-w-[54ch] text-body-lg leading-relaxed text-grey-dark"
+                className="rise-in mt-5 max-w-[54ch] text-body-lg leading-relaxed text-on-dark-brand"
                 style={{ "--rise-delay": "320ms" } as React.CSSProperties}
               >
                 Send your patient to Medville Diabetes and we will help guide them
@@ -109,12 +108,12 @@ export default function ReferPatient() {
                   {PACKET_LABEL}
                   <Download size={16} strokeWidth={2.2} />
                 </Button>
-                <Button to="/contact" variant="ghost" className="min-h-[50px]">
+                <Button to="/contact" variant="ghost-dark" className="min-h-[50px]">
                   Contact Our Team
                 </Button>
               </div>
               <p
-                className="rise-in mt-4.5 flex items-start gap-2 text-caption text-grey-muted"
+                className="rise-in mt-4.5 flex items-start gap-2 text-caption text-on-dark-muted"
                 style={{ "--rise-delay": "640ms" } as React.CSSProperties}
               >
                 <Sparkles size={14} strokeWidth={2.2} className="mt-0.5 flex-none text-brand-bright" />

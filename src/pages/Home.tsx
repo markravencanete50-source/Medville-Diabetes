@@ -157,28 +157,29 @@ export default function Home() {
   return (
     <div ref={revealRef}>
       <div ref={parallaxRef}>
-        {/* HERO */}
+        {/* HERO: navy, like every page's opening, with the product card lit
+            from behind in the brand cyan */}
         <section className="bg-wash relative overflow-hidden">
-          <Blob tone="brand" strength={0.22} blur={40} size={460} duration="18s" className="-left-[120px] -top-[140px]" />
-          <Blob tone="cyan" strength={0.18} blur={46} size={520} duration="24s" reverse className="-bottom-[160px] -right-[100px]" />
-          <Grain opacity={0.05} />
-          <div aria-hidden="true" className="pointer-events-none absolute bottom-0 left-0 right-0 h-[150px] opacity-55">
-            <GlucoseWave variant="hero" className="h-full" />
+          <Blob tone="brand" strength={0.3} blur={40} size={460} duration="18s" className="-left-[120px] -top-[140px]" />
+          <Blob tone="brand" strength={0.22} blur={46} size={520} duration="24s" reverse className="-bottom-[160px] -right-[100px]" />
+          <Grain opacity={0.06} />
+          <div aria-hidden="true" className="pointer-events-none absolute bottom-0 left-0 right-0 h-[150px] opacity-40">
+            <GlucoseWave variant="onDark" className="h-full" />
           </div>
 
           <Container wide className="relative grid items-center gap-10 py-14 md:py-24 lg:grid-cols-2 lg:gap-16">
             <div>
-              <p className="rise-in m-0 inline-flex items-center rounded-full border border-brand/25 bg-canvas/70 px-4 py-1.5 text-caption font-semibold uppercase tracking-[0.08em] text-brand">
+              <p className="rise-in m-0 inline-flex items-center rounded-full border border-on-dark-accent/40 bg-navy-raised/70 px-4 py-1.5 text-caption font-semibold uppercase tracking-[0.08em] text-on-dark-accent">
                 Diabetes Supplies Made Simpler
               </p>
               <h1
-                className="rise-in mt-5 max-w-[15ch] font-display text-display font-bold leading-[1.05] text-ink"
+                className="rise-in mt-5 max-w-[15ch] font-display text-display font-bold leading-[1.05] text-on-dark"
                 style={{ "--rise-delay": "140ms" } as React.CSSProperties}
               >
-                Manage Less. <span className="text-teal">Live More.</span>
+                Manage Less. <span className="text-brand-bright">Live More.</span>
               </h1>
               <p
-                className="rise-in mt-5 max-w-[52ch] text-body-lg leading-relaxed text-grey-dark"
+                className="rise-in mt-5 max-w-[52ch] text-body-lg leading-relaxed text-on-dark-brand"
                 style={{ "--rise-delay": "300ms" } as React.CSSProperties}
               >
                 Getting the diabetes supplies you rely on should not add more to your
@@ -193,12 +194,12 @@ export default function Home() {
                   Check My Eligibility
                   <ArrowRight size={16} strokeWidth={2.2} />
                 </Button>
-                <Button to="/products" variant="ghost" className="min-h-[50px]">
+                <Button to="/products" variant="ghost-dark" className="min-h-[50px]">
                   Explore Products
                 </Button>
               </div>
               <p
-                className="rise-in mt-4.5 text-caption text-grey-muted"
+                className="rise-in mt-4.5 text-caption text-on-dark-muted"
                 style={{ "--rise-delay": "620ms" } as React.CSSProperties}
               >
                 Quick to get started. No obligation. Coverage and eligibility vary by plan.
@@ -216,10 +217,11 @@ export default function Home() {
           </Container>
         </section>
 
-        {/* NUMBERS BAND */}
+        {/* NUMBERS BAND: a deeper navy shelf under the hero, separated from
+            it by a cyan hairline so the two dark grounds read as two */}
         <section
           ref={statsRef as React.RefObject<HTMLElement>}
-          className="bg-dark-band relative overflow-hidden"
+          className="bg-dark-band relative overflow-hidden border-t border-brand-bright/30"
         >
           <Grain opacity={0.06} />
           <Container
@@ -398,7 +400,7 @@ export default function Home() {
                   data-reveal={index * 180}
                   className="reveal-swift flex items-start gap-3.5"
                 >
-                  <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-surface-raised text-brand shadow-[0_1px_3px_rgb(0_41_59/0.1)]">
+                  <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-ink text-brand-bright shadow-[0_1px_3px_rgb(0_41_59/0.1)]">
                     <item.icon size={18} strokeWidth={2.1} />
                   </span>
                   <p className="m-0 text-small leading-relaxed text-grey-dark">{item.text}</p>
@@ -432,7 +434,7 @@ export default function Home() {
                     <figcaption className="mt-auto text-small font-semibold text-ink">
                       {item.name}
                       {item.location && (
-                        <span className="font-medium text-grey-muted"> — {item.location}</span>
+                        <span className="font-medium text-grey-muted">, {item.location}</span>
                       )}
                     </figcaption>
                   </figure>
