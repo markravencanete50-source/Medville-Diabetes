@@ -31,20 +31,31 @@ import { useParallax, useReveal } from "../lib/useReveal";
   against the scroll.
 */
 
+/*
+  The client's own photographs, delivered 2026-09-02. They are real
+  photographs rather than the illustrations they replace, which is why the
+  card below shows each one whole in a banner instead of using it as a
+  background behind the text: the vision photograph is more than twice as
+  wide as it is tall, and a near-square frame cropped the family out of it.
+*/
 const MISSION_VISION = [
   {
     icon: Compass,
     title: "Our Mission",
     body: "Our mission is to make getting diabetes supplies easier, more dependable, and less stressful. We combine access to trusted products with clear communication and responsive support, helping people navigate the supply process without adding more unnecessary work to diabetes management.",
     image: "/about/mission-bg.webp",
-    alt: "A family looks over green hills, with diabetes supplies and a plant in front.",
+    width: 1290,
+    height: 860,
+    alt: "A pharmacy delivery is handed to a smiling woman at her front door.",
   },
   {
     icon: Eye,
     title: "Our Vision",
     body: "Our vision is a diabetes supply experience that fits more naturally into everyday life, where people spend less time chasing answers, worrying about supplies, or trying to figure out what comes next. We want dependable access and helpful support to feel like the standard, giving the people we serve more time and confidence to focus on everything beyond managing diabetes.",
     image: "/about/vision-bg.webp",
-    alt: "A man walks a park path toward his family, with diabetes supplies and a shield in front.",
+    width: 960,
+    height: 430,
+    alt: "A family shares a meal in the garden while one of them checks a glucose reading on her phone.",
   },
 ];
 
@@ -110,7 +121,10 @@ export default function About() {
                 width={1536}
                 height={1024}
                 data-parallax="0.35"
-                className="mask-fade-left h-full w-full object-cover object-right"
+                /* Centred, not right-aligned: the frame is 1.55:1 and the
+                   photograph 1.5:1, so almost all of it survives, and the
+                   woman it is about sits in the middle rather than the edge. */
+                className="mask-fade-left h-full w-full object-cover object-center"
               />
             </div>
 
@@ -157,7 +171,7 @@ export default function About() {
 
               <img
                 src="/about/about-hero.webp"
-                alt="An adult goes about a normal day at home while wearing a continuous glucose monitor."
+                alt="A woman wearing a continuous glucose monitor on her arm checks a reading at her kitchen table."
                 width={1536}
                 height={1024}
                 className="rise-in mb-14 h-auto w-full rounded-lg shadow-soft lg:hidden"
@@ -204,19 +218,31 @@ export default function About() {
                   data-reveal={180 + index * 210}
                   className={`${
                     index === 0 ? "reveal-swing-left" : "reveal-swing-right"
-                  } reveal-glacial group relative overflow-hidden rounded-lg shadow-soft`}
+                  } reveal-glacial group flex flex-col overflow-hidden rounded-lg bg-surface-raised shadow-soft`}
                 >
-                  <img
-                    src={item.image}
-                    alt={item.alt}
-                    loading="lazy"
-                    width={1536}
-                    height={1024}
-                    data-parallax="0.35"
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                  <div className="relative m-4 mt-52 rounded-md bg-surface-raised/95 p-7 backdrop-blur-sm md:m-6 md:mt-60 md:p-8">
-                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-brand-soft text-brand">
+                  {/* A fixed 16:9 band, so the two photographs line up with
+                      each other whatever shape they arrived in. The frame
+                      clips; the photograph itself is free to drift. */}
+                  <div className="aspect-[16/9] overflow-hidden">
+                    <img
+                      src={item.image}
+                      alt={item.alt}
+                      loading="lazy"
+                      width={item.width}
+                      height={item.height}
+                      data-parallax="0.35"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  {/*
+                    Pulled up over the foot of the photograph, which is the
+                    overlap the earlier design had and worth keeping. The
+                    panel is the card's own colour, so where it crosses the
+                    photograph it reads as a frosted step and below that it
+                    simply becomes the card.
+                  */}
+                  <div className="relative -mt-10 flex flex-1 flex-col rounded-t-lg bg-surface-raised/95 px-7 pb-7 pt-6 backdrop-blur-sm md:px-8 md:pb-8">
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-ink text-brand-bright">
                       <item.icon size={22} strokeWidth={2} />
                     </span>
                     <h3 className="mt-4 font-display text-h3 font-bold text-ink">{item.title}</h3>
