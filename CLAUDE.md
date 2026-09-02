@@ -252,6 +252,17 @@ only change made to their wording.
   give consecutive sections different shapes, never put `data-reveal` and
   `data-parallax` on the same element, and keep every starting state inside
   the hook so nothing is stranded invisible under reduced motion.
+- About page photography. The hero, Our Mission and Our Vision pictures are
+  the client's own photographs, delivered 2026-09-02, converted to WebP at
+  `public/about/about-hero.webp`, `mission-bg.webp` and `vision-bg.webp`.
+  They replaced generated illustrations. The mission and vision cards show
+  each photograph whole in a 16:9 band with the text panel pulled up over
+  its foot, rather than using it as a full-bleed background: the vision
+  photograph is 2.23:1 and a near-square frame cropped the family out of
+  it. `scripts/generate-about-placeholders.mjs` still exists but refuses to
+  overwrite a file that is already there, so it cannot touch these. The
+  three "What You Can Expect From Us" pictures are still illustrations and
+  are the remaining About placeholders.
 - 11 products in `src/data/products.ts` with plain-English copy.
 - Placeholder vector product art in `public/products/`.
 - PHI-safe intake function source in `functions/`.
@@ -291,6 +302,10 @@ only change made to their wording.
      placeholder quote ever reaches a visitor.
    - A provider photograph for the Refer a Patient hero, which currently
      borrows a services photograph.
+   - Photographs for the three "What You Can Expect From Us" cards on the
+     About page, which are still illustrations.
+   - Done 2026-09-02: the About page hero, Our Mission and Our Vision
+     photographs are the client's own.
    - Done 2026-08-28: the production domain is www.medvillediabetes.com,
      bought through GoDaddy. It is written into robots.txt, sitemap.xml, and
      the canonical, og:url, og:image and twitter:image tags in index.html,
