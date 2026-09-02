@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, type CSSProperties } from "react";
 import {
   colorToken,
   fontToken,
@@ -6,6 +6,7 @@ import {
   type PostBlock,
   type InlineSpan,
 } from "../data/blog";
+import { ensureFontLoaded } from "../data/fonts";
 
 /*
   Renders a post's blocks.
@@ -18,6 +19,10 @@ import {
 
   Nothing is rendered with dangerouslySetInnerHTML. Every string arrives as a
   React text child, which React escapes, so stored text cannot become markup.
+  A colour or font reaches an inline style only after the decoder in
+  data/blog.ts has checked it, and React writes styles as properties, never
+  as a parsed attribute string, so a stored value cannot become a selector or
+  a second declaration.
 */
 
 function Inline({ spans }: { spans: InlineSpan[] }) {
@@ -57,7 +62,31 @@ const CALLOUT_TONE: Record<string, string> = {
   warn: "border-cta bg-cta/10",
 };
 
+/* The colour and font a text block asked for, as a style. A block that asked
+   for neither gets its defaults from the class names on the element, so the
+   style is left empty rather than restating them. */
+function textStyle(
+  block: { color?: string; font?: string },
+  fallbackFont: "body" | "display",
+  defaultColor?: string,
+): CSSProperties {
+  const style: CSSProperties = {};
+  if (block.color) style.color = colorToken(block.color as never);
+  else if (defaultColor) style.color = defaultColor;
+  if (block.font) style.fontFamily = fontToken(block.font, fallbackFont);
+  return style;
+}
+
 export default function PostBody({ blocks }: { blocks: PostBlock[] }) {
+  /* Any Google font the article uses is fetched once the blocks are known,
+     before the browser has laid them out. The site's own faces and the
+     system faces need nothing, and the loader knows which is which. */
+  useEffect(() => {
+    for (const block of blocks) {
+      if ("font" in block) ensureFontLoaded(block.font);
+    }
+  }, [blocks]);
+
   return (
     <div className="flex flex-col gap-6">
       {blocks.map((block) => {
@@ -70,7 +99,7 @@ export default function PostBody({ blocks }: { blocks: PostBlock[] }) {
                 className={`m-0 font-display font-bold text-ink ${
                   block.level === 3 ? "mt-3 text-[1.25rem]" : "mt-5 text-h3"
                 } ${block.align === "center" ? "text-center" : ""}`}
-                style={block.color ? { color: colorToken(block.color) } : undefined}
+                style={textStyle(block, "display")}
               >
                 <Inline spans={parseInline(block.text)} />
               </Tag>
@@ -84,10 +113,7 @@ export default function PostBody({ blocks }: { blocks: PostBlock[] }) {
                 className={`m-0 text-body leading-relaxed ${
                   block.align === "center" ? "text-center" : ""
                 }`}
-                style={{
-                  color: colorToken(block.color ?? "muted"),
-                  fontFamily: fontToken(block.font),
-                }}
+                style={textStyle(block, "body", colorToken("muted"))}
               >
                 <Inline spans={parseInline(block.text)} />
               </p>
@@ -101,6 +127,7 @@ export default function PostBody({ blocks }: { blocks: PostBlock[] }) {
                 className={`m-0 flex flex-col gap-2 pl-6 text-body leading-relaxed text-grey-dark ${
                   block.style === "number" ? "list-decimal" : "list-disc"
                 }`}
+                style={textStyle(block, "body")}
               >
                 {block.items
                   .filter((item) => item.trim() !== "")
@@ -116,7 +143,10 @@ export default function PostBody({ blocks }: { blocks: PostBlock[] }) {
           case "quote":
             return (
               <figure key={block.id} className="m-0">
-                <blockquote className="m-0 rounded-lg border-l-4 border-brand bg-brand-tint px-7 py-5 font-display text-h3 font-semibold leading-snug text-brand">
+                <blockquote
+                  className="m-0 rounded-lg border-l-4 border-brand bg-brand-tint px-7 py-5 font-display text-h3 font-semibold leading-snug text-brand"
+                  style={textStyle(block, "display")}
+                >
                   <Inline spans={parseInline(block.text)} />
                 </blockquote>
                 {block.attribution && (

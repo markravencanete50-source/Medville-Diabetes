@@ -467,4 +467,28 @@ const xml = [
 ].join("\n");
 await writeFile(join(DIST, "sitemap.xml"), xml, "utf-8");
 
+/*
+  robots.txt names the sitemap by absolute address, so it is written here
+  from the same origin rather than kept by hand in public/, where it named
+  the wrong host once already. Changing SITE_ORIGIN now changes everything
+  that carries the host: the sitemap, this file, every canonical link and
+  every preview card.
+*/
+await writeFile(
+  join(DIST, "robots.txt"),
+  [
+    "User-agent: *",
+    "Allow: /",
+    "",
+    "# The administration dashboard. Access is decided by an Identity Platform",
+    "# login, not by hiding the path, but there is no reason for it to appear in",
+    "# search results.",
+    "Disallow: /admin",
+    "",
+    `Sitemap: ${origin}/sitemap.xml`,
+    "",
+  ].join("\n"),
+  "utf-8",
+);
+
 console.log(`  prerendered ${sitemap.length + 1} addresses, sitemap lists ${sitemap.length}`);

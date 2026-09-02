@@ -113,9 +113,12 @@ only change made to their wording.
   crawler-visible tags wait.
 - `dist/sitemap.xml` is written by the same script, from the addresses it just
   emitted, so a new page or a published article cannot reach the site without
-  reaching the sitemap. There is deliberately no `public/sitemap.xml`: the
-  hand-kept file it replaced could not list an article and drifted from the
-  routes. `lastmod` appears only where the date is real, which today means
+  reaching the sitemap. There is deliberately no `public/sitemap.xml` and,
+  since 2026-09-02, no `public/robots.txt` either: the hand-kept files they
+  replaced drifted from the routes and from the host. Both are written from
+  `SITE_ORIGIN` in `src/data/pageMeta.ts`, which makes that constant the one
+  line to change when the custom domain is connected.
+  `lastmod` appears only where the date is real, which today means
   articles; stamping the build date on every address would claim every page
   changed on every deploy.
 - `usePageMeta` writes the title, description, canonical, robots directive and
@@ -171,10 +174,16 @@ only change made to their wording.
   `src/components/PostBody.tsx` is the only thing that renders them. The
   dashboard preview mounts that same component, so a preview cannot drift from
   the published article. Two rules to keep: nothing is ever rendered with
-  dangerouslySetInnerHTML, and a block stores a token name for colour and font
-  rather than a raw value, so a post cannot introduce type or colour the rest
-  of the site does not use. Only http, https, root-relative and mailto links
-  survive the parser. Pages are `/blog` and `/blog/:slug`; the home band and
+  dangerouslySetInnerHTML, and nothing that comes back from the database is
+  trusted. Since 2026-09-02, on the client's instruction, a paragraph, heading,
+  list or quote may carry any colour and any font: the colour is a brand
+  swatch name or a six-figure hex code, the font is an id from the list in
+  `src/data/fonts.ts` (the site's two faces, the system faces, and 46 Google
+  Fonts fetched only on a page that uses them), and the decoder in
+  `src/data/blog.ts` drops anything else. This is the one deliberate
+  exception to the token rule below, confined to article bodies; nothing
+  outside the blog reads those values. Only http, https, root-relative and
+  mailto links survive the parser. Pages are `/blog` and `/blog/:slug`; the home band and
   the footer both point at `/blog`, and the home band is hidden entirely until
   a post is published. The old "Guides" section and its `/#guides` anchor are
   gone, replaced by this at the client's request on 2026-08-28. A picture can
@@ -219,7 +228,7 @@ only change made to their wording.
 - 11 products in `src/data/products.ts` with plain-English copy.
 - Placeholder vector product art in `public/products/`.
 - PHI-safe intake function source in `functions/`.
-- `firebase.json`, `firestore.rules`, `.firebaserc` (placeholder project id).
+- `firebase.json`, `firestore.rules`, `.firebaserc` (project `medville-diabetes`).
 
 ## What remains (in order)
 
@@ -261,8 +270,10 @@ only change made to their wording.
      which have to be absolute. The apex medvillediabetes.com should redirect
      to the www host so one address is canonical. Adding the custom domain in
      the Firebase console and the DNS records at GoDaddy are console jobs and
-     are not done from this repository.
-   - `REPLACE-WITH-CLIENT-GCP-PROJECT-ID` (.firebaserc)
+     are not done from this repository. The order of operations for that day,
+     including the Identity Platform authorized domains and the one-line
+     `SITE_ORIGIN` change, is step 7 of ADMIN-SETUP.md.
+   - Done 2026-09-02: `.firebaserc` names the live project, `medville-diabetes`.
 3. Replace placeholder product art with real supplier photos (front and back
    per product) once the client provides them. Keep the same file paths or
    update `src/data/products.ts`.

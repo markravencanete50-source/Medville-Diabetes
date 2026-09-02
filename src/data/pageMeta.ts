@@ -40,9 +40,12 @@ export interface PageMeta {
   name also aimed the preview's own link at that page rather than at the site.
 
   When the custom domain is added in the Firebase console and the DNS records
-  are set at GoDaddy, change this one line back to
-  "https://www.medvillediabetes.com" and rebuild. The two hardcoded copies in
-  index.html and the one in public/robots.txt change with it.
+  are set at GoDaddy, change this one line to
+  "https://www.medvillediabetes.com" and push. It is the only line: the
+  prerender script writes the sitemap, robots.txt, every canonical link and
+  every preview card from this value, and the copies in index.html only ever
+  serve the development server, because the built home page is rewritten
+  from here too.
 */
 export const SITE_ORIGIN = "https://medville-diabetes.web.app";
 export const SITE_NAME = "Medville Diabetes";

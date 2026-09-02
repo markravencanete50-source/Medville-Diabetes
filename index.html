@@ -28,10 +28,10 @@
       These addresses must be absolute, so they name the host serving the site
       directly. That is the Firebase host while www.medvillediabetes.com is
       still parked at the registrar: an og:image on a name that does not serve
-      the file leaves a chat app with no picture and no card at all. When the
-      custom domain is connected, the canonical link, og:url, og:image and
-      twitter:image below all change with it, together with SITE_ORIGIN in
-      src/data/pageMeta.ts and the sitemap line in public/robots.txt.
+      the file leaves a chat app with no picture and no card at all. These
+      copies serve the development server only: the build rewrites them, and
+      robots.txt and the sitemap, from SITE_ORIGIN in src/data/pageMeta.ts,
+      which is the one line to change when the custom domain is connected.
     -->
     <link rel="canonical" href="https://medville-diabetes.web.app/" />
     <meta property="og:type" content="website" />

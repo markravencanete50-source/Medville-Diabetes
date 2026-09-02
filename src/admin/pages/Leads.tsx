@@ -136,9 +136,15 @@ export default function Leads() {
         lead.note,
       ]),
     ];
-    const csv = rows
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
-      .join("\r\n");
+    /* A spreadsheet reads a cell that starts with =, +, - or @ as a formula,
+       and a visitor could type one into a name box. Such a cell is prefixed
+       with an apostrophe, which Excel and Sheets treat as "this is text". */
+    const cell = (value: unknown) => {
+      const text = String(value ?? "");
+      const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+      return `"${safe.replace(/"/g, '""')}"`;
+    };
+    const csv = rows.map((row) => row.map(cell).join(",")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     const link = document.createElement("a");
     link.href = url;

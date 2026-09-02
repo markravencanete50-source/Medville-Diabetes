@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -22,13 +22,21 @@ import {
 } from "../data";
 import {
   BLOCK_COLORS,
-  BLOCK_FONTS,
   BLOCK_LABEL,
   IMAGE_RATIOS,
   emptyBlock,
+  postHasContent,
   readingMinutes,
+  type BlockColor,
   type PostBlock,
 } from "../../data/blog";
+import {
+  FONTS,
+  FONT_CATEGORY_LABEL,
+  ensureFontLoaded,
+  fontFamily,
+  type FontCategory,
+} from "../../data/fonts";
 import PostBody from "../../components/PostBody";
 import { Badge, Banner, Card, Drawer, Empty, Field, PageHeader, Spinner, useToast } from "../ui";
 
@@ -38,10 +46,11 @@ import { Badge, Banner, Card, Drawer, Empty, Field, PageHeader, Spinner, useToas
   A post is a list of blocks rather than one box of text, which is what makes
   a picture, a highlight and a heading each editable on their own terms. The
   client asked for something closer to a design tool; this is a block editor
-  in the shape of Notion or WordPress rather than a free canvas, and the
-  reason is in data/blog.ts: colour and type come from the site's tokens, so a
-  post cannot drift away from the brand it sits inside. An author picks from
-  the palette, never a colour wheel.
+  in the shape of Notion or WordPress rather than a free canvas. Colour and
+  type are the author's to choose: the brand swatches are one tap away, the
+  colour wheel beside them opens the whole spectrum, and the font list in
+  data/fonts.ts runs from the site's own faces to fifty more. What comes back
+  from the database is still checked before it is rendered, in data/blog.ts.
 
   Preview is not a second renderer. It mounts the same PostBody component the
   public article uses, so what is approved here is what a reader receives.
@@ -283,7 +292,7 @@ function PostEditor({
 
     if (!record.title.trim()) return toast("Please give the article a title.", "danger");
     if (!record.slug.trim()) return toast("Please give the article an address.", "danger");
-    if (record.published && record.body.every((b) => b.type === "divider" || !("text" in b && b.text.trim()) ))
+    if (record.published && !postHasContent(record.body))
       return toast("Please write something before publishing.", "danger");
 
     setSaving(true);
@@ -648,11 +657,10 @@ function BlockEditor({
             placeholder="Write here. **bold**, *italic* and [link](https://example.com) all work."
           />
           <div className="mt-3 flex flex-wrap gap-4">
-            <Swatches value={block.color} onPick={(color) => patch({ color } as Partial<PostBlock>)} />
-            <Choice
-              label="Font"
-              options={BLOCK_FONTS.map((f) => ({ id: f.id, label: f.label }))}
-              value={block.font ?? "body"}
+            <ColorPicker value={block.color} onPick={(color) => patch({ color } as Partial<PostBlock>)} />
+            <FontPicker
+              value={block.font}
+              fallback="body"
               onPick={(font) => patch({ font } as Partial<PostBlock>)}
             />
             <Choice
@@ -686,7 +694,12 @@ function BlockEditor({
               value={String(block.level)}
               onPick={(level) => patch({ level: level === "3" ? 3 : 2 } as Partial<PostBlock>)}
             />
-            <Swatches value={block.color} onPick={(color) => patch({ color } as Partial<PostBlock>)} />
+            <ColorPicker value={block.color} onPick={(color) => patch({ color } as Partial<PostBlock>)} />
+            <FontPicker
+              value={block.font}
+              fallback="display"
+              onPick={(font) => patch({ font } as Partial<PostBlock>)}
+            />
             <Choice
               label="Align"
               options={[
@@ -743,6 +756,14 @@ function BlockEditor({
           >
             <Plus size={15} /> Add item
           </button>
+          <div className="mt-3 flex flex-wrap gap-4">
+            <ColorPicker value={block.color} onPick={(color) => patch({ color } as Partial<PostBlock>)} />
+            <FontPicker
+              value={block.font}
+              fallback="body"
+              onPick={(font) => patch({ font } as Partial<PostBlock>)}
+            />
+          </div>
         </>
       )}
 
@@ -761,6 +782,14 @@ function BlockEditor({
             onChange={(e) => patch({ attribution: e.target.value } as Partial<PostBlock>)}
             placeholder="Who said it (optional)"
           />
+          <div className="mt-3 flex flex-wrap gap-4">
+            <ColorPicker value={block.color} onPick={(color) => patch({ color } as Partial<PostBlock>)} />
+            <FontPicker
+              value={block.font}
+              fallback="display"
+              onPick={(font) => patch({ font } as Partial<PostBlock>)}
+            />
+          </div>
         </>
       )}
 
@@ -873,17 +902,33 @@ function BlockEditor({
 
 /* ---- small controls ---- */
 
-function Swatches({
+/*
+  Colour. The brand swatches come first; the disc after them is the browser's
+  own colour picker, which opens a wheel or a spectrum depending on the
+  device, and the box beside it takes a code typed or pasted in. Selecting
+  the swatch already chosen clears the choice, so a block can go back to its
+  default without a separate control.
+*/
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+function ColorPicker({
   value,
   onPick,
 }: {
-  value: string | undefined;
-  onPick: (color: never) => void;
+  value: BlockColor | undefined;
+  onPick: (color: BlockColor | undefined) => void;
 }) {
+  const custom = typeof value === "string" && value.startsWith("#");
+  const [hex, setHex] = useState<string>(custom ? value : "#0a6d8a");
+  useEffect(() => {
+    if (custom) setHex(value);
+  }, [custom, value]);
+  const pickerId = useId();
+
   return (
     <div>
       <p className="admin-label">Colour</p>
-      <div className="mt-1.5 flex flex-wrap gap-1.5">
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
         {BLOCK_COLORS.map((color) => (
           <button
             key={color.id}
@@ -891,7 +936,7 @@ function Swatches({
             title={color.label}
             aria-label={color.label}
             aria-pressed={value === color.id}
-            onClick={() => onPick(color.id as never)}
+            onClick={() => onPick(value === color.id ? undefined : color.id)}
             className="h-7 w-7 rounded-full"
             style={{
               background: color.token,
@@ -900,6 +945,106 @@ function Swatches({
             }}
           />
         ))}
+        <label
+          htmlFor={pickerId}
+          title="Any colour"
+          className="relative h-7 w-7 cursor-pointer overflow-hidden rounded-full"
+          style={{
+            background: custom
+              ? value
+              : "conic-gradient(#f43f5e, #f59e0b, #84cc16, #06b6d4, #3b82f6, #a855f7, #f43f5e)",
+            outline: custom ? "2px solid var(--a-accent)" : "none",
+            outlineOffset: 2,
+          }}
+        >
+          <input
+            id={pickerId}
+            type="color"
+            aria-label="Choose any colour"
+            value={HEX.test(hex) ? hex.toLowerCase() : "#000000"}
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            onChange={(e) => {
+              setHex(e.target.value);
+              onPick(e.target.value as BlockColor);
+            }}
+          />
+        </label>
+        <input
+          className="admin-input"
+          style={{ width: 96, minHeight: 30, padding: "2px 8px", fontSize: 12 }}
+          value={hex}
+          spellCheck={false}
+          aria-label="Colour code"
+          onChange={(e) => {
+            const next = e.target.value.trim();
+            setHex(next);
+            if (HEX.test(next)) onPick(next.toLowerCase() as BlockColor);
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/*
+  Font. One list, grouped the way a person thinks about type, with each name
+  shown in its own face where the browser allows it and a sample line beside
+  the list that always is. The face is fetched as soon as it is chosen, so
+  the sample and the preview show the real thing rather than a fallback.
+*/
+const FONT_GROUPS = (Object.keys(FONT_CATEGORY_LABEL) as FontCategory[]).map((category) => ({
+  category,
+  fonts: FONTS.filter((font) => font.category === category),
+}));
+
+function FontPicker({
+  value,
+  fallback,
+  onPick,
+}: {
+  value: string | undefined;
+  /* The face a block uses when none is chosen: the body face for text, the
+     display face for a heading or a quote. Choosing it again stores nothing,
+     so an untouched block stays untouched. */
+  fallback: "body" | "display";
+  onPick: (font: string | undefined) => void;
+}) {
+  const current = value ?? fallback;
+  const selectId = useId();
+  useEffect(() => {
+    ensureFontLoaded(current);
+  }, [current]);
+
+  return (
+    <div>
+      <label className="admin-label" htmlFor={selectId}>
+        Font
+      </label>
+      <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
+        <select
+          id={selectId}
+          className="admin-select"
+          style={{ minWidth: 190 }}
+          value={current}
+          onChange={(e) => onPick(e.target.value === fallback ? undefined : e.target.value)}
+        >
+          {FONT_GROUPS.map((group) => (
+            <optgroup key={group.category} label={FONT_CATEGORY_LABEL[group.category]}>
+              {group.fonts.map((font) => (
+                <option key={font.id} value={font.id} style={{ fontFamily: font.family }}>
+                  {font.label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        <span
+          aria-hidden="true"
+          className="text-[15px]"
+          style={{ fontFamily: fontFamily(current, fallback), color: "var(--a-text-muted)" }}
+        >
+          The quick brown fox jumps over the lazy dog
+        </span>
       </div>
     </div>
   );

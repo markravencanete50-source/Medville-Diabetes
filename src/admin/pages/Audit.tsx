@@ -21,6 +21,7 @@ const ACTION_LABEL: Record<string, string> = {
   "leads.update": "Changed an enquiry",
   "leads.stats": "Viewed the overview figures",
   "admins.setRole": "Changed someone's access",
+  "admins.invite": "Invited an administrator",
   "access.denied": "Was refused access",
 };
 

@@ -113,7 +113,13 @@ export async function loadProducts(): Promise<Record<string, Partial<Product>>> 
 }
 
 export async function saveProduct(slug: string, product: Partial<Product>) {
-  await setDoc(doc(adminDb(), "products", slug), product, { merge: false });
+  /* Firestore rejects undefined, and a price that was typed and then cleared
+     arrives as exactly that. Optional fields are dropped rather than sent, the
+     same way a post's blocks are below. */
+  const clean = Object.fromEntries(
+    Object.entries(product).filter(([, value]) => value !== undefined),
+  );
+  await setDoc(doc(adminDb(), "products", slug), clean, { merge: false });
 }
 
 export async function hideProduct(slug: string) {

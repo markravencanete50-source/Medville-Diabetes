@@ -184,6 +184,33 @@ there.
 
 ---
 
+## 7. Connect the domain
+
+The site is served at medville-diabetes.web.app until this is done, and the
+production name www.medvillediabetes.com still points at GoDaddy's parking
+page. Everything here is a console job except the last step but one.
+
+1. Firebase console, **Hosting**, Add custom domain: `www.medvillediabetes.com`.
+   Add `medvillediabetes.com` as well and choose redirect to the www host, so
+   one address is canonical.
+2. At GoDaddy, add the records the console shows: an A record pair for each
+   name, and the TXT record that proves ownership. The certificate follows on
+   its own; allow up to a day.
+3. Google Cloud console, **Identity Platform**, Settings, Authorized domains:
+   add `www.medvillediabetes.com` and `medvillediabetes.com`. Without this,
+   sign-in and the invitation emails refuse the new host. Checked 2026-09-02:
+   the list holds only the Firebase hosts and the preview channels.
+4. The two functions already accept both hosts. `ALLOWED_ORIGIN` in step 4
+   names the Firebase address and the custom domain, so nothing is redeployed.
+5. In this repository, set `SITE_ORIGIN` in `src/data/pageMeta.ts` to
+   `https://www.medvillediabetes.com` and push. That one line drives the
+   sitemap, robots.txt, every canonical link and every link preview card; the
+   deploy that follows the push rebuilds all of them.
+6. Open the new address, sign in to `/admin`, and send one test invitation to
+   confirm the email arrives with a working link.
+
+---
+
 ## What works before billing is enabled
 
 Cloud Functions and Cloud Storage need the Blaze plan. Everything else does
@@ -202,7 +229,7 @@ to the site.
 
 ---
 
-## Current state, verified 2026-08-28
+## Current state, verified 2026-09-02
 
 Checked directly against the project rather than assumed:
 
@@ -219,8 +246,11 @@ Checked directly against the project rather than assumed:
 | The two functions (step 4) | not deployed |
 | First owner (step 5) | not granted |
 | `VITE_ADMIN_API` secret (step 6) | not set |
+| Identity Platform authorized domains | the Firebase hosts and preview channels only; the custom domain is added in step 7 |
+| Custom domain (step 7) | not connected; www.medvillediabetes.com resolves to the registrar's parking page |
 
-Steps 1, 2, 4, 5 and 6 all need Google Cloud console or `gcloud` access.
+Steps 1, 2, 4, 5, 6 and 7 all need Google Cloud console, GoDaddy or `gcloud`
+access.
 
 ---
 
@@ -232,7 +262,7 @@ Steps 1, 2, 4, 5 and 6 all need Google Cloud console or `gcloud` access.
 | Enquiries | The people who completed the form, their details, the product they asked about, and what stage each one is at |
 | Products | Add, edit and remove products, front and back photographs, price, and whether a product is available, coming soon or sold out |
 | Page text | The wording and pictures on Home, Our Products, Our Services, About Us and Contact |
-| Blog | Write, edit and publish articles. Blocks for paragraphs, headings, lists, quotes, pictures, highlights and dividers, with brand colours and fonts, picture shapes, and a preview that renders exactly what a reader will see. Draft until published |
+| Blog | Write, edit and publish articles. Blocks for paragraphs, headings, lists, quotes, pictures, highlights and dividers. Any colour (the brand swatches, a colour wheel, or a typed code) and a choice of 55 fonts on paragraphs, headings, lists and quotes; picture shapes; and a preview that renders exactly what a reader will see. Draft until published |
 | Colours | The five brand colours, each checked for readability before it can be saved |
 | Questions | The questions and answers on the home page |
 | Reviews | Customer reviews, draft until published |

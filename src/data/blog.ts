@@ -1,3 +1,5 @@
+import { fontFamily, isFontId } from "./fonts";
+
 /*
   The blog: its shape, and the small formatting language its text uses.
 
@@ -11,11 +13,14 @@
   characters a person typed and never runs.
 
   Second, the design system. CLAUDE.md's rule is that colour and type come
-  from the tokens in index.css and never from raw values in a component. A
-  free colour picker in the editor would break that within a few posts, and
-  posts would start to look unlike the site they sit in. So a block carries a
-  token name, never a hex value, and the renderer is the only thing that turns
-  a name into a colour.
+  from the tokens in index.css and never from raw values in a component. The
+  blog is the one deliberate exception, made on the client's instruction on
+  2026-09-02: an author may set a block in any colour and any font on the
+  list in fonts.ts. What keeps that safe is that nothing is trusted on the
+  way back in. A colour is either the name of a brand token or a six-figure
+  hex code, checked by pattern; a font is an id the list recognises; anything
+  else is dropped by the decoder below. The renderer is still the only thing
+  that turns either into a style, and the rest of the site never sees them.
 
   Inline text uses a deliberately tiny subset of Markdown:
 
@@ -27,11 +32,13 @@
 
 /* ---- blocks ---- */
 
-/* Only these names may appear in a block. Each maps to a design token, so a
-   post can never introduce a colour the rest of the site does not use. */
-export type BlockColor = "ink" | "brand" | "teal" | "accent" | "muted" | "cta";
+/* The brand palette, offered as swatches. Each maps to a design token. */
+export type KnownColor = "ink" | "brand" | "teal" | "accent" | "muted" | "cta";
 
-export const BLOCK_COLORS: { id: BlockColor; label: string; token: string }[] = [
+/* A block's colour: a swatch name, or any colour as #rrggbb. */
+export type BlockColor = KnownColor | `#${string}`;
+
+export const BLOCK_COLORS: { id: KnownColor; label: string; token: string }[] = [
   { id: "ink", label: "Navy", token: "var(--color-ink)" },
   { id: "brand", label: "Brand", token: "var(--color-brand)" },
   { id: "teal", label: "Teal", token: "var(--color-teal)" },
@@ -40,20 +47,30 @@ export const BLOCK_COLORS: { id: BlockColor; label: string; token: string }[] = 
   { id: "cta", label: "Orange", token: "var(--color-cta-hover)" },
 ];
 
-export function colorToken(color: BlockColor | undefined) {
-  return BLOCK_COLORS.find((c) => c.id === color)?.token ?? "var(--color-grey-dark)";
+const HEX = /^#[0-9a-f]{6}$/i;
+
+export function isBlockColor(value: unknown): value is BlockColor {
+  return (
+    typeof value === "string" &&
+    (BLOCK_COLORS.some((c) => c.id === value) || HEX.test(value))
+  );
 }
 
-/* The two brand faces, and nothing else. */
-export type BlockFont = "body" | "display";
+/* The CSS value for a block's colour. A swatch becomes its token; a hex code
+   is used as it is, since the decoder has already checked its shape. */
+export function colorToken(color: BlockColor | undefined): string {
+  const swatch = BLOCK_COLORS.find((c) => c.id === color);
+  if (swatch) return swatch.token;
+  if (color && HEX.test(color)) return color.toLowerCase();
+  return "var(--color-grey-dark)";
+}
 
-export const BLOCK_FONTS: { id: BlockFont; label: string; token: string }[] = [
-  { id: "body", label: "Inter", token: "var(--font-body)" },
-  { id: "display", label: "Poppins", token: "var(--font-display)" },
-];
+/* A font is an id from fonts.ts. The value is kept as a string here so a
+   post does not have to change shape when a face is added to that list. */
+export type BlockFont = string;
 
-export function fontToken(font: BlockFont | undefined) {
-  return font === "display" ? "var(--font-display)" : "var(--font-body)";
+export function fontToken(font: BlockFont | undefined, fallback: "body" | "display" = "body") {
+  return fontFamily(font, fallback);
 }
 
 export type BlockAlign = "left" | "center";
@@ -92,6 +109,7 @@ export interface HeadingBlock extends BaseBlock {
   level: 2 | 3;
   text: string;
   color?: BlockColor;
+  font?: BlockFont;
   align?: BlockAlign;
 }
 
@@ -99,12 +117,16 @@ export interface ListBlock extends BaseBlock {
   type: "list";
   style: "bullet" | "number";
   items: string[];
+  color?: BlockColor;
+  font?: BlockFont;
 }
 
 export interface QuoteBlock extends BaseBlock {
   type: "quote";
   text: string;
   attribution?: string;
+  color?: BlockColor;
+  font?: BlockFont;
 }
 
 export interface ImageBlock extends BaseBlock {
@@ -232,6 +254,12 @@ export function postPlainText(body: PostBlock[]): string {
     .trim();
 }
 
+/* Whether there is anything for a reader: some words, or at least a picture.
+   The editor asks this before it lets a post be published. */
+export function postHasContent(body: PostBlock[]): boolean {
+  return postPlainText(body) !== "" || body.some((block) => block.type === "image" && block.url !== "");
+}
+
 /* 200 words a minute, rounded up, floor of one. Close enough to be useful and
    never zero, which reads as a mistake. */
 export function readingMinutes(body: PostBlock[]): number {
@@ -274,10 +302,24 @@ export function emptyBlock(type: PostBlock["type"]): PostBlock {
   Decoding what came back from the database.
 
   Everything is checked rather than trusted. A malformed block is dropped
-  instead of throwing, so one bad record can never take a page down.
+  instead of throwing, so one bad record can never take a page down, and a
+  colour, font or alignment the site does not recognise is dropped from its
+  block rather than written into the page.
 */
 function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
+}
+
+function asColor(value: unknown): BlockColor | undefined {
+  return isBlockColor(value) ? (value.startsWith("#") ? (value.toLowerCase() as BlockColor) : value) : undefined;
+}
+
+function asFont(value: unknown): BlockFont | undefined {
+  return isFontId(value) ? value : undefined;
+}
+
+function asAlign(value: unknown): BlockAlign | undefined {
+  return value === "center" ? "center" : value === "left" ? "left" : undefined;
 }
 
 export function decodeBlocks(raw: unknown): PostBlock[] {
@@ -295,9 +337,9 @@ export function decodeBlocks(raw: unknown): PostBlock[] {
           id,
           type: "paragraph",
           text: asString(b.text),
-          color: b.color as BlockColor | undefined,
-          font: b.font as BlockFont | undefined,
-          align: b.align as BlockAlign | undefined,
+          color: asColor(b.color),
+          font: asFont(b.font),
+          align: asAlign(b.align),
         });
         break;
       case "heading":
@@ -306,8 +348,9 @@ export function decodeBlocks(raw: unknown): PostBlock[] {
           type: "heading",
           level: b.level === 3 ? 3 : 2,
           text: asString(b.text),
-          color: b.color as BlockColor | undefined,
-          align: b.align as BlockAlign | undefined,
+          color: asColor(b.color),
+          font: asFont(b.font),
+          align: asAlign(b.align),
         });
         break;
       case "list":
@@ -316,6 +359,8 @@ export function decodeBlocks(raw: unknown): PostBlock[] {
           type: "list",
           style: b.style === "number" ? "number" : "bullet",
           items: Array.isArray(b.items) ? b.items.map((i) => asString(i)) : [],
+          color: asColor(b.color),
+          font: asFont(b.font),
         });
         break;
       case "quote":
@@ -324,6 +369,8 @@ export function decodeBlocks(raw: unknown): PostBlock[] {
           type: "quote",
           text: asString(b.text),
           attribution: asString(b.attribution) || undefined,
+          color: asColor(b.color),
+          font: asFont(b.font),
         });
         break;
       case "image":
