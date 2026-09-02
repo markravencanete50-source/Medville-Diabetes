@@ -76,9 +76,11 @@ export default function Contact() {
                 {EMAIL}
               </a>
             </ContactCard>
+            {/* One line, as the client's copy document gives it. The card
+                used to print the hours twice, once without the time zone and
+                once with it. */}
             <ContactCard delay={340} motion="reveal-left" icon={<Clock size={19} />} label="Business Hours">
-              <p className="m-0 font-semibold text-ink">Monday to Friday 8AM to 5PM</p>
-              <p className="m-0 text-small text-grey-dark">{HOURS_LONG}</p>
+              <p className="m-0 font-semibold text-ink">{HOURS_LONG}</p>
             </ContactCard>
             <ContactCard delay={510} motion="reveal-right" icon={<MapPin size={19} />} label="Address">
               <p className="m-0 font-semibold text-ink">{ADDRESS_LINE_1}</p>
