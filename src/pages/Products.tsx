@@ -91,17 +91,17 @@ export default function Products({ line }: { line: ProductLine }) {
           <p className="rise-in m-0">
             <Link
               to="/products"
-              className="mb-4 inline-flex items-center gap-1.5 py-1 text-small font-semibold text-brand"
+              className="mb-4 inline-flex items-center gap-1.5 py-1 text-small font-semibold text-on-dark-accent hover:text-on-dark"
             >
               <ArrowLeft size={15} strokeWidth={2.2} />
               All product types
             </Link>
           </p>
           <p className="rise-in m-0" style={{ "--rise-delay": "90ms" } as React.CSSProperties}>
-            <Eyebrow>{copy.eyebrow}</Eyebrow>
+            <Eyebrow onDark>{copy.eyebrow}</Eyebrow>
           </p>
           <h1
-            className="rise-in mt-3 max-w-[22ch] font-display text-h1 font-bold text-ink"
+            className="rise-in mt-3 max-w-[22ch] font-display text-h1 font-bold text-on-dark"
             style={{ "--rise-delay": "200ms" } as React.CSSProperties}
           >
             {copy.title}
@@ -109,7 +109,7 @@ export default function Products({ line }: { line: ProductLine }) {
           {copy.intro.map((paragraph, index) => (
             <p
               key={paragraph}
-              className="rise-in mt-4 max-w-[62ch] text-body-lg leading-relaxed text-grey-dark"
+              className="rise-in mt-4 max-w-[62ch] text-body-lg leading-relaxed text-on-dark-brand"
               style={{ "--rise-delay": `${340 + index * 130}ms` } as React.CSSProperties}
             >
               {paragraph}
@@ -135,8 +135,8 @@ export default function Products({ line }: { line: ProductLine }) {
                   aria-pressed={filter === f}
                   className={`min-h-[46px] rounded-full border-[1.5px] px-6 font-display text-small font-semibold transition-all duration-[200ms] ease-(--ease-out-quart) ${
                     filter === f
-                      ? "border-brand bg-brand text-on-dark"
-                      : "border-line-filter bg-surface-raised text-grey-dark hover:border-brand hover:text-brand"
+                      ? "border-ink bg-ink text-on-dark"
+                      : "border-ink/30 bg-surface-raised text-ink hover:border-ink"
                   }`}
                 >
                   {f}

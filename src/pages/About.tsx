@@ -117,12 +117,12 @@ export default function About() {
             <Container wide className="relative">
               <div className="grid lg:grid-cols-2">
                 <div className="py-14 md:py-20 lg:py-24 lg:pr-10">
-                  <span className="rise-in inline-flex items-center gap-2.5 rounded-full bg-brand-soft px-5 py-2.5 text-body font-semibold text-brand">
+                  <span className="rise-in inline-flex items-center gap-2.5 rounded-full bg-navy-raised px-5 py-2.5 text-body font-semibold text-on-dark-accent">
                     <HeartHandshake size={20} strokeWidth={2} />
                     About Medville Diabetes
                   </span>
                   <h1
-                    className="rise-in mt-6 max-w-[19ch] font-display text-h1 font-bold leading-[1.08] text-ink"
+                    className="rise-in mt-6 max-w-[19ch] font-display text-h1 font-bold leading-[1.08] text-on-dark"
                     style={{ "--rise-delay": "150ms" } as React.CSSProperties}
                   >
                     Making Diabetes Supply One Less Thing to Manage
@@ -132,10 +132,10 @@ export default function About() {
                     style={{ "--rise-delay": "280ms" } as React.CSSProperties}
                     aria-hidden="true"
                   >
-                    <span className="h-px w-20 bg-line-strong" />
+                    <span className="h-px w-20 bg-brand-bright" />
                   </div>
                   <p
-                    className="rise-in mt-7 max-w-[48ch] text-body-lg leading-relaxed text-grey-dark"
+                    className="rise-in mt-7 max-w-[48ch] text-body-lg leading-relaxed text-on-dark-brand"
                     style={{ "--rise-delay": "400ms" } as React.CSSProperties}
                   >
                     Living with diabetes comes with enough routines, decisions, and
@@ -143,7 +143,7 @@ export default function About() {
                     make your day more complicated.
                   </p>
                   <p
-                    className="rise-in mt-4 max-w-[48ch] text-body-lg leading-relaxed text-grey-dark"
+                    className="rise-in mt-4 max-w-[48ch] text-body-lg leading-relaxed text-on-dark-brand"
                     style={{ "--rise-delay": "540ms" } as React.CSSProperties}
                   >
                     Medville Diabetes brings the medical supply experience of Medville
@@ -167,17 +167,17 @@ export default function About() {
           </div>
 
           <Container wide className="relative">
-            <ul className="m-0 grid list-none grid-cols-1 gap-y-6 border-t border-line-brand p-0 py-8 sm:grid-cols-2 lg:grid-cols-4">
+            <ul className="m-0 grid list-none grid-cols-1 gap-y-6 border-t border-on-dark-accent/25 p-0 py-8 sm:grid-cols-2 lg:grid-cols-4">
               {HERO_PROMISES.map((promise, index) => (
                 <li
                   key={promise.lines[1]}
                   data-reveal={index * 170}
                   className={`reveal-drop flex items-center gap-3.5 lg:px-6 ${
-                    index === 0 ? "lg:pl-0" : "lg:border-l lg:border-line-brand"
+                    index === 0 ? "lg:pl-0" : "lg:border-l lg:border-on-dark-accent/25"
                   }`}
                 >
-                  <promise.icon size={30} strokeWidth={1.7} className="flex-none text-brand" />
-                  <p className="m-0 text-body leading-snug text-grey-dark">
+                  <promise.icon size={30} strokeWidth={1.7} className="flex-none text-brand-bright" />
+                  <p className="m-0 text-body leading-snug text-on-dark-brand">
                     {promise.lines[0]}
                     <br />
                     {promise.lines[1]}

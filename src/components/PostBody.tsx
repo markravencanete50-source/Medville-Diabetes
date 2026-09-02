@@ -56,10 +56,12 @@ function ratioStyle(ratio: string): CSSProperties {
   return ratio === "auto" ? {} : { aspectRatio: ratio.replace("/", " / ") };
 }
 
+/* The "warn" id is kept so a stored post still decodes; it now paints the
+   bright cyan, since the palette has no orange. */
 const CALLOUT_TONE: Record<string, string> = {
   brand: "border-brand bg-brand-tint",
   accent: "border-accent-deep bg-accent-soft",
-  warn: "border-cta bg-cta/10",
+  warn: "border-brand-bright bg-brand-soft",
 };
 
 /* The colour and font a text block asked for, as a style. A block that asked

@@ -258,7 +258,7 @@ export function useAdminTheme() {
 /* ---- formatting ---- */
 
 export function formatDate(iso: string | null) {
-  if (!iso) return "—".replace("—", "Unknown");
+  if (!iso) return "Unknown";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "Unknown";
   return date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });

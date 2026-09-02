@@ -37,7 +37,6 @@ const CACHE_KEY = "medville:site-content:v1";
 export interface ThemeOverrides {
   brand?: string;
   brandBright?: string;
-  cta?: string;
   ink?: string;
   surface?: string;
 }
@@ -149,7 +148,9 @@ function readTheme(docs: RestDocument[]): ThemeOverrides {
   if (!current) return {};
   const fields = decodeFields(current.fields);
   const theme: ThemeOverrides = {};
-  for (const key of ["brand", "brandBright", "cta", "ink", "surface"] as const) {
+  /* An older document may still carry a `cta` value; there is no button
+     colour any more, so it is simply never read. */
+  for (const key of ["brand", "brandBright", "ink", "surface"] as const) {
     const value = fields[key];
     /* A malformed colour is ignored rather than written into the page. */
     if (typeof value === "string" && HEX.test(value)) theme[key] = value;

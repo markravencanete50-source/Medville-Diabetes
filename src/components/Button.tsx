@@ -3,26 +3,35 @@ import { Link } from "react-router-dom";
 /*
   Button variants.
 
-  `cta` is brand orange and belongs to the qualify call to action only, which
-  is the rule the client's palette carries. Its text is navy rather than
-  white: white on orange is 2.07:1, navy is 7.36:1. `on-band` is the same
-  action sitting inside a dark navy band.
+  Every button is one of the two brand colours, cyan #18bada or navy
+  #00293b, on the client's instruction of 2026-09-02, and hovering swaps a
+  button to the other one. That is the whole system: a cyan button turns
+  navy under the pointer, a navy button turns cyan, and an outline fills
+  with the colour of its border. Nothing else is ever a button colour.
 
-  `primary` is the navy pill for any other confirming action, and `soft` the
-  quiet cyan chip.
+  Text on cyan is navy (6.4:1) and text on navy is white (14.6:1). White on
+  cyan would be 2.3:1, so no variant ever pairs those two.
+
+  `cta` is the qualify call to action and the one cyan fill on a light
+  section. `on-band` is the same action inside a navy band, where the hover
+  lightens instead of swapping, because navy on navy would vanish.
+  `primary` is the navy fill for any other confirming action. `ghost` is
+  the navy outline for the quieter choice beside a filled button, and
+  `ghost-dark` its counterpart on a navy ground. `soft` is a small cyan-tint
+  chip for a control that must not compete with a real button.
 */
 type Variant = "cta" | "primary" | "ghost" | "ghost-dark" | "on-band" | "soft";
 
 const styles: Record<Variant, string> = {
-  cta: "bg-cta text-ink shadow-cta hover:bg-cta-hover hover:-translate-y-0.5",
-  primary: "bg-ink text-on-dark shadow-raised hover:bg-navy-raised",
+  cta: "bg-brand-bright text-ink shadow-cta hover:bg-ink hover:text-on-dark hover:-translate-y-0.5",
+  primary: "bg-ink text-on-dark shadow-raised hover:bg-brand-bright hover:text-ink",
   ghost:
-    "border-[1.5px] border-ink/20 bg-canvas/60 text-ink hover:border-brand hover:bg-canvas hover:text-brand",
+    "border-[1.5px] border-ink/30 text-ink hover:border-ink hover:bg-ink hover:text-on-dark",
   "ghost-dark":
-    "border border-on-dark-muted/50 text-on-dark hover:border-on-dark hover:bg-navy-raised",
+    "border-[1.5px] border-on-dark/50 text-on-dark hover:border-brand-bright hover:bg-brand-bright hover:text-ink",
   "on-band":
-    "bg-cta text-ink shadow-[0_4px_14px_rgb(0_20_12/0.34)] hover:-translate-y-0.5 hover:bg-cta-hover",
-  soft: "bg-brand-soft text-brand hover:bg-brand-mint",
+    "bg-brand-bright text-ink shadow-[0_4px_14px_rgb(0_24_36/0.4)] hover:-translate-y-0.5 hover:bg-on-dark-accent",
+  soft: "bg-brand-soft text-brand hover:bg-ink hover:text-on-dark",
 };
 
 export default function Button({

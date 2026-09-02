@@ -32,8 +32,10 @@ import { fontFamily, isFontId } from "./fonts";
 
 /* ---- blocks ---- */
 
-/* The brand palette, offered as swatches. Each maps to a design token. */
-export type KnownColor = "ink" | "brand" | "teal" | "accent" | "muted" | "cta";
+/* The brand palette, offered as swatches. Each maps to a design token. The
+   palette has had no orange since 2026-09-02; a post saved earlier with the
+   old "cta" swatch falls back to the default text colour. */
+export type KnownColor = "ink" | "brand" | "teal" | "accent" | "muted";
 
 /* A block's colour: a swatch name, or any colour as #rrggbb. */
 export type BlockColor = KnownColor | `#${string}`;
@@ -43,8 +45,7 @@ export const BLOCK_COLORS: { id: KnownColor; label: string; token: string }[] = 
   { id: "brand", label: "Brand", token: "var(--color-brand)" },
   { id: "teal", label: "Teal", token: "var(--color-teal)" },
   { id: "accent", label: "Cyan", token: "var(--color-accent-deep)" },
-  { id: "muted", label: "Grey", token: "var(--color-grey-dark)" },
-  { id: "cta", label: "Orange", token: "var(--color-cta-hover)" },
+  { id: "muted", label: "Soft navy", token: "var(--color-grey-dark)" },
 ];
 
 const HEX = /^#[0-9a-f]{6}$/i;

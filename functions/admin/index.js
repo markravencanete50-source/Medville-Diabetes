@@ -1,5 +1,5 @@
 /*
-  Medville Diabetes — administrator API.
+  Medville Diabetes administrator API.
 
   Deploy as a Cloud Run function (2nd generation) in the client's dedicated
   Google Cloud project, after the Google Cloud BAA has been accepted on that
@@ -25,9 +25,9 @@
     never the PHI values themselves.
 
   Roles, taken from the Identity Platform custom claim:
-    owner  — everything, including inviting and removing administrators
-    editor — marketing content only; no lead access whatsoever
-    agent  — leads: read and change status; no administrator management
+    owner: everything, including inviting and removing administrators
+    editor: marketing content only; no lead access whatsoever
+    agent: leads, read and change status; no administrator management
 */
 
 import { http } from "@google-cloud/functions-framework";

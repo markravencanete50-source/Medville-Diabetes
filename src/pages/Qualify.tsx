@@ -145,16 +145,16 @@ export default function Qualify() {
       <section className="bg-wash relative overflow-hidden">
         <Grain opacity={0.05} />
         <Container className="relative max-w-2xl py-20 text-center md:py-28">
-          <CheckCircle2 size={52} className="mx-auto text-success" aria-hidden="true" />
-          <h1 className="mt-5 font-display text-h1 font-bold text-ink">
+          <CheckCircle2 size={52} className="mx-auto text-brand-bright" aria-hidden="true" />
+          <h1 className="mt-5 font-display text-h1 font-bold text-on-dark">
             Thank You. We Received Your Information.
           </h1>
-          <p className="mx-auto mt-4 max-w-[60ch] text-body-lg leading-relaxed text-grey-dark">
+          <p className="mx-auto mt-4 max-w-[60ch] text-body-lg leading-relaxed text-on-dark-brand">
             Our team will review the information you submitted and contact you to
             discuss your potential eligibility and available next steps. Submitting
             this form does not guarantee insurance coverage or qualification.
           </p>
-          <Button to="/products" variant="ghost" className="mt-8">Explore Products</Button>
+          <Button to="/products" variant="ghost-dark" className="mt-8">Explore Products</Button>
         </Container>
       </section>
     );
@@ -162,17 +162,17 @@ export default function Qualify() {
 
   return (
     <section ref={revealRef} className="bg-wash relative overflow-hidden">
-      <Blob tone="brand" strength={0.18} blur={40} size={420} duration="20s" className="-left-[120px] -top-[120px]" />
-      <Grain opacity={0.05} />
+      <Blob tone="brand" strength={0.28} blur={40} size={420} duration="20s" className="-left-[120px] -top-[120px]" />
+      <Grain opacity={0.06} />
       <Container wide className="relative grid gap-10 py-12 md:py-16 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14">
-        {/* left: what happens */}
+        {/* left: what happens, on the navy ground */}
         <div>
           <div data-reveal={0} className="reveal-settle">
-          <Eyebrow>Check your potential eligibility</Eyebrow>
-          <h1 className="mt-3 font-display text-h1 font-bold text-ink">
+          <Eyebrow onDark>Check your potential eligibility</Eyebrow>
+          <h1 className="mt-3 font-display text-h1 font-bold text-on-dark">
             Does Your Insurance Help Cover a CGM?
           </h1>
-          <p className="mt-4 max-w-[54ch] text-body leading-relaxed text-grey-dark">
+          <p className="mt-4 max-w-[54ch] text-body leading-relaxed text-on-dark-brand">
             {endpoint
               ? "Not sure what your plan may cover? Complete the short form below and our team will review your information to help you understand your potential eligibility and next steps."
               : "Not sure what your plan may cover? Our team can review your information and help you understand your potential eligibility and next steps."}
@@ -186,17 +186,17 @@ export default function Qualify() {
                 data-reveal={200 + index * 190}
                 className="reveal-left flex gap-4"
               >
-                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-md bg-brand-soft text-brand">
+                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-md bg-navy-raised text-brand-bright">
                   <step.icon size={20} strokeWidth={2} />
                 </span>
                 <div>
                   <p className="m-0 text-caption font-bold tracking-[0.14em] text-brand-bright">
                     STEP {index + 1}
                   </p>
-                  <h2 className="m-0 mt-0.5 font-display text-body font-semibold text-ink">
+                  <h2 className="m-0 mt-0.5 font-display text-body font-semibold text-on-dark">
                     {step.title}
                   </h2>
-                  <p className="mt-1 text-small leading-relaxed text-grey-dark">
+                  <p className="mt-1 text-small leading-relaxed text-on-dark-brand">
                     {!endpoint && index === 0
                       ? "Call or email us with your basic information."
                       : step.body}
@@ -208,15 +208,15 @@ export default function Qualify() {
 
           <div
             data-reveal={780}
-            className="reveal-blur mt-8 flex items-start gap-3 rounded-lg border border-brand-mint bg-brand-tint p-5"
+            className="reveal-blur mt-8 flex items-start gap-3 rounded-lg border border-on-dark-accent/30 bg-navy-raised/70 p-5"
           >
-            <LockKeyhole size={16} className="mt-0.5 flex-none text-brand" aria-hidden="true" />
-            <p className="m-0 text-caption leading-relaxed text-grey-dark">
+            <LockKeyhole size={16} className="mt-0.5 flex-none text-brand-bright" aria-hidden="true" />
+            <p className="m-0 text-caption leading-relaxed text-on-dark-brand">
               Your privacy matters. Information submitted through this form will be
               handled according to our{" "}
               <Link
                 to="/privacy-policy"
-                className="inline-block py-1 font-semibold text-brand underline underline-offset-2"
+                className="inline-block py-1 font-semibold text-on-dark underline underline-offset-2"
               >
                 Privacy Policy
               </Link>{" "}
@@ -243,7 +243,7 @@ export default function Qualify() {
               set at launch. Nothing here needs undoing.
             */
             <div className="flex h-full flex-col justify-center py-4 text-center">
-              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft text-brand">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-ink text-brand-bright">
                 <Clock size={26} strokeWidth={2} aria-hidden="true" />
               </span>
               <h2 className="mt-5 font-display text-h3 font-bold text-ink">
@@ -330,8 +330,8 @@ export default function Qualify() {
                       }
                       className={`min-h-[46px] rounded-md border-[1.5px] font-display text-small font-semibold transition-all duration-(--duration-micro) ${
                         selected
-                          ? "border-brand bg-brand-soft text-brand"
-                          : "border-line-input bg-surface-raised text-grey-dark hover:border-brand"
+                          ? "border-ink bg-ink text-on-dark"
+                          : "border-line-input bg-surface-raised text-ink hover:border-ink"
                       }`}
                     >
                       {value === "yes" ? "Yes" : "No"}

@@ -1,5 +1,5 @@
 /*
-  Medville Diabetes — qualify-form intake function.
+  Medville Diabetes qualify-form intake function.
   Deploy as a Cloud Run function (2nd generation) in the client's dedicated
   Google Cloud project, AFTER the Google Cloud BAA has been accepted on that
   project's billing account. Cloud Run functions and Firestore are on Google's

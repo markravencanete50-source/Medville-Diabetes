@@ -184,7 +184,7 @@ export default function Blog() {
                         {post.published ? "Published" : "Draft"}
                       </Badge>
                     </td>
-                    <td>{post.publishedAt || "—"}</td>
+                    <td>{post.publishedAt || "Not published"}</td>
                     <td className="text-right">
                       <div className="inline-flex items-center gap-1.5">
                         <button
@@ -808,7 +808,7 @@ function BlockEditor({
               options={[
                 { id: "brand", label: "Brand" },
                 { id: "accent", label: "Cyan" },
-                { id: "warn", label: "Orange" },
+                { id: "warn", label: "Cyan" },
               ]}
               value={block.tone}
               onPick={(tone) => patch({ tone } as Partial<PostBlock>)}

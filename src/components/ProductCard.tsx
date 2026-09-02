@@ -98,7 +98,7 @@ export default function ProductCard({
           />
         </div>
         <span
-          className={`absolute left-4 top-4 rounded-full bg-canvas/90 px-3.5 py-1.5 text-caption font-semibold shadow-[0_1px_2px_rgb(0_41_59/0.08)] ${PRODUCT_PILL}`}
+          className={`absolute left-4 top-4 rounded-full bg-surface-raised px-3.5 py-1.5 text-caption font-semibold shadow-[0_1px_2px_rgb(0_41_59/0.08)] ${PRODUCT_PILL}`}
         >
           {product.brand}
         </span>
@@ -118,7 +118,7 @@ export default function ProductCard({
           <button
             type="button"
             onClick={() => onQuickView(product.slug)}
-            className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-full bg-brand-soft px-5 py-2.5 font-display text-[0.84rem] font-semibold text-brand transition-colors duration-(--duration-micro) hover:bg-brand-mint"
+            className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-full border-[1.5px] border-ink/30 px-5 py-2.5 font-display text-[0.84rem] font-semibold text-ink transition-colors duration-(--duration-micro) hover:border-ink hover:bg-ink hover:text-on-dark"
           >
             <Eye size={15} />
             Quick view

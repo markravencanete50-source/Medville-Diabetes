@@ -7,7 +7,7 @@ import { prefersReducedMotion, reveal, useReveal } from "../lib/useReveal";
 
 /*
   The Our Services care cycle: one contained live explainer, not a technical
-  backdrop. A single orange signal travels the route the copy describes, from
+  backdrop. A single navy signal travels the route the copy describes, from
   the first call through to resupply, and the phase it is passing drives the
   wording beside the canvas.
 
@@ -22,14 +22,14 @@ import { prefersReducedMotion, reveal, useReveal } from "../lib/useReveal";
   The colours below are the one place in the codebase where brand values are
   written as literals rather than as tokens. A three.js material is painted
   on a canvas, not styled by CSS, so it cannot read a custom property. They
-  are the same values as --color-ink, --color-accent, --color-brand-soft and
-  --color-cta; change them together.
+  are the same values as --color-ink, --color-accent and --color-brand-soft;
+  change them together. The moving signal is navy, the one dark thing on
+  the route, so it reads against the cyan objects it passes.
 */
 const MEDVILLE = {
   navy: "#00293b",
   cyan: "#18bada",
   cyanSoft: "#d9f4f9",
-  orange: "#ff9e1b",
   paper: "#ffffff",
 };
 
@@ -276,8 +276,8 @@ function Core() {
         <mesh position={[0, -0.33, 0.095]}>
           <boxGeometry args={[0.34, 0.035, 0.02]} />
           <meshStandardMaterial
-            color={MEDVILLE.orange}
-            emissive={MEDVILLE.orange}
+            color={MEDVILLE.cyan}
+            emissive={MEDVILLE.cyan}
             emissiveIntensity={0.35}
           />
         </mesh>
@@ -323,17 +323,18 @@ function MovingSignal({ reducedMotion, onPhaseChange }: SceneProps) {
       <mesh castShadow>
         <sphereGeometry args={[0.15, 28, 28]} />
         <meshStandardMaterial
-          color={MEDVILLE.orange}
-          emissive={MEDVILLE.orange}
-          emissiveIntensity={0.45}
-          roughness={0.2}
+          color={MEDVILLE.navy}
+          emissive={MEDVILLE.navy}
+          emissiveIntensity={0.3}
+          roughness={0.25}
+          metalness={0.2}
         />
       </mesh>
       <mesh>
         <sphereGeometry args={[0.28, 24, 24]} />
-        <meshBasicMaterial color={MEDVILLE.orange} transparent opacity={0.16} depthWrite={false} />
+        <meshBasicMaterial color={MEDVILLE.cyan} transparent opacity={0.22} depthWrite={false} />
       </mesh>
-      <pointLight color={MEDVILLE.orange} intensity={2.2} distance={2.4} />
+      <pointLight color={MEDVILLE.cyan} intensity={2.2} distance={2.4} />
     </group>
   );
 }

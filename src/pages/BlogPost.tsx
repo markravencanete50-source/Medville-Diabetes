@@ -53,24 +53,24 @@ export default function BlogPost() {
         <section className="bg-wash relative overflow-hidden">
           <Blob tone="brand" strength={0.15} blur={44} size={420} duration="22s" className="-left-[150px] -top-[160px]" />
           <Grain opacity={0.05} />
-          <Container className="relative max-w-[760px] py-10 md:py-14">
+          <Container className={`relative max-w-[760px] py-10 md:py-14 ${post.image ? "pb-24 md:pb-28" : ""}`}>
             <Link
               to="/blog"
-              className="rise-in inline-flex items-center gap-1.5 text-small font-semibold text-brand"
+              className="rise-in inline-flex items-center gap-1.5 text-small font-semibold text-on-dark-accent hover:text-on-dark"
             >
               <ArrowLeft size={15} strokeWidth={2.2} />
               All articles
             </Link>
 
             <h1
-              className="rise-in mt-5 font-display text-h1 font-bold leading-[1.12] text-ink"
+              className="rise-in mt-5 font-display text-h1 font-bold leading-[1.12] text-on-dark"
               style={{ "--rise-delay": "140ms" } as React.CSSProperties}
             >
               {post.title}
             </h1>
 
             <p
-              className="rise-in mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-caption font-semibold uppercase tracking-[0.12em] text-brand"
+              className="rise-in mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-caption font-semibold uppercase tracking-[0.12em] text-on-dark-accent"
               style={{ "--rise-delay": "280ms" } as React.CSSProperties}
             >
               {formatPostDate(post.publishedAt) && (
@@ -79,12 +79,12 @@ export default function BlogPost() {
                   {formatPostDate(post.publishedAt)}
                 </span>
               )}
-              <span className="inline-flex items-center gap-1.5 text-grey-muted">
+              <span className="inline-flex items-center gap-1.5 text-on-dark-muted">
                 <Clock size={14} strokeWidth={2.2} aria-hidden="true" />
                 {readingMinutes(post.body)} min read
               </span>
               {post.author && (
-                <span className="normal-case tracking-normal text-grey-muted">
+                <span className="normal-case tracking-normal text-on-dark-muted">
                   By {post.author}
                 </span>
               )}
@@ -92,11 +92,13 @@ export default function BlogPost() {
           </Container>
         </section>
 
+        {/* The picture straddles the edge of the navy hero, which is why the
+            hero above reserves extra room at its foot when there is one. */}
         {post.image && (
           <Container className="max-w-[900px]">
             <div
               data-reveal={0}
-              className="reveal-curtain reveal-glacial -mt-2 overflow-hidden rounded-[24px] shadow-soft"
+              className="reveal-curtain reveal-glacial -mt-16 overflow-hidden rounded-[24px] shadow-overlay md:-mt-20"
             >
               <div>
                 <img

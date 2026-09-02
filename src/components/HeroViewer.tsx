@@ -4,7 +4,7 @@ import type { Product } from "../data/products";
 import { prefersReducedMotion } from "../lib/useReveal";
 
 /*
-  The hero's floating product card: a white 28px-radius card holding the
+  The hero's floating product card: a raised 28px-radius card holding the
   FreeStyle Libre 3 photograph, draggable between front and back, with three
   floating benefit chips around it.
 
@@ -61,7 +61,8 @@ export default function HeroViewer({ product }: { product: Product }) {
         aria-hidden="true"
         className="absolute inset-[10%_6%] rounded-full"
         style={{
-          background: "radial-gradient(circle, rgba(47,169,124,0.28) 0%, rgba(47,169,124,0) 72%)",
+          /* the brand cyan, as a glow behind the card on the navy hero */
+          background: "radial-gradient(circle, rgba(24,186,218,0.38) 0%, rgba(24,186,218,0) 72%)",
           filter: "blur(30px)",
         }}
       />

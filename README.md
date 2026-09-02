@@ -1,4 +1,4 @@
-# Medville Diabetes — website
+# Medville Diabetes website
 
 Product catalog and lead-qualification website for Medville Diabetes, a
 United States supplier of continuous glucose monitors.

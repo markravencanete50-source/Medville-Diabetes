@@ -22,10 +22,10 @@ export default function LegalLayout({
         <Grain opacity={0.05} />
         <Container className="relative py-12 md:py-16">
           <p className="rise-in m-0">
-            <Eyebrow>Legal</Eyebrow>
+            <Eyebrow onDark>Legal</Eyebrow>
           </p>
           <h1
-            className="rise-in mt-3 font-display text-h1 font-bold text-ink"
+            className="rise-in mt-3 font-display text-h1 font-bold text-on-dark"
             style={{ "--rise-delay": "80ms" } as React.CSSProperties}
           >
             {title}
