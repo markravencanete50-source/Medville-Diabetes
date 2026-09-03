@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, Search } from "lucide-react";
+import { Download, ExternalLink, Search } from "lucide-react";
 import {
   adminApi,
   AdminApiError,
   isAdminApiConfigured,
   leadName,
+  LEAD_SOURCE_LABEL,
   LEAD_STATUSES,
   LEAD_STATUS_LABEL,
   type Lead,
+  type LeadSource,
   type LeadStatus,
 } from "../api";
 import { useAdminAuth } from "../auth";
@@ -23,7 +25,8 @@ import {
   formatDateTime,
   useToast,
 } from "../ui";
-import { products as builtInProducts } from "../../data/products";
+import { products as builtInProducts, type Product } from "../../data/products";
+import { loadProducts } from "../data";
 
 /*
   The enquiry list.
@@ -38,9 +41,60 @@ import { products as builtInProducts } from "../../data/products";
     so a search term never travels anywhere.
   - The export is generated locally and never leaves the machine except by the
     client's own choice.
+
+  Since 2026-09-03 the list carries the contact form as well as the
+  eligibility form. A record says which form it came from, and the products a
+  person asked about are shown as pictures, so the sales team can see what an
+  enquiry is about without opening it.
 */
 
-const PRODUCT_NAME = new Map(builtInProducts.map((product) => [product.slug, product.name]));
+/*
+  The catalogue the pictures come from. Built-in products are known at build
+  time; anything the client added or re-photographed from the dashboard lives
+  in the Firestore products collection and is laid over the top, best effort.
+  A slug that matches nothing is shown as the slug itself, never dropped.
+*/
+interface CatalogueEntry {
+  name: string;
+  image: string;
+}
+
+function useCatalogue() {
+  const [catalogue, setCatalogue] = useState<Map<string, CatalogueEntry>>(
+    () => new Map(builtInProducts.map((product) => [product.slug, { name: product.name, image: product.imageFront }])),
+  );
+  useEffect(() => {
+    let live = true;
+    loadProducts()
+      .then((records) => {
+        if (!live) return;
+        setCatalogue((current) => {
+          const next = new Map(current);
+          for (const [slug, record] of Object.entries(records) as [string, Partial<Product> & { deleted?: boolean }][]) {
+            if (record.deleted) continue;
+            const base = next.get(slug);
+            next.set(slug, {
+              name: record.name ?? base?.name ?? slug,
+              image: record.imageFront ?? base?.image ?? "",
+            });
+          }
+          return next;
+        });
+      })
+      .catch(() => {
+        /* The built-in catalogue is enough to keep working. */
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+  return catalogue;
+}
+
+const SOURCE_TONE: Record<LeadSource, "new" | "quiet"> = {
+  contact: "new",
+  qualify: "quiet",
+};
 
 const STATUS_TONE: Record<LeadStatus, "new" | "ok" | "warn" | "danger" | "quiet"> = {
   new: "new",
@@ -57,7 +111,13 @@ export default function Leads() {
   const [leads, setLeads] = useState<Lead[] | null>(null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<LeadStatus | "all">("all");
+  const [sourceFilter, setSourceFilter] = useState<LeadSource | "all">("all");
   const [search, setSearch] = useState("");
+  const catalogue = useCatalogue();
+  const productName = useCallback(
+    (slug: string) => catalogue.get(slug)?.name ?? slug,
+    [catalogue],
+  );
   const [openLead, setOpenLead] = useState<Lead | null>(null);
   const [saving, setSaving] = useState(false);
   const connected = isAdminApiConfigured();
@@ -87,16 +147,18 @@ export default function Leads() {
     const term = search.trim().toLowerCase();
     return (leads ?? []).filter((lead) => {
       if (filter !== "all" && lead.status !== filter) return false;
+      if (sourceFilter !== "all" && lead.source !== sourceFilter) return false;
       if (!term) return true;
       return (
         leadName(lead).toLowerCase().includes(term) ||
         lead.email.toLowerCase().includes(term) ||
         lead.phone.toLowerCase().includes(term) ||
         lead.city.toLowerCase().includes(term) ||
-        lead.state.toLowerCase().includes(term)
+        lead.state.toLowerCase().includes(term) ||
+        lead.products.some((slug) => productName(slug).toLowerCase().includes(term))
       );
     });
-  }, [leads, filter, search]);
+  }, [leads, filter, sourceFilter, search, productName]);
 
   const update = async (lead: Lead, patch: { status?: LeadStatus; note?: string }) => {
     setSaving(true);
@@ -121,9 +183,10 @@ export default function Leads() {
   */
   const exportCsv = () => {
     const rows = [
-      ["Received", "First name", "Last name", "Email", "Phone", "City", "State", "Insulin daily", "Product", "Stage", "Note"],
+      ["Received", "Source", "First name", "Last name", "Email", "Phone", "City", "State", "Insulin daily", "Products", "Message", "Stage", "Note"],
       ...visible.map((lead) => [
         lead.createdAt ?? "",
+        LEAD_SOURCE_LABEL[lead.source] ?? lead.source,
         lead.firstName,
         lead.lastName,
         lead.email,
@@ -131,7 +194,8 @@ export default function Leads() {
         lead.city,
         lead.state,
         lead.injectsInsulinDaily,
-        PRODUCT_NAME.get(lead.productInterest) ?? lead.productInterest,
+        lead.products.map(productName).join("; "),
+        lead.message,
         LEAD_STATUS_LABEL[lead.status] ?? lead.status,
         lead.note,
       ]),
@@ -158,7 +222,7 @@ export default function Leads() {
     <>
       <PageHeader
         title="Enquiries"
-        lede="Everyone who has completed the qualification form, and where each one stands."
+        lede="Everyone who has sent the eligibility form or the contact form, and where each one stands."
         actions={
           <button
             type="button"
@@ -200,6 +264,23 @@ export default function Leads() {
             </Field>
           </div>
           <div className="w-full sm:w-[190px]">
+            <Field label="Source" htmlFor="lead-source">
+              <select
+                id="lead-source"
+                className="admin-select"
+                value={sourceFilter}
+                onChange={(event) => setSourceFilter(event.target.value as LeadSource | "all")}
+              >
+                <option value="all">Both forms</option>
+                {(Object.keys(LEAD_SOURCE_LABEL) as LeadSource[]).map((source) => (
+                  <option key={source} value={source}>
+                    {LEAD_SOURCE_LABEL[source]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <div className="w-full sm:w-[190px]">
             <Field label="Stage" htmlFor="lead-filter">
               <select
                 id="lead-filter"
@@ -237,8 +318,9 @@ export default function Leads() {
                 <tr>
                   <th scope="col">Name</th>
                   <th scope="col">Received</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">Products</th>
                   <th scope="col">Location</th>
-                  <th scope="col">Product</th>
                   <th scope="col">Stage</th>
                 </tr>
               </thead>
@@ -258,11 +340,16 @@ export default function Leads() {
                     <td data-label="Received" style={{ color: "var(--a-text-muted)" }}>
                       {formatDateTime(lead.createdAt)}
                     </td>
+                    <td data-label="Source">
+                      <Badge tone={SOURCE_TONE[lead.source] ?? "quiet"}>
+                        {LEAD_SOURCE_LABEL[lead.source] ?? lead.source}
+                      </Badge>
+                    </td>
+                    <td data-label="Products">
+                      <ProductStrip slugs={lead.products} catalogue={catalogue} />
+                    </td>
                     <td data-label="Location" style={{ color: "var(--a-text-muted)" }}>
                       {[lead.city, lead.state].filter(Boolean).join(", ") || "Not given"}
-                    </td>
-                    <td data-label="Product" style={{ color: "var(--a-text-muted)" }}>
-                      {PRODUCT_NAME.get(lead.productInterest) ?? lead.productInterest ?? "Not stated"}
                     </td>
                     <td data-label="Stage">
                       <Badge tone={STATUS_TONE[lead.status] ?? "quiet"}>
@@ -286,26 +373,48 @@ export default function Leads() {
           <div className="flex flex-col gap-4">
             <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2.5 text-[14px]">
               <Detail label="Received">{formatDateTime(openLead.createdAt)}</Detail>
+              <Detail label="Source">
+                <Badge tone={SOURCE_TONE[openLead.source] ?? "quiet"}>
+                  {LEAD_SOURCE_LABEL[openLead.source] ?? openLead.source}
+                </Badge>
+              </Detail>
               <Detail label="Email">
                 <a href={`mailto:${openLead.email}`} style={{ color: "var(--a-brand-text)" }}>
                   {openLead.email}
                 </a>
               </Detail>
               <Detail label="Phone">
-                <a href={`tel:${openLead.phone.replace(/[^0-9+]/g, "")}`} style={{ color: "var(--a-brand-text)" }}>
-                  {openLead.phone}
-                </a>
+                {openLead.phone ? (
+                  <a href={`tel:${openLead.phone.replace(/[^0-9+]/g, "")}`} style={{ color: "var(--a-brand-text)" }}>
+                    {openLead.phone}
+                  </a>
+                ) : (
+                  "Not given"
+                )}
               </Detail>
               <Detail label="Location">
                 {[openLead.city, openLead.state].filter(Boolean).join(", ") || "Not given"}
               </Detail>
-              <Detail label="Insulin daily">
-                {openLead.injectsInsulinDaily === "yes" ? "Yes" : "No"}
-              </Detail>
-              <Detail label="Product">
-                {PRODUCT_NAME.get(openLead.productInterest) ?? openLead.productInterest ?? "Not stated"}
-              </Detail>
+              {openLead.source === "qualify" && (
+                <Detail label="Insulin daily">
+                  {openLead.injectsInsulinDaily === "yes" ? "Yes" : "No"}
+                </Detail>
+              )}
             </dl>
+
+            <ProductGallery slugs={openLead.products} catalogue={catalogue} />
+
+            {openLead.message && (
+              <div>
+                <p className="admin-label m-0 mb-1.5">Message</p>
+                <blockquote
+                  className="m-0 whitespace-pre-wrap rounded-[10px] px-4 py-3 text-[14px] leading-relaxed"
+                  style={{ background: "var(--a-surface-2)", border: "1px solid var(--a-line)" }}
+                >
+                  {openLead.message}
+                </blockquote>
+              </div>
+            )}
 
             <Field label="Stage" htmlFor="lead-status">
               <select
@@ -333,6 +442,101 @@ export default function Leads() {
         )}
       </Drawer>
     </>
+  );
+}
+
+/*
+  The products in a table row: up to three small pictures, then a count of
+  the rest. The names are in the tooltip and read out by a screen reader, so
+  the row is never only pictures.
+*/
+function ProductStrip({ slugs, catalogue }: { slugs: string[]; catalogue: Map<string, CatalogueEntry> }) {
+  if (!slugs.length) return <span style={{ color: "var(--a-text-muted)" }}>Not stated</span>;
+  const shown = slugs.slice(0, 3);
+  const rest = slugs.length - shown.length;
+  const names = slugs.map((slug) => catalogue.get(slug)?.name ?? slug);
+  return (
+    <span className="inline-flex items-center gap-1.5" title={names.join(", ")}>
+      <span className="sr-only">{names.join(", ")}</span>
+      {shown.map((slug) => {
+        const entry = catalogue.get(slug);
+        return (
+          <span
+            key={slug}
+            aria-hidden="true"
+            className="admin-product-thumb"
+          >
+            {entry?.image ? (
+              <img src={entry.image} alt="" loading="lazy" className="h-full w-full object-contain" />
+            ) : (
+              <span className="text-[10px] font-semibold">{(entry?.name ?? slug).slice(0, 2).toUpperCase()}</span>
+            )}
+          </span>
+        );
+      })}
+      {rest > 0 && (
+        <span aria-hidden="true" className="text-[12px] font-semibold" style={{ color: "var(--a-text-muted)" }}>
+          +{rest}
+        </span>
+      )}
+      {slugs.length === 1 && (
+        <span aria-hidden="true" className="text-[13px]" style={{ color: "var(--a-text-muted)" }}>
+          {names[0]}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/*
+  The products in the open record: picture, name and a link to the public
+  product page, so an agent can check a detail while on the phone.
+*/
+function ProductGallery({ slugs, catalogue }: { slugs: string[]; catalogue: Map<string, CatalogueEntry> }) {
+  return (
+    <div>
+      <p className="admin-label m-0 mb-1.5">
+        {slugs.length === 1 ? "Product asked about" : "Products asked about"}
+      </p>
+      {!slugs.length ? (
+        <p className="m-0 text-[14px]" style={{ color: "var(--a-text-muted)" }}>
+          No product was named.
+        </p>
+      ) : (
+        <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2">
+          {slugs.map((slug) => {
+            const entry = catalogue.get(slug);
+            return (
+              <li
+                key={slug}
+                className="flex items-center gap-3 rounded-[10px] p-2"
+                style={{ background: "var(--a-surface-2)", border: "1px solid var(--a-line)" }}
+              >
+                <span className="admin-product-thumb admin-product-thumb-lg">
+                  {entry?.image ? (
+                    <img src={entry.image} alt="" loading="lazy" className="h-full w-full object-contain" />
+                  ) : (
+                    <span className="text-[12px] font-semibold">{(entry?.name ?? slug).slice(0, 2).toUpperCase()}</span>
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[14px] font-semibold">{entry?.name ?? slug}</span>
+                  <a
+                    href={`/products/${slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-[32px] items-center gap-1 text-[12px] underline underline-offset-2"
+                    style={{ color: "var(--a-brand-text)" }}
+                  >
+                    View product page <ExternalLink size={12} aria-hidden="true" />
+                  </a>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
 

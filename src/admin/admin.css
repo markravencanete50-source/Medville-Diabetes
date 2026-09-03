@@ -836,6 +836,27 @@
 
 /* ---- small parts ---- */
 
+/* A product picture in the enquiry list: a small tinted square, the picture
+   fitted inside it. The large size is for the open record. */
+.admin-product-thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--a-brand-soft);
+  border: 1px solid var(--a-line);
+  color: var(--a-brand-text);
+}
+.admin-product-thumb-lg {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+}
+
 .admin-badge {
   display: inline-flex;
   align-items: center;

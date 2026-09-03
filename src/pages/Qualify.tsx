@@ -23,6 +23,7 @@ import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 import { useReveal } from "../lib/useReveal";
 import { EMAIL_HREF, HOURS_LONG, PHONE_DISPLAY, PHONE_TEL } from "../data/company";
+import { Field, inputClass } from "../components/FormField";
 
 /*
   PHI NOTICE: read before changing this file.
@@ -395,26 +396,4 @@ export default function Qualify() {
       </Container>
     </section>
   );
-}
-
-function Field({ label, error, children }: {
-  label: string; error?: string; children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-small font-semibold text-ink">{label}</span>
-      {children}
-      {error && (
-        <span className="mt-1.5 flex items-center gap-1 text-caption font-medium text-danger">
-          <AlertCircle size={13} aria-hidden="true" /> {error}
-        </span>
-      )}
-    </label>
-  );
-}
-
-function inputClass(hasError: boolean) {
-  return `w-full min-h-[46px] rounded-md border-[1.5px] bg-surface-raised px-4 py-2.5 text-body text-ink placeholder:text-grey-muted transition-colors duration-(--duration-micro) focus:border-brand focus:outline-none ${
-    hasError ? "border-danger" : "border-line-input"
-  }`;
 }

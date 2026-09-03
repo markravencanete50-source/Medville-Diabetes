@@ -104,6 +104,11 @@ export default function Overview() {
         <StatTile label="Last 30 days" value={last30} />
         <StatTile label="Still open" value={openCount} hint="New or contacted" />
         <StatTile
+          label="From the contact form"
+          value={stats.bySource?.contact ?? 0}
+          hint={`${stats.bySource?.qualify ?? 0} from the eligibility form`}
+        />
+        <StatTile
           label="Use insulin daily"
           value={stats.total ? `${Math.round((stats.insulinYes / stats.total) * 100)}%` : "0%"}
           hint={`${stats.insulinYes} of ${stats.total}`}
@@ -139,7 +144,7 @@ export default function Overview() {
         <Card>
           <ChartFrame
             title="Products asked about"
-            note="Taken from the product page the enquiry started on."
+            note="Every product an enquiry named. A message about two products counts under both."
             table={{
               columns: ["Product", "Enquiries"],
               rows: productItems.map((item) => [item.label, String(item.value)]),

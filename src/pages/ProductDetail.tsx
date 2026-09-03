@@ -118,7 +118,12 @@ export default function ProductDetail() {
                     {PRODUCT_STATUS_LABEL[product.status ?? "available"]}
                   </span>
                 )}
-                <Button to="/contact" variant="ghost">Contact Our Team</Button>
+                {/* The product travels in router state, as it does to the
+                    qualify form, so the contact form opens with it already
+                    ticked and the address stays clean. */}
+                <Button to="/contact" state={{ product: product.slug }} variant="ghost">
+                  Contact Our Team
+                </Button>
               </div>
               <p className="mt-4 max-w-[56ch] text-caption leading-relaxed text-grey-muted">
                 {isEnquirable(product)

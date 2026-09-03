@@ -20,16 +20,32 @@ export function isAdminApiConfigured() {
   return Boolean(ENDPOINT);
 }
 
+/* Which form a record came from. */
+export type LeadSource = "qualify" | "contact";
+
+export const LEAD_SOURCE_LABEL: Record<LeadSource, string> = {
+  qualify: "Eligibility form",
+  contact: "Contact form",
+};
+
 export interface Lead {
   id: string;
+  source: LeadSource;
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
   city: string;
   state: string;
+  /* Empty for a contact-form record: that form does not ask. */
   injectsInsulinDaily: string;
+  /* The first product named, kept for older records and exports. */
   productInterest: string;
+  /* Every product the person asked about, as catalogue slugs. The dashboard
+     turns these into names and pictures. */
+  products: string[];
+  /* The contact form's message. Empty for an eligibility record. */
+  message: string;
   status: LeadStatus;
   note: string;
   createdAt: string | null;
@@ -59,6 +75,7 @@ export interface LeadStats {
   byStatus: Record<string, number>;
   byState: Record<string, number>;
   byProduct: Record<string, number>;
+  bySource: Record<string, number>;
   byDay: Record<string, number>;
 }
 

@@ -77,18 +77,28 @@ change.
 
 ---
 
-## 4. Deploy the two functions
+## 4. Deploy the three functions
 
-The intake function receives the qualification form. The admin function serves
-the dashboard everything that touches patient records, and writes the access
-log entry for each one.
+Two intake functions receive the public forms: `qualifyIntake` for the
+eligibility form on /qualify and `contactIntake` for the contact form on
+/contact. Both live in `functions/index.js` and write to the same `leads`
+collection, so the sales team works one list. The admin function serves the
+dashboard everything that touches patient records, and writes the access log
+entry for each one.
 
 ```
-# form intake
+# eligibility form intake
 cd functions
 gcloud functions deploy qualifyIntake \
   --gen2 --runtime=nodejs20 --region=us-central1 \
   --source=. --entry-point=qualifyIntake \
+  --trigger-http --allow-unauthenticated \
+  --set-env-vars=^|^ALLOWED_ORIGIN=https://medville-diabetes.web.app,https://www.medvillediabetes.com
+
+# contact form intake, same source, different entry point
+gcloud functions deploy contactIntake \
+  --gen2 --runtime=nodejs20 --region=us-central1 \
+  --source=. --entry-point=contactIntake \
   --trigger-http --allow-unauthenticated \
   --set-env-vars=^|^ALLOWED_ORIGIN=https://medville-diabetes.web.app,https://www.medvillediabetes.com
 
@@ -158,7 +168,7 @@ signs in as themselves.
 
 The Firebase web configuration is already committed in
 `src/lib/firebaseConfig.ts`, so nothing needs to be set for sign-in to work.
-Only the two function addresses are missing, and they are not known until
+Only the three function addresses are missing, and they are not known until
 step 4 has run.
 
 They are read at build time, which means a build made before they are set
@@ -168,9 +178,10 @@ secrets** (GitHub, Settings, Secrets and variables, Actions):
 ```
 VITE_ADMIN_API         https://...adminApi...
 VITE_QUALIFY_ENDPOINT  https://...qualifyIntake...
+VITE_CONTACT_ENDPOINT  https://...contactIntake...
 ```
 
-Both deploy workflows already read those two names and pass them into
+Both deploy workflows already read those three names and pass them into
 `npm run build`, so nothing else changes. **Re-run the deploy afterwards**:
 these are compiled into the JavaScript, so adding a secret does nothing until
 the next build.
@@ -179,7 +190,11 @@ Until `VITE_ADMIN_API` is set, the dashboard signs in and the whole Website
 half works, while Overview, Enquiries and the access log say on screen that
 enquiries are not connected yet.
 
-For local work, copy `.env.example` to `.env` and put the same two values
+Until `VITE_CONTACT_ENDPOINT` is set, the contact form still shows, but its
+button reads "Send by Email" and opens the visitor's own mail app rather than
+posting to the site, so nothing is ever claimed to have been received.
+
+For local work, copy `.env.example` to `.env` and put the same three values
 there.
 
 ---
@@ -218,7 +233,7 @@ not, so most of the dashboard is usable on the free tier:
 
 | Works now | Waits for Blaze |
 |---|---|
-| The whole public website | The qualify form (`qualifyIntake`) |
+| The whole public website | The qualify form (`qualifyIntake`) and the contact form's send button (`contactIntake`) |
 | Blog: writing, editing, publishing | Enquiries and the access log (`adminApi`) |
 | Products, page text, colours, questions, reviews | Uploading pictures |
 | Signing in, inviting administrators | |
@@ -292,12 +307,15 @@ One place, and one route into it.
 | | |
 |---|---|
 | Collection | Firestore `leads`, in the client's dedicated Google Cloud project |
-| Route in | `/qualify` form, HTTPS POST of JSON, to the `qualifyIntake` Cloud Run function, which writes to Firestore. Nothing else writes to it |
+| Route in | The `/qualify` form and the `/contact` form, each an HTTPS POST of JSON to its own Cloud Run function (`qualifyIntake`, `contactIntake`), which writes to Firestore. Nothing else writes to it |
 | Route out | The `adminApi` function only, after checking the caller's token and role. No browser can read the collection directly |
-| Fields held | First name, last name, email address, telephone, city, state, whether the person injects insulin daily, the product they were looking at, a status, and the time it arrived |
+| Fields held | First name, last name, email address, telephone, city, state, whether the person injects insulin daily, the products they asked about, the contact form's message, which form it came from, a status, and the time it arrived |
 
 It is the insulin question sitting beside the name and telephone number that
-makes the record PHI. Either alone would not be.
+makes an eligibility record PHI. Either alone would not be. A contact record
+never asks that question, but its message box is free text and a person may
+write about their health in it, so the whole collection is treated as PHI
+rather than sorting records by what someone happened to type.
 
 A second collection, `auditLog`, records who opened which enquiry and when. It
 holds no values from the enquiry itself: actor, action, record identifier,

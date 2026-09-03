@@ -39,10 +39,12 @@ jobs:
       # Repository settings -> Secrets and variables -> Actions:
       #   VITE_ADMIN_API         the adminApi function URL
       #   VITE_QUALIFY_ENDPOINT  the qualifyIntake function URL
+      #   VITE_CONTACT_ENDPOINT  the contactIntake function URL
       - run: npm ci && npm run build
         env:
           VITE_ADMIN_API: ${{ secrets.VITE_ADMIN_API }}
           VITE_QUALIFY_ENDPOINT: ${{ secrets.VITE_QUALIFY_ENDPOINT }}
+          VITE_CONTACT_ENDPOINT: ${{ secrets.VITE_CONTACT_ENDPOINT }}
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

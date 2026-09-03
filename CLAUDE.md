@@ -232,6 +232,22 @@ only change made to their wording.
   Cloud Storage bucket on the Blaze plan, so on the free tier uploads fail and
   pasting an address is the route that works. Both fields write the same
   value, so nothing changes when Storage is switched on.
+- The contact form on /contact, added 2026-09-03 on the client's instruction
+  (`src/components/ContactForm.tsx`). Name, email, optional phone, a message,
+  and the products the person is asking about, picked from picture tiles and
+  sent as catalogue slugs. It POSTs JSON to the `contactIntake` function in
+  `functions/index.js`, which writes to the same `leads` collection as the
+  eligibility form with `source: "contact"` and a `products` list, so the
+  dashboard's Enquiries screen is one list for both forms: a Source badge, a
+  source filter, the product pictures in each row and in the open record,
+  and the message. The message box is free text, so a contact record is
+  treated as PHI and follows every rule above. Two states, decided by
+  `VITE_CONTACT_ENDPOINT`: set, the form posts and shows a thank-you; unset,
+  the form still renders but its button reads "Send by Email" and opens the
+  visitor's own mail app, so nothing is ever claimed to have been received.
+  Product pages pass the product in router state, never the URL, so the form
+  opens with it already ticked. `src/components/FormField.tsx` is the one
+  field wrapper and input style for both public forms.
 - The qualify form has two states, decided by `VITE_QUALIFY_ENDPOINT`. With it
   set, the real form renders and posts to the intake function. With it unset,
   the form is not rendered at all and the card becomes an "Eligibility checks
@@ -350,16 +366,22 @@ only change made to their wording.
    per product) once the client provides them. Keep the same file paths or
    update `src/data/products.ts`.
 4. Client accepts the Google Cloud BAA on the dedicated project (Blaze plan).
-5. Deploy the intake function (from `functions/`):
+5. Deploy the two intake functions (from `functions/`), one command each,
+   differing only in the entry point:
    ```
    gcloud functions deploy qualifyIntake \
      --gen2 --runtime=nodejs20 --region=us-central1 \
      --source=. --entry-point=qualifyIntake \
      --trigger-http --allow-unauthenticated \
      --set-env-vars=^|^ALLOWED_ORIGIN=https://medville-diabetes.web.app,https://www.medvillediabetes.com
+   gcloud functions deploy contactIntake \
+     --gen2 --runtime=nodejs20 --region=us-central1 \
+     --source=. --entry-point=contactIntake \
+     --trigger-http --allow-unauthenticated \
+     --set-env-vars=^|^ALLOWED_ORIGIN=https://medville-diabetes.web.app,https://www.medvillediabetes.com
    ```
-   Put the resulting URL in `.env` as `VITE_QUALIFY_ENDPOINT` (this variable
-   is safe to expose; it is only a URL).
+   Put the resulting URLs in `.env` as `VITE_QUALIFY_ENDPOINT` and
+   `VITE_CONTACT_ENDPOINT` (both are safe to expose; they are only URLs).
 6. Deploy Firestore rules: `firebase deploy --only firestore:rules`.
 7. Enable Data Access audit logs for Firestore in the console, and turn on
    point-in-time recovery for the database. Both are off by default; the

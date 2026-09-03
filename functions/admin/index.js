@@ -119,10 +119,26 @@ async function audit(actor, action, detail = {}) {
   });
 }
 
+/* Which form a record came from. Records written before the contact form
+   existed carry no source, and every one of them came from /qualify. */
+function sourceOf(d) {
+  return d.source === "contact" ? "contact" : "qualify";
+}
+
+/* The products a record names, as slugs. Older records have only the single
+   productInterest field, which is read as a one-item list. */
+function productsOf(d) {
+  if (Array.isArray(d.products)) {
+    return d.products.filter((item) => typeof item === "string" && item);
+  }
+  return d.productInterest ? [d.productInterest] : [];
+}
+
 function leadToJson(doc) {
   const d = doc.data();
   return {
     id: doc.id,
+    source: sourceOf(d),
     firstName: d.firstName ?? "",
     lastName: d.lastName ?? "",
     email: d.email ?? "",
@@ -131,6 +147,8 @@ function leadToJson(doc) {
     state: d.state ?? "",
     injectsInsulinDaily: d.injectsInsulinDaily ?? "",
     productInterest: d.productInterest ?? "",
+    products: productsOf(d),
+    message: typeof d.message === "string" ? d.message : "",
     status: d.status ?? "new",
     note: d.note ?? "",
     createdAt: d.createdAt?.toDate?.().toISOString() ?? null,
@@ -188,11 +206,15 @@ async function updateLead(actor, body) {
   plainly that a summary was viewed rather than a set of patients.
 */
 async function stats(actor) {
-  const snapshot = await db.collection("leads").select("status", "state", "createdAt", "productInterest", "injectsInsulinDaily").get();
+  const snapshot = await db
+    .collection("leads")
+    .select("status", "state", "createdAt", "productInterest", "products", "injectsInsulinDaily", "source")
+    .get();
 
   const byStatus = {};
   const byState = {};
   const byProduct = {};
+  const bySource = { qualify: 0, contact: 0 };
   const byDay = {};
   let insulinYes = 0;
 
@@ -200,8 +222,11 @@ async function stats(actor) {
     const d = doc.data();
     const status = d.status ?? "new";
     byStatus[status] = (byStatus[status] ?? 0) + 1;
+    bySource[sourceOf(d)] += 1;
     if (d.state) byState[d.state] = (byState[d.state] ?? 0) + 1;
-    if (d.productInterest) byProduct[d.productInterest] = (byProduct[d.productInterest] ?? 0) + 1;
+    /* Every product a person named counts once, so a contact message that
+       asks about two sensors shows up under both. */
+    for (const slug of productsOf(d)) byProduct[slug] = (byProduct[slug] ?? 0) + 1;
     if (d.injectsInsulinDaily === "yes") insulinYes += 1;
     const created = d.createdAt?.toDate?.();
     if (created) {
@@ -212,7 +237,7 @@ async function stats(actor) {
 
   await audit(actor, "leads.stats", { count: snapshot.size });
 
-  return { total: snapshot.size, insulinYes, byStatus, byState, byProduct, byDay };
+  return { total: snapshot.size, insulinYes, byStatus, byState, byProduct, bySource, byDay };
 }
 
 async function listAudit(actor, body) {
