@@ -77,7 +77,8 @@ only change made to their wording.
 - Design token system in `src/index.css`. Since 2026-09-02, on the client's
   instruction, the palette is three colours only: navy #00293B, cyan #18BADA
   and white, with Poppins + Inter. Orange and green are gone from the whole
-  site, including the dashboard and the 3D care cycle. Every "grey" text
+  public site, including the 3D care cycle; the dashboard is the one
+  exception, described under Dashboard below. Every "grey" text
   token is navy let down towards the cyan tint, and every light ground is a
   cyan tint, so no surface is pure white: white is for type on navy and for
   small marks. Every page opens on the navy hero wash, and the light
@@ -180,6 +181,22 @@ only change made to their wording.
   keeps the stack inside the BAA-covered products and adds no monthly cost.
   The wording lives in the Google Cloud console under Identity Platform,
   Templates.
+- Dashboard (`src/admin/`). Redesigned 2026-09-03 on the developer's
+  instruction. Its palette lives in `src/admin/admin.css` and is derived from
+  the three brand colours only, navy, cyan and orange, plus tints of each
+  towards white and shades towards black: no neutral grey, no red, no green.
+  The mix and the contrast ratio are written beside every token. Orange is
+  the primary action there (Publish, Save, New) and carries warnings and
+  danger as a stronger fill; cyan is the rail, the link blend and every
+  success state. The sidebar, the top bar and the sign-in page are navy in
+  both themes. The shell is mobile first: under 1024px the sidebar becomes a
+  drawer, a navy bar names the screen, and a bar at the foot holds the first
+  four screens the role allows plus More; every control is 44px on a touch
+  screen; under 640px tables stack into labelled cards through `data-label`
+  on each cell (a cell without one is the row of actions, and
+  `admin-table-keep` opts a table out). `src/admin/ColorPicker.tsx` and
+  `src/admin/FontPicker.tsx` are the only places a colour or a font is
+  chosen; both open in `src/admin/Popover.tsx`, which is a sheet on a phone.
 - Blog. Articles live in the Firestore `posts` collection, written from the
   dashboard's Blog screen and read by the public site, following the same
   pattern as faqs and testimonials. A post body is a list of typed blocks, not
@@ -192,11 +209,21 @@ only change made to their wording.
   trusted. Since 2026-09-02, on the client's instruction, a paragraph, heading,
   list or quote may carry any colour and any font: the colour is a brand
   swatch name or a six-figure hex code, the font is an id from the list in
-  `src/data/fonts.ts` (the site's two faces, the system faces, and 46 Google
+  `src/data/fonts.ts` (the site's two faces, the system faces, and 172 Google
   Fonts fetched only on a page that uses them), and the decoder in
   `src/data/blog.ts` drops anything else. This is the one deliberate
   exception to the token rule below, confined to article bodies; nothing
-  outside the blog reads those values. Only http, https, root-relative and
+  outside the blog reads those values. Since 2026-09-03 a post also carries
+  a `template`, one of five layouts in `POST_TEMPLATES` (absent means
+  Classic, so older posts are unchanged), rendered by
+  `src/components/ArticleHeader.tsx` for the page and the dashboard preview
+  alike; and any block may carry an `animation` (an effect from
+  `ANIMATIONS`, a pace, a delay of 0 to 800 ms) that becomes nothing more
+  than the site's own reveal classes on the element. The dashboard's motion
+  presets only write animations onto blocks; there is no preset at run time.
+  The three decoders that must agree on a new post field are `decodeBlocks`
+  in `src/data/blog.ts`, `readPosts` in `src/lib/siteContent.ts` and
+  `loadPosts` in `src/admin/data.ts`. Only http, https, root-relative and
   mailto links survive the parser. Pages are `/blog` and `/blog/:slug`; the home band and
   the footer both point at `/blog`, and the home band is hidden entirely until
   a post is published. The old "Guides" section and its `/#guides` anchor are
@@ -246,12 +273,15 @@ only change made to their wording.
   a second class picks the shape (`reveal-left`, `reveal-right`, `reveal-drop`,
   `reveal-zoom`, `reveal-push`, `reveal-blur`, `reveal-tilt`,
   `reveal-swing-left`, `reveal-swing-right`, `reveal-curtain`,
-  `reveal-curtain-left`, `reveal-expand`, `reveal-settle`) and a third the pace
-  (`reveal-swift`, `reveal-slow`, `reveal-glacial`). `useParallax` drifts
-  anything carrying `data-parallax` against the scroll. Rules for new work:
-  give consecutive sections different shapes, never put `data-reveal` and
-  `data-parallax` on the same element, and keep every starting state inside
-  the hook so nothing is stranded invisible under reduced motion.
+  `reveal-curtain-left`, `reveal-expand`, `reveal-settle`, `reveal-fade`) and
+  a third the pace (`reveal-swift`, `reveal-slow`, `reveal-glacial`).
+  `useParallax` drifts anything carrying `data-parallax` against the scroll.
+  Rules for new work: give consecutive sections different shapes, never put
+  `data-reveal` and `data-parallax` on the same element, and keep every
+  starting state inside the hook so nothing is stranded invisible under
+  reduced motion. An article whose blocks carry their own animation is not
+  wrapped in a page-level reveal (`src/pages/BlogPost.tsx`), so no block is
+  ever animated twice.
 - About page photography. The hero, Our Mission and Our Vision pictures are
   the client's own photographs, delivered 2026-09-02, converted to WebP at
   `public/about/about-hero.webp`, `mission-bg.webp` and `vision-bg.webp`.
@@ -357,7 +387,10 @@ only change made to their wording.
 - One container (`src/components/Container.tsx`); never re-declare widths.
 - Cyan (`--color-brand-bright`) is the only filled call to action colour, and
   navy the only other button colour. There is no orange token and no green
-  token; do not add either back.
+  token; do not add either back. That rule covers the public site. The
+  dashboard has its own palette in `src/admin/admin.css`, derived from all
+  three brand colours, where orange is the primary action; nothing in
+  `src/index.css` gains an orange token because of it.
 - Radius stance: soft consumer (`--radius-*`); do not mix in sharp corners.
 - Respect `prefers-reduced-motion` in any new animation.
 - Mobile first: build at 375 px, enhance upward; touch targets 44 px minimum.

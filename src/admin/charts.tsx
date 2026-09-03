@@ -8,18 +8,14 @@ import { useId, useMemo, useState } from "react";
   add more weight than every chart here put together. These are also the only
   four shapes the dashboard needs.
 
-  Colour was computed, not chosen. Every chart carries a single series, so
-  there is no categorical palette and no legend: the labels carry identity and
-  one hue carries magnitude. Those hues were run through the palette checks
-  for both themes and snapped until they passed:
-
-    light  #0e86a8 on #ffffff   lightness, chroma and contrast all pass
-    dark   #1f9cbe on #121e24   lightness, chroma and contrast all pass
-
-  The brand's own #0a6d8a fails the chroma floor and reads as grey in a chart,
-  and #4bc6e2 sits above the dark lightness band. Both are correct for
-  interface text and wrong for a data mark. If these values are ever changed,
-  re-run the check rather than picking by eye.
+  Colour comes from the dashboard palette in admin.css, which is derived from
+  the three brand colours only. Every chart carries a single series, so there
+  is no categorical palette and no legend: the labels carry identity and one
+  hue carries magnitude. The mark is --a-chart, which is the cyan-into-navy
+  blend the interface uses for links (6.2:1 on the light surface, 6.6:1 as
+  raw cyan on the dark one), so a bar reads clearly in both themes. Should a
+  second or third series ever be needed, --a-chart-2 (navy) and --a-chart-3
+  (an orange shade that clears 3:1 as a mark) are already defined beside it.
 
   Every chart also offers its numbers as a table, so nothing here depends on
   seeing colour or shape.
@@ -68,7 +64,9 @@ export function ChartFrame({
 
       {showTable ? (
         <div id={id} className="admin-table-wrap">
-          <table className="admin-table">
+          {/* Two narrow columns fit a phone as they are, so this table is
+              exempt from the stacked layout. */}
+          <table className="admin-table admin-table-keep">
             <thead>
               <tr>
                 <th scope="col">{table.columns[0]}</th>

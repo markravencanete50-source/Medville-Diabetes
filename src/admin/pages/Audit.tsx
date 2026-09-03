@@ -95,21 +95,23 @@ export default function Audit() {
               <tbody>
                 {entries.map((entry) => (
                   <tr key={entry.id}>
-                    <td style={{ color: "var(--a-text-muted)" }}>{formatDateTime(entry.at)}</td>
-                    <td>
+                    <td data-label="When" style={{ color: "var(--a-text-muted)" }}>
+                      {formatDateTime(entry.at)}
+                    </td>
+                    <td data-label="Who">
                       <span className="font-medium">{entry.actorEmail || "Unknown"}</span>
                       <span className="ml-2">
                         <Badge tone="quiet">{entry.actorRole}</Badge>
                       </span>
                     </td>
-                    <td>
+                    <td data-label="What">
                       {entry.action === "access.denied" ? (
                         <Badge tone="danger">{ACTION_LABEL[entry.action]}</Badge>
                       ) : (
                         ACTION_LABEL[entry.action] ?? entry.action
                       )}
                     </td>
-                    <td style={{ color: "var(--a-text-muted)" }}>
+                    <td data-label="Record" style={{ color: "var(--a-text-muted)" }}>
                       {entry.leadId
                         ? `Enquiry ${entry.leadId.slice(0, 8)}`
                         : entry.count !== null

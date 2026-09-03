@@ -1,21 +1,28 @@
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, CalendarDays, Clock } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Container from "../components/Container";
 import Button from "../components/Button";
 import PostBody from "../components/PostBody";
-import { Blob, Grain } from "../components/Decor";
-import { formatPostDate, postPlainText, readingMinutes } from "../data/blog";
+import ArticleHeader, { BODY_COLUMN } from "../components/ArticleHeader";
+import { Grain } from "../components/Decor";
+import {
+  DEFAULT_TEMPLATE,
+  hasAnimations,
+  postPlainText,
+  readingMinutes,
+} from "../data/blog";
 import { usePost, usePosts } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
-import { useParallax, useReveal } from "../lib/useReveal";
+import { reveal, useParallax, useReveal } from "../lib/useReveal";
 import NotFound from "./NotFound";
 
 /*
   One article.
 
-  The body is rendered by PostBody, the same component the dashboard preview
-  uses, so what the author approved is exactly what a reader gets.
+  The header and the body are rendered by ArticleHeader and PostBody, the
+  same components the dashboard preview uses, so what the author approved is
+  exactly what a reader gets, layout included.
 
   A slug that does not match a published post renders the 404 page rather than
   an empty article. That covers a draft, a deleted post and a typed address
@@ -45,76 +52,36 @@ export default function BlogPost() {
 
   if (!post) return <NotFound />;
 
+  const template = post.template ?? DEFAULT_TEMPLATE;
   const more = posts.filter((other) => other.slug !== post.slug).slice(0, 3);
+
+  /* An article whose blocks arrive one by one is not wrapped in a reveal of
+     its own, or every block would be animated twice. One without any block
+     motion keeps the single gentle settle the page has always had. */
+  const perBlock = hasAnimations(post.body);
 
   return (
     <div ref={revealRef}>
       <div ref={parallaxRef}>
-        <section className="bg-wash relative overflow-hidden">
-          <Blob tone="brand" strength={0.15} blur={44} size={420} duration="22s" className="-left-[150px] -top-[160px]" />
-          <Grain opacity={0.05} />
-          <Container className={`relative max-w-[760px] py-10 md:py-14 ${post.image ? "pb-24 md:pb-28" : ""}`}>
-            <Link
-              to="/blog"
-              className="rise-in inline-flex items-center gap-1.5 text-small font-semibold text-on-dark-accent hover:text-on-dark"
-            >
-              <ArrowLeft size={15} strokeWidth={2.2} />
-              All articles
-            </Link>
-
-            <h1
-              className="rise-in mt-5 font-display text-h1 font-bold leading-[1.12] text-on-dark"
-              style={{ "--rise-delay": "140ms" } as React.CSSProperties}
-            >
-              {post.title}
-            </h1>
-
-            <p
-              className="rise-in mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-caption font-semibold uppercase tracking-[0.12em] text-on-dark-accent"
-              style={{ "--rise-delay": "280ms" } as React.CSSProperties}
-            >
-              {formatPostDate(post.publishedAt) && (
-                <span className="inline-flex items-center gap-1.5">
-                  <CalendarDays size={14} strokeWidth={2.2} aria-hidden="true" />
-                  {formatPostDate(post.publishedAt)}
-                </span>
-              )}
-              <span className="inline-flex items-center gap-1.5 text-on-dark-muted">
-                <Clock size={14} strokeWidth={2.2} aria-hidden="true" />
-                {readingMinutes(post.body)} min read
-              </span>
-              {post.author && (
-                <span className="normal-case tracking-normal text-on-dark-muted">
-                  By {post.author}
-                </span>
-              )}
-            </p>
-          </Container>
-        </section>
-
-        {/* The picture straddles the edge of the navy hero, which is why the
-            hero above reserves extra room at its foot when there is one. */}
-        {post.image && (
-          <Container className="max-w-[900px]">
-            <div
-              data-reveal={0}
-              className="reveal-curtain reveal-glacial -mt-16 overflow-hidden rounded-[24px] shadow-overlay md:-mt-20"
-            >
-              <div>
-                <img
-                  src={post.image}
-                  alt={post.imageAlt}
-                  data-parallax="0.4"
-                  className="aspect-[16/9] w-full object-cover"
-                />
-              </div>
-            </div>
-          </Container>
-        )}
+        <ArticleHeader
+          title={post.title}
+          excerpt={post.excerpt}
+          author={post.author}
+          publishedAt={post.publishedAt}
+          minutes={readingMinutes(post.body)}
+          image={post.image}
+          imageAlt={post.imageAlt}
+          template={template}
+          backLink
+          parallax
+        />
 
         <section className="py-12 md:py-16">
-          <Container className="max-w-[760px]">
-            <div data-reveal={80} className="reveal-settle reveal-slow">
+          <Container className={BODY_COLUMN[template]}>
+            <div
+              {...(perBlock ? {} : reveal(80))}
+              className={perBlock ? undefined : "reveal-settle reveal-slow"}
+            >
               <PostBody blocks={post.body} />
             </div>
 

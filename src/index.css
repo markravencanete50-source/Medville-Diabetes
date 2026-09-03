@@ -392,6 +392,10 @@ h1, h2, h3, h4 {
 /* the smallest move there is, for dense text that should not jump */
 .reveal-start.reveal-settle { transform: translateY(14px); }
 
+/* no move at all, only the fade; the one arrival an article block may ask
+   for that the marketing pages never use */
+.reveal-start.reveal-fade { transform: none; }
+
 .reveal-in {
   opacity: 1;
   transform: none;

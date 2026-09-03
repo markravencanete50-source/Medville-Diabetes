@@ -21,7 +21,7 @@
 */
 
 import { defaultsFor, type PageId, type PageValues, type SiteContent } from "../content/schema";
-import { decodeBlocks, type Post } from "../data/blog";
+import { decodeBlocks, isPostTemplate, type Post } from "../data/blog";
 import type { Product } from "../data/products";
 import { products as builtInProducts } from "../data/products";
 import { firebaseConfig } from "./firebaseConfig";
@@ -234,6 +234,7 @@ function readPosts(docs: RestDocument[]): Post[] {
         author: typeof f.author === "string" ? f.author : "",
         publishedAt: typeof f.publishedAt === "string" ? f.publishedAt : "",
         published: f.published === true,
+        template: isPostTemplate(f.template) ? f.template : undefined,
       };
     })
     .filter((post) => post.published && post.slug && post.title)

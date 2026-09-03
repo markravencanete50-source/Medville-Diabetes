@@ -5,7 +5,10 @@ import {
   Eye,
   Image as ImageIcon,
   Pencil,
+  Play,
   Plus,
+  RotateCcw,
+  Sparkles,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -21,24 +24,32 @@ import {
   type PostRecord,
 } from "../data";
 import {
+  ANIMATIONS,
+  ANIMATION_DELAY_MAX,
+  ANIMATION_DELAY_STEP,
+  ANIMATION_GROUPS,
+  ANIMATION_PACES,
   BLOCK_COLORS,
   BLOCK_LABEL,
+  DEFAULT_TEMPLATE,
   IMAGE_RATIOS,
+  POST_TEMPLATES,
+  animationById,
   emptyBlock,
   postHasContent,
   readingMinutes,
+  type AnimationEffect,
+  type BlockAnimation,
   type BlockColor,
   type PostBlock,
+  type PostTemplate,
 } from "../../data/blog";
-import {
-  FONTS,
-  FONT_CATEGORY_LABEL,
-  ensureFontLoaded,
-  fontFamily,
-  type FontCategory,
-} from "../../data/fonts";
 import PostBody from "../../components/PostBody";
+import ArticleHeader, { BODY_COLUMN } from "../../components/ArticleHeader";
+import { useReveal } from "../../lib/useReveal";
 import { Badge, Banner, Card, Drawer, Empty, Field, PageHeader, Spinner, useToast } from "../ui";
+import { ColorPicker } from "../ColorPicker";
+import { FontPicker } from "../FontPicker";
 
 /*
   The blog editor.
@@ -47,13 +58,17 @@ import { Badge, Banner, Card, Drawer, Empty, Field, PageHeader, Spinner, useToas
   a picture, a highlight and a heading each editable on their own terms. The
   client asked for something closer to a design tool; this is a block editor
   in the shape of Notion or WordPress rather than a free canvas. Colour and
-  type are the author's to choose: the brand swatches are one tap away, the
-  colour wheel beside them opens the whole spectrum, and the font list in
-  data/fonts.ts runs from the site's own faces to fifty more. What comes back
-  from the database is still checked before it is rendered, in data/blog.ts.
+  type are the author's to choose: the picker opens the whole spectrum with
+  the brand swatches one tap away, and the font list in data/fonts.ts runs
+  from the site's own faces to one hundred and seventy more. Since
+  2026-09-03 an article also has a layout, chosen from five, and any block
+  can arrive with one of the site's own animations, alone or from a preset
+  applied to every block at once. What comes back from the database is still
+  checked before it is rendered, in data/blog.ts.
 
-  Preview is not a second renderer. It mounts the same PostBody component the
-  public article uses, so what is approved here is what a reader receives.
+  Preview is not a second renderer. It mounts the same ArticleHeader and
+  PostBody components the public article uses, so what is approved here is
+  what a reader receives, layout and motion included.
 */
 
 const BLOCK_TYPES: PostBlock["type"][] = [
@@ -65,6 +80,12 @@ const BLOCK_TYPES: PostBlock["type"][] = [
   "callout",
   "divider",
 ];
+
+const BLOCK_PRESETS = BLOCK_COLORS.map((colour) => ({
+  id: colour.id,
+  label: colour.label,
+  hex: colour.hex,
+}));
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -81,6 +102,7 @@ function blankPost(): PostRecord {
     author: "",
     publishedAt: todayISO(),
     published: false,
+    template: DEFAULT_TEMPLATE,
   };
 }
 
@@ -161,7 +183,7 @@ export default function Blog() {
               <tbody>
                 {posts.map((post) => (
                   <tr key={post.slug}>
-                    <td>
+                    <td data-label="Article">
                       <div className="flex items-center gap-3">
                         {post.image && (
                           <img
@@ -179,12 +201,12 @@ export default function Blog() {
                         </div>
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Status">
                       <Badge tone={post.published ? "ok" : "quiet"}>
                         {post.published ? "Published" : "Draft"}
                       </Badge>
                     </td>
-                    <td>{post.publishedAt || "Not published"}</td>
+                    <td data-label="Date">{post.publishedAt || "Not published"}</td>
                     <td className="text-right">
                       <div className="inline-flex items-center gap-1.5">
                         <button
@@ -231,6 +253,53 @@ export default function Blog() {
   );
 }
 
+/* ---- motion presets ----
+
+   A preset writes an animation onto every block and is then forgotten. The
+   blocks are the only record, so the article page never has to know a preset
+   existed, and any block can be changed on its own afterwards. */
+
+type PresetId = "none" | "calm" | "lively" | "editorial";
+
+const PRESETS: { id: PresetId; label: string; description: string }[] = [
+  { id: "none", label: "None", description: "Every block is simply there, with no motion." },
+  { id: "calm", label: "Calm", description: "Each block settles gently into place, one after another." },
+  { id: "lively", label: "Lively", description: "Blocks arrive from alternate sides with a short stagger between them." },
+  { id: "editorial", label: "Editorial", description: "Text fades in, pictures slide up inside their frames, and dividers widen." },
+];
+
+function withPreset(blocks: PostBlock[], preset: PresetId): PostBlock[] {
+  return blocks.map((block, index) => {
+    const next = { ...block };
+    delete next.animation;
+    switch (preset) {
+      case "calm":
+        next.animation =
+          index % 2 === 0 ? { effect: "settle", pace: "slow" } : { effect: "fade", pace: "slow" };
+        break;
+      case "lively": {
+        const effects: AnimationEffect[] = ["left", "right", "zoom"];
+        const step = index % 3;
+        next.animation = step ? { effect: effects[step], delay: step * 80 } : { effect: effects[0] };
+        break;
+      }
+      case "editorial":
+        next.animation =
+          block.type === "image"
+            ? { effect: "curtain", pace: "slow" }
+            : block.type === "heading"
+              ? { effect: "settle" }
+              : block.type === "divider"
+                ? { effect: "expand" }
+                : { effect: "fade" };
+        break;
+      default:
+        break;
+    }
+    return next;
+  });
+}
+
 /* ---- the editor ---- */
 
 function PostEditor({
@@ -249,6 +318,8 @@ function PostEditor({
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [saving, setSaving] = useState(false);
   const [slugTouched, setSlugTouched] = useState(!isNew);
+  const [preset, setPreset] = useState<PresetId>("calm");
+  const presetId = useId();
 
   const set = <K extends keyof PostRecord>(key: K, value: PostRecord[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
@@ -313,56 +384,52 @@ function PostEditor({
 
   const minutes = useMemo(() => readingMinutes(draft.body), [draft.body]);
 
+  const footer = (
+    <>
+      <button
+        type="button"
+        className="admin-btn admin-btn-primary"
+        disabled={saving}
+        onClick={() => void save(true)}
+      >
+        {draft.published ? "Save and keep published" : "Publish"}
+      </button>
+      <button
+        type="button"
+        className="admin-btn admin-btn-quiet"
+        disabled={saving}
+        onClick={() => void save(false)}
+      >
+        {draft.published ? "Unpublish and save draft" : "Save draft"}
+      </button>
+      <span className="ml-auto text-[13px]" style={{ color: "var(--a-text-faint)" }}>
+        {minutes} min read
+      </span>
+    </>
+  );
+
   return (
     <Drawer
       open
       wide
       title={isNew ? "New article" : "Edit article"}
       onClose={onClose}
+      footer={footer}
     >
-      <div
-        className="mb-5 flex flex-wrap items-center gap-2.5 rounded-lg p-3"
-        style={{ background: "var(--a-bg)" }}
-      >
-        <button
-          type="button"
-          className="admin-btn admin-btn-primary"
-          disabled={saving}
-          onClick={() => void save(true)}
-        >
-          {draft.published ? "Save and keep published" : "Publish"}
-        </button>
-        <button
-          type="button"
-          className="admin-btn admin-btn-quiet"
-          disabled={saving}
-          onClick={() => void save(false)}
-        >
-          {draft.published ? "Unpublish and save draft" : "Save draft"}
-        </button>
-        <span className="ml-auto text-[13px]" style={{ color: "var(--a-text-faint)" }}>
-          {minutes} min read
-        </span>
-      </div>
-
-      <div className="mb-5 flex gap-1.5 rounded-full p-1" style={{ background: "var(--a-bg)" }}>
-        {(["edit", "preview"] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setMode(value)}
-            aria-pressed={mode === value}
-            className="flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2 text-[13px] font-semibold"
-            style={
-              mode === value
-                ? { background: "var(--a-surface)", color: "var(--a-text)", boxShadow: "var(--a-shadow)" }
-                : { color: "var(--a-text-faint)" }
-            }
-          >
-            {value === "edit" ? <Pencil size={15} /> : <Eye size={15} />}
-            {value === "edit" ? "Write" : "Preview"}
-          </button>
-        ))}
+      <div className="admin-drawer-sticky">
+        <div className="admin-segment" role="group" aria-label="Write or preview">
+          {(["edit", "preview"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setMode(value)}
+              aria-pressed={mode === value}
+            >
+              {value === "edit" ? <Pencil size={15} /> : <Eye size={15} />}
+              {value === "edit" ? "Write" : "Preview"}
+            </button>
+          ))}
+        </div>
       </div>
 
       {mode === "preview" ? (
@@ -430,11 +497,48 @@ function PostEditor({
             </Field>
           </div>
 
+          <TemplateChooser value={draft.template} onPick={(template) => set("template", template)} />
+
           <HeaderImage draft={draft} set={set} />
 
           <div>
             <p className="admin-label">Article</p>
-            <div className="mt-2 flex flex-col gap-3">
+
+            <div
+              className="mb-3 flex flex-wrap items-end gap-2.5 rounded-lg p-3"
+              style={{ background: "var(--a-bg)" }}
+            >
+              <div className="min-w-[180px] flex-1">
+                <label className="admin-label" htmlFor={presetId}>
+                  Motion preset
+                </label>
+                <select
+                  id={presetId}
+                  className="admin-select"
+                  value={preset}
+                  onChange={(e) => setPreset(e.target.value as PresetId)}
+                >
+                  {PRESETS.map((entry) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                className="admin-btn admin-btn-quiet"
+                onClick={() => set("body", withPreset(draft.body, preset))}
+              >
+                <Sparkles size={15} /> Apply to every block
+              </button>
+              <p className="admin-help m-0 w-full">
+                {PRESETS.find((entry) => entry.id === preset)?.description} Each block can still be
+                changed on its own below.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3">
               {draft.body.map((block, index) => (
                 <BlockEditor
                   key={block.id}
@@ -456,26 +560,144 @@ function PostEditor({
   );
 }
 
-/* ---- preview: the real component, on the real background ---- */
+/* ---- preview: the real components, on the real background ---- */
 
 function Preview({ draft }: { draft: PostRecord }) {
+  /* Remounting the frame runs every arrival again, so an author can watch
+     the motion as many times as they like. */
+  const [replay, setReplay] = useState(0);
+
   return (
-    <div className="rounded-lg p-6" style={{ background: "#ffffff" }}>
-      <h1 className="m-0 font-display text-h2 font-bold leading-tight text-ink">
-        {draft.title || "Untitled article"}
-      </h1>
-      {draft.excerpt && (
-        <p className="mt-3 text-body leading-relaxed text-grey-muted">{draft.excerpt}</p>
-      )}
-      {draft.image && (
-        <img
-          src={draft.image}
-          alt={draft.imageAlt}
-          className="mt-5 aspect-[16/9] w-full rounded-lg object-cover"
-        />
-      )}
-      <div className="mt-7">
+    <div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="admin-help m-0">
+          The article as a reader will see it, on the website's own colours.
+        </p>
+        <button
+          type="button"
+          className="admin-btn admin-btn-quiet admin-btn-sm"
+          onClick={() => setReplay((n) => n + 1)}
+        >
+          <RotateCcw size={14} /> Replay animations
+        </button>
+      </div>
+      <PreviewFrame key={replay} draft={draft} />
+    </div>
+  );
+}
+
+function PreviewFrame({ draft }: { draft: PostRecord }) {
+  const revealRef = useReveal<HTMLDivElement>();
+  return (
+    <div
+      ref={revealRef}
+      className="overflow-hidden rounded-lg"
+      style={{ background: "var(--color-canvas)", border: "1px solid var(--a-line)" }}
+    >
+      <ArticleHeader
+        title={draft.title || "Untitled article"}
+        excerpt={draft.excerpt}
+        author={draft.author}
+        publishedAt={draft.publishedAt}
+        minutes={readingMinutes(draft.body)}
+        image={draft.image}
+        imageAlt={draft.imageAlt}
+        template={draft.template}
+        backLink={false}
+        parallax={false}
+      />
+      <div className={`mx-auto px-5 py-8 sm:px-8 ${BODY_COLUMN[draft.template]}`}>
         <PostBody blocks={draft.body} />
+      </div>
+    </div>
+  );
+}
+
+/* ---- layout ---- */
+
+function Wire({ template }: { template: PostTemplate }) {
+  switch (template) {
+    case "magazine":
+      return (
+        <span className="admin-wire">
+          <i className="w-pic" style={{ height: 30, boxShadow: "inset 0 -9px 0 var(--a-nav-bg)" }} />
+          <i className="w-text" style={{ height: 4, width: "82%" }} />
+          <i className="w-text" style={{ height: 4, width: "70%" }} />
+        </span>
+      );
+    case "minimal":
+      return (
+        <span className="admin-wire">
+          <i className="w-text" style={{ height: 9, width: "58%", justifySelf: "center" }} />
+          <i className="w-text" style={{ height: 4, width: "76%", justifySelf: "center" }} />
+          <i className="w-text" style={{ height: 4, width: "66%", justifySelf: "center" }} />
+          <i className="w-text" style={{ height: 4, width: "72%", justifySelf: "center" }} />
+        </span>
+      );
+    case "feature":
+      return (
+        <span className="admin-wire">
+          <i className="w-hero" style={{ height: 11 }} />
+          <i className="w-pic" style={{ height: 15, width: "96%", justifySelf: "center" }} />
+          <i className="w-text" style={{ height: 4, width: "86%", justifySelf: "center" }} />
+          <i className="w-text" style={{ height: 4, width: "80%", justifySelf: "center" }} />
+        </span>
+      );
+    case "split":
+      return (
+        <span className="admin-wire" style={{ gridTemplateColumns: "1fr 1fr", alignItems: "center" }}>
+          <span className="grid gap-[3px]">
+            <i className="w-hero" style={{ height: 8 }} />
+            <i className="w-text" style={{ height: 4, width: "90%" }} />
+            <i className="w-text" style={{ height: 4, width: "70%" }} />
+          </span>
+          <i className="w-pic" style={{ height: 34 }} />
+        </span>
+      );
+    default:
+      return (
+        <span className="admin-wire">
+          <i className="w-hero" style={{ height: 16 }} />
+          <i className="w-pic" style={{ height: 12, width: "74%", justifySelf: "center" }} />
+          <i className="w-text" style={{ height: 4, width: "68%", justifySelf: "center" }} />
+          <i className="w-text" style={{ height: 4, width: "60%", justifySelf: "center" }} />
+        </span>
+      );
+  }
+}
+
+function TemplateChooser({
+  value,
+  onPick,
+}: {
+  value: PostTemplate;
+  onPick: (template: PostTemplate) => void;
+}) {
+  const labelId = useId();
+  return (
+    <div>
+      <p className="admin-label" id={labelId}>
+        Layout
+      </p>
+      <div
+        role="radiogroup"
+        aria-labelledby={labelId}
+        className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5"
+      >
+        {POST_TEMPLATES.map((template) => (
+          <button
+            key={template.id}
+            type="button"
+            role="radio"
+            aria-checked={value === template.id}
+            className="admin-tab-card"
+            onClick={() => onPick(template.id)}
+          >
+            <Wire template={template.id} />
+            <b>{template.label}</b>
+            <small>{template.description}</small>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -508,7 +730,14 @@ function HeaderImage({
   };
 
   return (
-    <Field label="Header picture" help="Shown at the top of the article and on every card.">
+    <Field
+      label="Header picture"
+      help={
+        draft.template === "minimal"
+          ? "The Minimal layout shows no picture on the article itself. It is still used on the cards and in link previews."
+          : "Shown at the top of the article and on every card."
+      }
+    >
       <div className="flex flex-wrap items-center gap-3">
         {draft.image ? (
           <img
@@ -595,6 +824,15 @@ function BlockEditor({
   const patch = (changes: Partial<PostBlock>) =>
     onChange({ ...block, ...changes } as PostBlock);
 
+  /* An animation is set whole, or removed, so the stored object never
+     carries an undefined member. */
+  const setAnimation = (animation: BlockAnimation | undefined) => {
+    const next = { ...block };
+    if (animation) next.animation = animation;
+    else delete next.animation;
+    onChange(next);
+  };
+
   const upload = async (file: File | undefined) => {
     if (!file || block.type !== "image") return;
     setBusy(true);
@@ -608,6 +846,18 @@ function BlockEditor({
     }
   };
 
+  const alignChoice = (align: "left" | "center" | undefined) => (
+    <Choice
+      label="Align"
+      options={[
+        { id: "left", label: "Left" },
+        { id: "center", label: "Centre" },
+      ]}
+      value={align ?? "left"}
+      onPick={(next) => patch({ align: next } as Partial<PostBlock>)}
+    />
+  );
+
   return (
     <div className="rounded-lg p-4" style={{ background: "var(--a-bg)" }}>
       <div className="mb-3 flex items-center gap-2">
@@ -616,6 +866,11 @@ function BlockEditor({
           style={{ color: "var(--a-text-faint)" }}
         >
           {BLOCK_LABEL[block.type]}
+          {block.animation && (
+            <span className="ml-2 normal-case tracking-normal" style={{ color: "var(--a-brand-text)" }}>
+              {animationById(block.animation.effect)?.label}
+            </span>
+          )}
         </span>
         <div className="ml-auto flex items-center gap-1">
           <button
@@ -657,21 +912,19 @@ function BlockEditor({
             placeholder="Write here. **bold**, *italic* and [link](https://example.com) all work."
           />
           <div className="mt-3 flex flex-wrap gap-4">
-            <ColorPicker value={block.color} onPick={(color) => patch({ color } as Partial<PostBlock>)} />
+            <ColorPicker
+              label="Colour"
+              value={block.color}
+              presets={BLOCK_PRESETS}
+              allowClear
+              onChange={(color) => patch({ color: color as BlockColor | undefined } as Partial<PostBlock>)}
+            />
             <FontPicker
               value={block.font}
               fallback="body"
               onPick={(font) => patch({ font } as Partial<PostBlock>)}
             />
-            <Choice
-              label="Align"
-              options={[
-                { id: "left", label: "Left" },
-                { id: "center", label: "Centre" },
-              ]}
-              value={block.align ?? "left"}
-              onPick={(align) => patch({ align } as Partial<PostBlock>)}
-            />
+            {alignChoice(block.align)}
           </div>
         </>
       )}
@@ -691,24 +944,22 @@ function BlockEditor({
                 { id: "2", label: "Large" },
                 { id: "3", label: "Small" },
               ]}
-              value={String(block.level)}
+              value={block.level === 3 ? "3" : "2"}
               onPick={(level) => patch({ level: level === "3" ? 3 : 2 } as Partial<PostBlock>)}
             />
-            <ColorPicker value={block.color} onPick={(color) => patch({ color } as Partial<PostBlock>)} />
+            <ColorPicker
+              label="Colour"
+              value={block.color}
+              presets={BLOCK_PRESETS}
+              allowClear
+              onChange={(color) => patch({ color: color as BlockColor | undefined } as Partial<PostBlock>)}
+            />
             <FontPicker
               value={block.font}
               fallback="display"
               onPick={(font) => patch({ font } as Partial<PostBlock>)}
             />
-            <Choice
-              label="Align"
-              options={[
-                { id: "left", label: "Left" },
-                { id: "center", label: "Centre" },
-              ]}
-              value={block.align ?? "left"}
-              onPick={(align) => patch({ align } as Partial<PostBlock>)}
-            />
+            {alignChoice(block.align)}
           </div>
         </>
       )}
@@ -757,12 +1008,19 @@ function BlockEditor({
             <Plus size={15} /> Add item
           </button>
           <div className="mt-3 flex flex-wrap gap-4">
-            <ColorPicker value={block.color} onPick={(color) => patch({ color } as Partial<PostBlock>)} />
+            <ColorPicker
+              label="Colour"
+              value={block.color}
+              presets={BLOCK_PRESETS}
+              allowClear
+              onChange={(color) => patch({ color: color as BlockColor | undefined } as Partial<PostBlock>)}
+            />
             <FontPicker
               value={block.font}
               fallback="body"
               onPick={(font) => patch({ font } as Partial<PostBlock>)}
             />
+            {alignChoice(block.align)}
           </div>
         </>
       )}
@@ -783,12 +1041,19 @@ function BlockEditor({
             placeholder="Who said it (optional)"
           />
           <div className="mt-3 flex flex-wrap gap-4">
-            <ColorPicker value={block.color} onPick={(color) => patch({ color } as Partial<PostBlock>)} />
+            <ColorPicker
+              label="Colour"
+              value={block.color}
+              presets={BLOCK_PRESETS}
+              allowClear
+              onChange={(color) => patch({ color: color as BlockColor | undefined } as Partial<PostBlock>)}
+            />
             <FontPicker
               value={block.font}
               fallback="display"
               onPick={(font) => patch({ font } as Partial<PostBlock>)}
             />
+            {alignChoice(block.align)}
           </div>
         </>
       )}
@@ -807,8 +1072,8 @@ function BlockEditor({
               label="Tone"
               options={[
                 { id: "brand", label: "Brand" },
-                { id: "accent", label: "Cyan" },
-                { id: "warn", label: "Cyan" },
+                { id: "accent", label: "Deep cyan" },
+                { id: "warn", label: "Bright cyan" },
               ]}
               value={block.tone}
               onPick={(tone) => patch({ tone } as Partial<PostBlock>)}
@@ -825,12 +1090,12 @@ function BlockEditor({
                 src={block.url}
                 alt=""
                 className="h-20 w-32 rounded-md object-cover"
-                style={{ background: "var(--a-bg)" }}
+                style={{ background: "var(--a-surface)" }}
               />
             ) : (
               <div
                 className="flex h-20 w-32 items-center justify-center rounded-md"
-                style={{ background: "var(--a-bg)", color: "var(--a-text-faint)" }}
+                style={{ background: "var(--a-surface)", color: "var(--a-text-faint)" }}
               >
                 <ImageIcon size={22} />
               </div>
@@ -895,188 +1160,154 @@ function BlockEditor({
         </p>
       )}
 
+      <AnimationPanel block={block} onChange={setAnimation} />
+
       <AddBlockRow compact onAdd={onAddAfter} />
+    </div>
+  );
+}
+
+/* ---- motion, one block at a time ---- */
+
+function AnimationPanel({
+  block,
+  onChange,
+}: {
+  block: PostBlock;
+  onChange: (animation: BlockAnimation | undefined) => void;
+}) {
+  const animation = block.animation;
+  const selectId = useId();
+  const delayId = useId();
+  const [tryKey, setTryKey] = useState(0);
+  const definition = animation ? animationById(animation.effect) : undefined;
+
+  /* A change is rebuilt from scratch with only the parts that matter, so the
+     normal pace and a zero delay are stored as nothing at all. */
+  const update = (changes: Partial<BlockAnimation>) => {
+    if (!animation) return;
+    const next: BlockAnimation = { effect: changes.effect ?? animation.effect };
+    const pace = "pace" in changes ? changes.pace : animation.pace;
+    if (pace && pace !== "normal") next.pace = pace;
+    const delay = "delay" in changes ? changes.delay : animation.delay;
+    if (delay) next.delay = delay;
+    onChange(next);
+  };
+
+  return (
+    <div
+      className="mt-4 rounded-lg p-3"
+      style={{ border: "1px solid var(--a-line)", background: "var(--a-surface)" }}
+    >
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-[170px] flex-1">
+          <label className="admin-label" htmlFor={selectId}>
+            Animation
+          </label>
+          <select
+            id={selectId}
+            className="admin-select"
+            value={animation?.effect ?? ""}
+            onChange={(e) => {
+              const effect = e.target.value as AnimationEffect | "";
+              if (!effect) onChange(undefined);
+              else if (animation) update({ effect });
+              else onChange({ effect });
+            }}
+          >
+            <option value="">No animation</option>
+            {ANIMATION_GROUPS.map((group) => (
+              <optgroup key={group} label={group}>
+                {ANIMATIONS.filter((entry) => entry.group === group).map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+
+        {animation && (
+          <>
+            <Choice
+              label="Pace"
+              options={ANIMATION_PACES.map((pace) => ({ id: pace.id, label: pace.label }))}
+              value={animation.pace ?? "normal"}
+              onPick={(pace) => update({ pace })}
+            />
+            <div>
+              <label className="admin-label" htmlFor={delayId}>
+                Delay: {animation.delay ?? 0} ms
+              </label>
+              <input
+                id={delayId}
+                type="range"
+                className="block w-[170px]"
+                min={0}
+                max={ANIMATION_DELAY_MAX}
+                step={ANIMATION_DELAY_STEP}
+                value={animation.delay ?? 0}
+                style={{ accentColor: "var(--a-brand)" }}
+                onChange={(e) => update({ delay: Number(e.target.value) })}
+              />
+            </div>
+            <button
+              type="button"
+              className="admin-btn admin-btn-quiet admin-btn-sm"
+              onClick={() => setTryKey((n) => n + 1)}
+            >
+              <Play size={14} /> Try it
+            </button>
+          </>
+        )}
+      </div>
+
+      {definition && <p className="admin-help">{definition.description}</p>}
+      {animation && tryKey > 0 && <TryIt key={tryKey} block={block} />}
+    </div>
+  );
+}
+
+/* One block on the website's own canvas, arriving the way it will on the
+   page. A new key on every press plays it again. */
+function TryIt({ block }: { block: PostBlock }) {
+  const revealRef = useReveal<HTMLDivElement>();
+  return (
+    <div
+      ref={revealRef}
+      className="mt-3 overflow-hidden rounded-lg p-4"
+      style={{ background: "var(--color-canvas)" }}
+    >
+      <PostBody blocks={[block]} />
     </div>
   );
 }
 
 /* ---- small controls ---- */
 
-/*
-  Colour. The brand swatches come first; the disc after them is the browser's
-  own colour picker, which opens a wheel or a spectrum depending on the
-  device, and the box beside it takes a code typed or pasted in. Selecting
-  the swatch already chosen clears the choice, so a block can go back to its
-  default without a separate control.
-*/
-const HEX = /^#[0-9a-fA-F]{6}$/;
-
-function ColorPicker({
-  value,
-  onPick,
-}: {
-  value: BlockColor | undefined;
-  onPick: (color: BlockColor | undefined) => void;
-}) {
-  const custom = typeof value === "string" && value.startsWith("#");
-  const [hex, setHex] = useState<string>(custom ? value : "#0a6d8a");
-  useEffect(() => {
-    if (custom) setHex(value);
-  }, [custom, value]);
-  const pickerId = useId();
-
-  return (
-    <div>
-      <p className="admin-label">Colour</p>
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-        {BLOCK_COLORS.map((color) => (
-          <button
-            key={color.id}
-            type="button"
-            title={color.label}
-            aria-label={color.label}
-            aria-pressed={value === color.id}
-            onClick={() => onPick(value === color.id ? undefined : color.id)}
-            className="h-7 w-7 rounded-full"
-            style={{
-              background: color.token,
-              outline: value === color.id ? "2px solid var(--a-accent)" : "none",
-              outlineOffset: 2,
-            }}
-          />
-        ))}
-        <label
-          htmlFor={pickerId}
-          title="Any colour"
-          className="relative h-7 w-7 cursor-pointer overflow-hidden rounded-full"
-          style={{
-            background: custom
-              ? value
-              : "conic-gradient(#f43f5e, #f59e0b, #84cc16, #06b6d4, #3b82f6, #a855f7, #f43f5e)",
-            outline: custom ? "2px solid var(--a-accent)" : "none",
-            outlineOffset: 2,
-          }}
-        >
-          <input
-            id={pickerId}
-            type="color"
-            aria-label="Choose any colour"
-            value={HEX.test(hex) ? hex.toLowerCase() : "#000000"}
-            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-            onChange={(e) => {
-              setHex(e.target.value);
-              onPick(e.target.value as BlockColor);
-            }}
-          />
-        </label>
-        <input
-          className="admin-input"
-          style={{ width: 96, minHeight: 30, padding: "2px 8px", fontSize: 12 }}
-          value={hex}
-          spellCheck={false}
-          aria-label="Colour code"
-          onChange={(e) => {
-            const next = e.target.value.trim();
-            setHex(next);
-            if (HEX.test(next)) onPick(next.toLowerCase() as BlockColor);
-          }}
-        />
-      </div>
-    </div>
-  );
-}
-
-/*
-  Font. One list, grouped the way a person thinks about type, with each name
-  shown in its own face where the browser allows it and a sample line beside
-  the list that always is. The face is fetched as soon as it is chosen, so
-  the sample and the preview show the real thing rather than a fallback.
-*/
-const FONT_GROUPS = (Object.keys(FONT_CATEGORY_LABEL) as FontCategory[]).map((category) => ({
-  category,
-  fonts: FONTS.filter((font) => font.category === category),
-}));
-
-function FontPicker({
-  value,
-  fallback,
-  onPick,
-}: {
-  value: string | undefined;
-  /* The face a block uses when none is chosen: the body face for text, the
-     display face for a heading or a quote. Choosing it again stores nothing,
-     so an untouched block stays untouched. */
-  fallback: "body" | "display";
-  onPick: (font: string | undefined) => void;
-}) {
-  const current = value ?? fallback;
-  const selectId = useId();
-  useEffect(() => {
-    ensureFontLoaded(current);
-  }, [current]);
-
-  return (
-    <div>
-      <label className="admin-label" htmlFor={selectId}>
-        Font
-      </label>
-      <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
-        <select
-          id={selectId}
-          className="admin-select"
-          style={{ minWidth: 190 }}
-          value={current}
-          onChange={(e) => onPick(e.target.value === fallback ? undefined : e.target.value)}
-        >
-          {FONT_GROUPS.map((group) => (
-            <optgroup key={group.category} label={FONT_CATEGORY_LABEL[group.category]}>
-              {group.fonts.map((font) => (
-                <option key={font.id} value={font.id} style={{ fontFamily: font.family }}>
-                  {font.label}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-        <span
-          aria-hidden="true"
-          className="text-[15px]"
-          style={{ fontFamily: fontFamily(current, fallback), color: "var(--a-text-muted)" }}
-        >
-          The quick brown fox jumps over the lazy dog
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function Choice({
+function Choice<T extends string>({
   label,
   options,
   value,
   onPick,
 }: {
   label: string;
-  options: { id: string; label: string }[];
-  value: string;
-  onPick: (id: never) => void;
+  options: { id: T; label: string }[];
+  value: T;
+  onPick: (id: T) => void;
 }) {
   return (
     <div>
       <p className="admin-label">{label}</p>
-      <div className="mt-1.5 flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-1.5">
         {options.map((option) => (
           <button
             key={option.id}
             type="button"
+            className="admin-chip"
             aria-pressed={value === option.id}
-            onClick={() => onPick(option.id as never)}
-            className="rounded-full px-3 py-1.5 text-[12px] font-semibold"
-            style={
-              value === option.id
-                ? { background: "var(--a-accent)", color: "#fff" }
-                : { background: "var(--a-surface)", color: "var(--a-text-faint)" }
-            }
+            onClick={() => onPick(option.id)}
           >
             {option.label}
           </button>
@@ -1104,9 +1335,8 @@ function AddBlockRow({
         <button
           key={type}
           type="button"
-          className="admin-btn admin-btn-quiet"
+          className={`admin-btn admin-btn-quiet ${compact ? "admin-btn-sm" : ""}`}
           onClick={() => onAdd(type)}
-          style={compact ? { padding: "4px 10px", fontSize: 12 } : undefined}
         >
           <Plus size={compact ? 13 : 15} /> {BLOCK_LABEL[type]}
         </button>

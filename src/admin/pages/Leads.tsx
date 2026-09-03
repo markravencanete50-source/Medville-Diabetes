@@ -179,7 +179,7 @@ export default function Leads() {
 
       <Card className="mb-4">
         <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[190px] flex-1">
+          <div className="min-w-0 flex-1 basis-[220px]">
             <Field label="Search" htmlFor="lead-search">
               <div className="relative">
                 <Search
@@ -199,7 +199,7 @@ export default function Leads() {
               </div>
             </Field>
           </div>
-          <div className="w-[190px]">
+          <div className="w-full sm:w-[190px]">
             <Field label="Stage" htmlFor="lead-filter">
               <select
                 id="lead-filter"
@@ -245,7 +245,7 @@ export default function Leads() {
               <tbody>
                 {visible.map((lead) => (
                   <tr key={lead.id}>
-                    <td>
+                    <td data-label="Name">
                       <button
                         type="button"
                         className="font-semibold underline underline-offset-2"
@@ -255,14 +255,16 @@ export default function Leads() {
                         {leadName(lead)}
                       </button>
                     </td>
-                    <td style={{ color: "var(--a-text-muted)" }}>{formatDateTime(lead.createdAt)}</td>
-                    <td style={{ color: "var(--a-text-muted)" }}>
+                    <td data-label="Received" style={{ color: "var(--a-text-muted)" }}>
+                      {formatDateTime(lead.createdAt)}
+                    </td>
+                    <td data-label="Location" style={{ color: "var(--a-text-muted)" }}>
                       {[lead.city, lead.state].filter(Boolean).join(", ") || "Not given"}
                     </td>
-                    <td style={{ color: "var(--a-text-muted)" }}>
+                    <td data-label="Product" style={{ color: "var(--a-text-muted)" }}>
                       {PRODUCT_NAME.get(lead.productInterest) ?? lead.productInterest ?? "Not stated"}
                     </td>
-                    <td>
+                    <td data-label="Stage">
                       <Badge tone={STATUS_TONE[lead.status] ?? "quiet"}>
                         {LEAD_STATUS_LABEL[lead.status] ?? lead.status}
                       </Badge>

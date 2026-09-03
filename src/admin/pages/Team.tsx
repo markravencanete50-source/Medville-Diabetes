@@ -161,7 +161,7 @@ export default function Team() {
             signed in, and a shared login cannot say who that was.
           </p>
           <div className="mt-3 flex flex-wrap items-end gap-2.5">
-            <div className="min-w-[240px] flex-1">
+            <div className="w-full sm:min-w-[240px] sm:flex-1">
               <Field label="Email address" htmlFor="invite-email">
                 <input
                   id="invite-email"
@@ -173,7 +173,7 @@ export default function Team() {
                 />
               </Field>
             </div>
-            <div className="min-w-[190px]">
+            <div className="w-full sm:w-auto sm:min-w-[190px]">
               <Field label="Access" htmlFor="invite-role">
                 <select
                   id="invite-role"
@@ -189,7 +189,7 @@ export default function Team() {
             </div>
             <button
               type="button"
-              className="admin-btn admin-btn-primary"
+              className="admin-btn admin-btn-primary w-full sm:w-auto"
               disabled={inviting}
               onClick={() => void invite()}
             >
@@ -228,7 +228,7 @@ export default function Team() {
                   const isYou = user.uid === session?.user.uid;
                   return (
                     <tr key={user.uid}>
-                      <td>
+                      <td data-label="Person">
                         <span className="font-semibold">{user.email || "No email"}</span>
                         {isYou && (
                           <span className="ml-2">
@@ -241,7 +241,7 @@ export default function Team() {
                           </span>
                         )}
                       </td>
-                      <td style={{ color: "var(--a-text-muted)" }}>
+                      <td data-label="Last signed in" style={{ color: "var(--a-text-muted)" }}>
                         {user.lastSignIn ? (
                           formatDateTime(user.lastSignIn)
                         ) : (
@@ -258,7 +258,7 @@ export default function Team() {
                           </span>
                         )}
                       </td>
-                      <td style={{ minWidth: 230 }}>
+                      <td data-label="Access" className="sm:min-w-[230px]">
                         <Field label="" htmlFor={`role-${user.uid}`}>
                           <select
                             id={`role-${user.uid}`}

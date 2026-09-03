@@ -22,6 +22,12 @@ import { fontFamily, isFontId } from "./fonts";
   else is dropped by the decoder below. The renderer is still the only thing
   that turns either into a style, and the rest of the site never sees them.
 
+  Since 2026-09-03 the same discipline covers two more choices. A post may
+  name one of five layouts (a template), and any block may name one of the
+  site's own scroll reveals as its animation, with a pace and a delay. Both
+  are ids from the tables below, both are checked on the way in, and both
+  become nothing more than a class name on the page.
+
   Inline text uses a deliberately tiny subset of Markdown:
 
       **bold**        *italic*        [label](https://example.com)
@@ -30,30 +36,36 @@ import { fontFamily, isFontId } from "./fonts";
   without thinking about it.
 */
 
-/* ---- blocks ---- */
+/* ---- colour and type ---- */
 
 /* The brand palette, offered as swatches. Each maps to a design token. The
    palette has had no orange since 2026-09-02; a post saved earlier with the
-   old "cta" swatch falls back to the default text colour. */
+   old "cta" swatch falls back to the default text colour.
+
+   `hex` is the value the token resolves to on the public site, kept in step
+   by hand. Only the dashboard's colour picker reads it, to place its plane
+   on a named swatch; the page itself always paints the token. */
 export type KnownColor = "ink" | "brand" | "teal" | "accent" | "muted";
 
 /* A block's colour: a swatch name, or any colour as #rrggbb. */
 export type BlockColor = KnownColor | `#${string}`;
 
-export const BLOCK_COLORS: { id: KnownColor; label: string; token: string }[] = [
-  { id: "ink", label: "Navy", token: "var(--color-ink)" },
-  { id: "brand", label: "Brand", token: "var(--color-brand)" },
-  { id: "teal", label: "Teal", token: "var(--color-teal)" },
-  { id: "accent", label: "Cyan", token: "var(--color-accent-deep)" },
-  { id: "muted", label: "Soft navy", token: "var(--color-grey-dark)" },
+export const BLOCK_COLORS: { id: KnownColor; label: string; token: string; hex: string }[] = [
+  { id: "ink", label: "Navy", token: "var(--color-ink)", hex: "#00293b" },
+  { id: "brand", label: "Brand", token: "var(--color-brand)", hex: "#0a6d8a" },
+  { id: "teal", label: "Teal", token: "var(--color-teal)", hex: "#0d99bb" },
+  { id: "accent", label: "Cyan", token: "var(--color-accent-deep)", hex: "#0b7c9d" },
+  { id: "muted", label: "Soft navy", token: "var(--color-grey-dark)", hex: "#1d4a5e" },
 ];
 
-const HEX = /^#[0-9a-f]{6}$/i;
+/* The one shape a stored colour may take besides a swatch name. Shared with
+   the dashboard so the picker and the decoder can never disagree. */
+export const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
 export function isBlockColor(value: unknown): value is BlockColor {
   return (
     typeof value === "string" &&
-    (BLOCK_COLORS.some((c) => c.id === value) || HEX.test(value))
+    (BLOCK_COLORS.some((c) => c.id === value) || HEX_COLOR.test(value))
   );
 }
 
@@ -62,7 +74,7 @@ export function isBlockColor(value: unknown): value is BlockColor {
 export function colorToken(color: BlockColor | undefined): string {
   const swatch = BLOCK_COLORS.find((c) => c.id === color);
   if (swatch) return swatch.token;
-  if (color && HEX.test(color)) return color.toLowerCase();
+  if (color && HEX_COLOR.test(color)) return color.toLowerCase();
   return "var(--color-grey-dark)";
 }
 
@@ -91,8 +103,108 @@ export const IMAGE_RATIOS: { id: ImageRatio; label: string }[] = [
 
 export type CalloutTone = "brand" | "accent" | "warn";
 
+/* ---- motion ----
+
+   A block arrives on screen with one of the site's own scroll reveals, the
+   same vocabulary the marketing pages use (see the reveal block of index.css
+   and lib/useReveal.ts). Each effect below is nothing more than the class
+   name that picks the arrival shape, so a stored animation can only ever
+   become a class the stylesheet already defines. The pace is a second class
+   and the delay is the number useReveal reads from data-reveal.
+
+   Reduced motion needs nothing here: the starting state is applied by the
+   hook, which does not run for a visitor who has asked for less movement, so
+   every block simply stays visible. */
+
+export type AnimationEffect =
+  | "fade"
+  | "rise"
+  | "settle"
+  | "drop"
+  | "blur"
+  | "left"
+  | "right"
+  | "swing-left"
+  | "swing-right"
+  | "zoom"
+  | "push"
+  | "tilt"
+  | "curtain"
+  | "curtain-left"
+  | "expand";
+
+export type AnimationPace = "swift" | "normal" | "slow" | "glacial";
+
+export interface BlockAnimation {
+  effect: AnimationEffect;
+  /* Absent means the normal pace, about a second. */
+  pace?: AnimationPace;
+  /* Milliseconds before the arrival starts, in steps of 50 up to 800. Absent
+     means none. */
+  delay?: number;
+}
+
+export const ANIMATION_DELAY_MAX = 800;
+export const ANIMATION_DELAY_STEP = 50;
+
+export type AnimationGroup = "Enter" | "Slide" | "Zoom" | "Reveal";
+
+export const ANIMATION_GROUPS: AnimationGroup[] = ["Enter", "Slide", "Zoom", "Reveal"];
+
+export interface AnimationDef {
+  id: AnimationEffect;
+  label: string;
+  group: AnimationGroup;
+  /* The reveal class. Empty for the default rise, which needs none. */
+  className: string;
+  /* A curtain moves the block inside a frame that holds still, so the
+     renderer wraps it rather than animating the block itself. */
+  curtain?: boolean;
+  description: string;
+}
+
+export const ANIMATIONS: AnimationDef[] = [
+  { id: "fade", label: "Fade in", group: "Enter", className: "reveal-fade", description: "Appears in place, with no movement." },
+  { id: "rise", label: "Rise", group: "Enter", className: "", description: "Lifts up into place." },
+  { id: "settle", label: "Settle", group: "Enter", className: "reveal-settle", description: "The smallest lift there is, for dense text." },
+  { id: "drop", label: "Drop", group: "Enter", className: "reveal-drop", description: "Falls into place from above." },
+  { id: "blur", label: "Focus", group: "Enter", className: "reveal-blur", description: "Sharpens out of a soft blur." },
+  { id: "left", label: "From the left", group: "Slide", className: "reveal-left", description: "Slides in from the left. On a phone it rises instead." },
+  { id: "right", label: "From the right", group: "Slide", className: "reveal-right", description: "Slides in from the right. On a phone it rises instead." },
+  { id: "swing-left", label: "Swing from the left", group: "Slide", className: "reveal-swing-left", description: "Swings open from its left edge." },
+  { id: "swing-right", label: "Swing from the right", group: "Slide", className: "reveal-swing-right", description: "Swings open from its right edge." },
+  { id: "zoom", label: "Zoom in", group: "Zoom", className: "reveal-zoom", description: "Grows into place from slightly smaller." },
+  { id: "push", label: "Push back", group: "Zoom", className: "reveal-push", description: "Settles back from slightly larger." },
+  { id: "tilt", label: "Tilt up", group: "Zoom", className: "reveal-tilt", description: "Tilts up from the page, like a card." },
+  { id: "curtain", label: "Curtain up", group: "Reveal", className: "reveal-curtain", curtain: true, description: "Slides up inside its own frame. Suits a picture." },
+  { id: "curtain-left", label: "Curtain across", group: "Reveal", className: "reveal-curtain-left", curtain: true, description: "Slides across inside its own frame." },
+  { id: "expand", label: "Widen", group: "Reveal", className: "reveal-expand", description: "Widens from its centre. Suits a divider." },
+];
+
+export const ANIMATION_PACES: { id: AnimationPace; label: string; className: string; seconds: string }[] = [
+  { id: "swift", label: "Swift", className: "reveal-swift", seconds: "0.8" },
+  { id: "normal", label: "Normal", className: "", seconds: "1" },
+  { id: "slow", label: "Slow", className: "reveal-slow", seconds: "1.4" },
+  { id: "glacial", label: "Glacial", className: "reveal-glacial", seconds: "1.75" },
+];
+
+export function animationById(id: unknown): AnimationDef | undefined {
+  return ANIMATIONS.find((animation) => animation.id === id);
+}
+
+/* The class list an animated block carries: its shape, then its pace. */
+export function animationClass(animation: BlockAnimation): string {
+  const effect = animationById(animation.effect)?.className ?? "";
+  const pace = ANIMATION_PACES.find((p) => p.id === animation.pace)?.className ?? "";
+  return [effect, pace].filter(Boolean).join(" ");
+}
+
+/* ---- blocks ---- */
+
 export interface BaseBlock {
   id: string;
+  /* How the block arrives on screen. Absent means it is simply there. */
+  animation?: BlockAnimation;
 }
 
 export interface ParagraphBlock extends BaseBlock {
@@ -120,6 +232,7 @@ export interface ListBlock extends BaseBlock {
   items: string[];
   color?: BlockColor;
   font?: BlockFont;
+  align?: BlockAlign;
 }
 
 export interface QuoteBlock extends BaseBlock {
@@ -128,6 +241,7 @@ export interface QuoteBlock extends BaseBlock {
   attribution?: string;
   color?: BlockColor;
   font?: BlockFont;
+  align?: BlockAlign;
 }
 
 export interface ImageBlock extends BaseBlock {
@@ -170,6 +284,33 @@ export const BLOCK_LABEL: Record<PostBlock["type"], string> = {
   divider: "Divider",
 };
 
+/* Whether any block asks to arrive with motion. The article page uses this
+   to decide between one reveal for the whole body and one per block. */
+export function hasAnimations(blocks: PostBlock[]): boolean {
+  return blocks.some((block) => block.animation !== undefined);
+}
+
+/* ---- the post and its layout ---- */
+
+/* The layouts an article can take. Each is rendered by ArticleHeader for the
+   page and for the dashboard preview alike, so the two cannot drift. A post
+   saved before layouts existed has no template and reads as Classic. */
+export type PostTemplate = "classic" | "magazine" | "minimal" | "feature" | "split";
+
+export const DEFAULT_TEMPLATE: PostTemplate = "classic";
+
+export const POST_TEMPLATES: { id: PostTemplate; label: string; description: string }[] = [
+  { id: "classic", label: "Classic", description: "Title on the navy band, a framed cover picture, then a comfortable reading column." },
+  { id: "magazine", label: "Magazine", description: "A full width cover with the title laid over it on a navy fade." },
+  { id: "minimal", label: "Minimal", description: "No cover picture. A large title and a narrow column for reading." },
+  { id: "feature", label: "Feature", description: "A wide cover and a wider column, for a long article with pictures." },
+  { id: "split", label: "Split", description: "Cover on the right, title on the left. Stacks on a phone." },
+];
+
+export function isPostTemplate(value: unknown): value is PostTemplate {
+  return POST_TEMPLATES.some((template) => template.id === value);
+}
+
 export interface Post {
   /* The document id, and the address: /blog/<slug>. */
   slug: string;
@@ -182,6 +323,7 @@ export interface Post {
   /* ISO date. Sorting and the visible date both read this. */
   publishedAt: string;
   published: boolean;
+  template?: PostTemplate;
 }
 
 /* ---- inline formatting ----
@@ -304,8 +446,8 @@ export function emptyBlock(type: PostBlock["type"]): PostBlock {
 
   Everything is checked rather than trusted. A malformed block is dropped
   instead of throwing, so one bad record can never take a page down, and a
-  colour, font or alignment the site does not recognise is dropped from its
-  block rather than written into the page.
+  colour, font, alignment or animation the site does not recognise is dropped
+  from its block rather than written into the page.
 */
 function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
@@ -323,6 +465,24 @@ function asAlign(value: unknown): BlockAlign | undefined {
   return value === "center" ? "center" : value === "left" ? "left" : undefined;
 }
 
+/* Only the fields that are set are kept, so a stored animation never carries
+   an undefined member, which Firestore would refuse to write back. */
+function asAnimation(value: unknown): BlockAnimation | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const raw = value as Record<string, unknown>;
+  const effect = animationById(raw.effect)?.id;
+  if (!effect) return undefined;
+  const animation: BlockAnimation = { effect };
+  const pace = ANIMATION_PACES.find((p) => p.id === raw.pace)?.id;
+  if (pace && pace !== "normal") animation.pace = pace;
+  if (typeof raw.delay === "number" && Number.isFinite(raw.delay)) {
+    const stepped = Math.round(raw.delay / ANIMATION_DELAY_STEP) * ANIMATION_DELAY_STEP;
+    const delay = Math.min(ANIMATION_DELAY_MAX, Math.max(0, stepped));
+    if (delay > 0) animation.delay = delay;
+  }
+  return animation;
+}
+
 export function decodeBlocks(raw: unknown): PostBlock[] {
   if (!Array.isArray(raw)) return [];
   const out: PostBlock[] = [];
@@ -331,6 +491,7 @@ export function decodeBlocks(raw: unknown): PostBlock[] {
     if (!entry || typeof entry !== "object") continue;
     const b = entry as Record<string, unknown>;
     const id = asString(b.id) || newBlockId();
+    const animation = asAnimation(b.animation);
 
     switch (b.type) {
       case "paragraph":
@@ -341,6 +502,7 @@ export function decodeBlocks(raw: unknown): PostBlock[] {
           color: asColor(b.color),
           font: asFont(b.font),
           align: asAlign(b.align),
+          animation,
         });
         break;
       case "heading":
@@ -352,6 +514,7 @@ export function decodeBlocks(raw: unknown): PostBlock[] {
           color: asColor(b.color),
           font: asFont(b.font),
           align: asAlign(b.align),
+          animation,
         });
         break;
       case "list":
@@ -362,6 +525,8 @@ export function decodeBlocks(raw: unknown): PostBlock[] {
           items: Array.isArray(b.items) ? b.items.map((i) => asString(i)) : [],
           color: asColor(b.color),
           font: asFont(b.font),
+          align: asAlign(b.align),
+          animation,
         });
         break;
       case "quote":
@@ -372,6 +537,8 @@ export function decodeBlocks(raw: unknown): PostBlock[] {
           attribution: asString(b.attribution) || undefined,
           color: asColor(b.color),
           font: asFont(b.font),
+          align: asAlign(b.align),
+          animation,
         });
         break;
       case "image":
@@ -383,6 +550,7 @@ export function decodeBlocks(raw: unknown): PostBlock[] {
           ratio: (IMAGE_RATIOS.find((r) => r.id === b.ratio)?.id ?? "16/9") as ImageRatio,
           width: b.width === "full" ? "full" : "inset",
           caption: asString(b.caption) || undefined,
+          animation,
         });
         break;
       case "callout":
@@ -393,10 +561,11 @@ export function decodeBlocks(raw: unknown): PostBlock[] {
           tone: (["brand", "accent", "warn"].includes(b.tone as string)
             ? b.tone
             : "brand") as CalloutTone,
+          animation,
         });
         break;
       case "divider":
-        out.push({ id, type: "divider" });
+        out.push({ id, type: "divider", animation });
         break;
       default:
         break;

@@ -4,39 +4,75 @@
   This file is imported only by the lazy-loaded dashboard, so Vite emits it as
   its own stylesheet and no marketing visitor downloads a byte of it.
 
-  The dashboard has its own palette rather than reusing the marketing tokens.
-  The website is a fixed brand surface the client can tint; this is a working
-  tool that has to be readable at 7am and at 11pm, so it carries a light and a
-  dark theme of its own. Every colour below is a variable, and the dark theme
-  redefines the same names, so no component ever writes a colour twice.
+  The palette. Every colour below is one of the client's three brand colours,
+  navy #00293b, cyan #18bada and orange #ff9e1b, or a tint of one of them
+  towards white, or a shade of one of them towards black. Nothing else: no
+  neutral grey, no red, no green. The mix is written beside each value so the
+  next person can re-derive it rather than guess. Contrast ratios were
+  computed with the WCAG formula, not judged by eye; text-bearing pairs sit
+  above 4.5:1 and marks above 3:1.
 
-  The theme is chosen by the `data-admin-theme` attribute on the shell, set
-  from the person's saved preference or from their operating system.
+  This is the one file in the dashboard that may hold a raw hex value. A
+  component reads a variable, never a colour, so both themes below stay in
+  step and a change made here reaches every screen.
+
+  The theme is chosen by the data-admin-theme attribute on the shell, set
+  from the person's saved preference or from their operating system. The
+  sidebar, the top bar and the sign-in page are navy in both themes: they are
+  the brand's own surface and do not flip.
 */
 
 .admin {
-  --a-bg: #f4f6f8;
-  --a-surface: #ffffff;
-  --a-surface-2: #f8fafb;
-  --a-line: #e2e8ec;
-  --a-line-strong: #cbd6dd;
-  --a-text: #0d2430;
-  --a-text-muted: #5a6b76;
-  --a-text-faint: #8695a0;
-  --a-brand: #0a6d8a;
-  --a-brand-soft: #e2f5fa;
-  --a-brand-text: #075366;
-  --a-accent: #18bada;
-  --a-warn: #b26a00;
-  --a-warn-soft: #fdf1dc;
-  --a-danger: #b03030;
-  --a-danger-soft: #fbeaea;
-  --a-ok: #0a6d8a;
-  --a-ok-soft: #e2f5fa;
-  /* The data mark. Computed against the light surface, not picked by eye:
-     the brand blue fails the chroma floor and reads as grey in a chart. */
-  --a-chart: #0e86a8;
-  --a-shadow: 0 1px 2px rgb(13 36 48 / 0.05), 0 8px 24px -14px rgb(13 36 48 / 0.28);
+  /* grounds: navy let down towards white */
+  --a-bg: #f2f4f5;          /* navy 5% on white */
+  --a-surface: #ffffff;     /* white */
+  --a-surface-2: #f7f9f9;   /* navy 3% on white */
+  --a-line: #e6eaeb;        /* navy 10% on white */
+  --a-line-strong: #ccd4d8; /* navy 20% on white */
+
+  /* text: navy, then navy let down towards white */
+  --a-text: #00293b;        /* navy, 15.2:1 on white */
+  --a-text-muted: #476572;  /* navy 72% on white, 6.2:1 */
+  --a-text-faint: #57727e;  /* navy 66% on white, 5.1:1; 58% failed at 4.0:1 */
+
+  /* the interface accent: cyan pulled towards navy until it can carry text */
+  --a-brand: #0b6a83;       /* cyan 45% into navy, 6.2:1 on white */
+  --a-brand-text: #0a637b;  /* cyan 40% into navy, 6.8:1 on white */
+  --a-brand-soft: #e3f7fb;  /* cyan 12% on white; brand on it 5.6:1 */
+  --a-on-brand: #ffffff;    /* 6.2:1 on --a-brand */
+  --a-accent: #18bada;      /* raw cyan: rails and marks, never text on a light ground */
+
+  /* the action colour: orange with navy type, 7.4:1 */
+  --a-cta: #ff9e1b;         /* raw orange */
+  --a-cta-text: #00293b;    /* navy */
+  --a-cta-hover: #e6921e;   /* orange 90% into navy; navy on it 6.2:1 */
+
+  /* status: cyan family for good news, orange family for attention */
+  --a-ok: #0b6a83;          /* = brand */
+  --a-ok-soft: #e3f7fb;     /* = brand-soft */
+  --a-warn: #8c570f;        /* orange 45% towards black, 6.0:1 on white */
+  --a-warn-soft: #ffeed6;   /* orange 18% on white */
+  --a-danger: #8c570f;      /* the same shade; danger is a stronger fill, not another hue */
+  --a-danger-soft: #ffe4bf; /* orange 28% on white */
+  --a-danger-fill: #ff9e1b; /* raw orange, always under navy type */
+
+  /* data marks */
+  --a-chart: #0b6a83;       /* series one: = brand */
+  --a-chart-2: #00293b;     /* series two: navy */
+  --a-chart-3: #b37b25;     /* series three: orange 70% into navy, 3.6:1; raw orange is 2.1:1 and fails as a bar */
+
+  /* the navy surfaces, the same in both themes */
+  --a-nav-bg: #00293b;      /* navy */
+  --a-nav-bg-deep: #001d29; /* navy 30% towards black */
+  --a-nav-text: #ffffff;    /* 15.2:1 on navy */
+  --a-nav-muted: #b8c3c8;   /* white 72% on navy, 8.5:1 */
+  --a-nav-hover: #0d3445;   /* white 5% on navy */
+  --a-nav-active: #143a4b;  /* white 8% on navy */
+  --a-nav-rail: #18bada;    /* cyan, 6.6:1 on navy */
+
+  --a-scrim: rgb(0 41 59 / 0.6);
+  --a-shadow: 0 1px 2px rgb(0 41 59 / 0.06), 0 8px 24px -14px rgb(0 41 59 / 0.28);
+  --a-shadow-pop: 0 2px 6px rgb(0 41 59 / 0.08), 0 20px 48px -16px rgb(0 41 59 / 0.35);
   --a-radius: 12px;
   --a-radius-sm: 8px;
 
@@ -44,47 +80,56 @@
   background: var(--a-bg);
   font-family: var(--font-body);
   min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .admin[data-admin-theme="dark"] {
-  --a-bg: #0b1418;
-  --a-surface: #121e24;
-  --a-surface-2: #16242b;
-  --a-line: #22333c;
-  --a-line-strong: #32474f;
-  --a-text: #e6eef2;
-  --a-text-muted: #9db0ba;
-  --a-text-faint: #6d838e;
-  --a-brand: #4bc6e2;
-  --a-brand-soft: #10323d;
-  --a-brand-text: #8ddcef;
-  --a-accent: #18bada;
-  --a-warn: #f0b45e;
-  --a-warn-soft: #33260f;
-  --a-danger: #f08a8a;
-  --a-danger-soft: #341a1a;
-  --a-ok: #4bc6e2;
-  --a-ok-soft: #10323d;
-  /* Its own step for the dark surface, chosen the same way. A dark theme is
-     selected, never an automatic flip of the light one. */
-  --a-chart: #1f9cbe;
+  --a-bg: #001d29;          /* navy 30% towards black */
+  --a-surface: #00293b;     /* navy */
+  --a-surface-2: #0d3445;   /* white 5% on navy */
+  --a-line: #1f4353;        /* white 12% on navy */
+  --a-line-strong: #385866; /* white 22% on navy */
+
+  --a-text: #ffffff;        /* 15.2:1 on navy */
+  --a-text-muted: #b8c3c8;  /* white 72% on navy, 8.5:1 */
+  --a-text-faint: #8fa1a9;  /* white 56% on navy, 5.7:1 */
+
+  --a-brand: #18bada;       /* cyan carries text on navy, 6.6:1 */
+  --a-brand-text: #52cbe3;  /* cyan 25% towards white, 8.0:1 */
+  --a-brand-soft: #044054;  /* cyan 16% into navy; cyan on it 4.9:1 */
+  --a-on-brand: #00293b;    /* navy on cyan, 6.6:1 */
+
+  --a-ok: #18bada;
+  --a-ok-soft: #044054;
+  --a-warn: #ff9e1b;        /* orange reads on navy, 7.4:1 */
+  --a-warn-soft: #293c36;   /* orange 16% into navy; orange on it 5.7:1 */
+  --a-danger: #ff9e1b;
+  --a-danger-soft: #384334; /* orange 22% into navy; orange on it 5.0:1 */
+  --a-danger-fill: #ff9e1b;
+
+  --a-chart: #18bada;
+  --a-chart-2: #b8c3c8;
+  --a-chart-3: #ff9e1b;
+
+  --a-scrim: rgb(0 0 0 / 0.6);
   --a-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 28px -16px rgb(0 0 0 / 0.7);
+  --a-shadow-pop: 0 2px 6px rgb(0 0 0 / 0.45), 0 20px 48px -16px rgb(0 0 0 / 0.75);
 }
 
 /* ---- layout ---- */
 
 .admin-shell {
   display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
+  grid-template-columns: 256px minmax(0, 1fr);
   min-height: 100vh;
 }
 
 .admin-side {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  border-right: 1px solid var(--a-line);
-  background: var(--a-surface);
+  gap: 2px;
+  background: var(--a-nav-bg);
+  color: var(--a-nav-text);
   padding: 18px 14px;
   position: sticky;
   top: 0;
@@ -92,22 +137,84 @@
   overflow-y: auto;
 }
 
+/* The drawer's close button exists only on a phone. Two classes deep so it
+   outranks the icon button rule that would otherwise show it. */
+.admin-side .admin-side-close { display: none; }
+
 .admin-main {
   min-width: 0;
   padding: 26px clamp(16px, 3vw, 34px) 64px;
 }
 
+/* The phone header: brand mark, the screen name, and two 44px buttons. */
 .admin-topbar {
   display: none;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-bottom: 1px solid var(--a-line);
-  background: var(--a-surface);
-  padding: 10px 14px;
+  gap: 10px;
+  min-height: 56px;
+  padding: env(safe-area-inset-top, 0px) 8px 0 14px;
+  background: var(--a-nav-bg);
+  color: var(--a-nav-text);
   position: sticky;
   top: 0;
   z-index: 30;
+}
+
+.admin-topbar .admin-brand-mark { width: 30px; height: 30px; border-radius: 8px; }
+
+.admin-topbar-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* The phone footer: the first few screens, then More. */
+.admin-tabbar {
+  display: none;
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 30;
+  grid-template-columns: repeat(var(--tabs, 5), minmax(0, 1fr));
+  background: var(--a-surface);
+  border-top: 1px solid var(--a-line);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-shadow: 0 -6px 24px -18px rgb(0 41 59 / 0.35);
+}
+
+.admin-tab {
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 2px;
+  color: var(--a-text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.admin-tab span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-tab[aria-current="page"],
+.admin-tab[aria-expanded="true"] {
+  color: var(--a-brand);
+  box-shadow: inset 0 2px 0 var(--a-nav-rail);
 }
 
 /* ---- navigation ---- */
@@ -115,52 +222,119 @@
 .admin-brand {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 6px 8px 16px;
+  gap: 10px;
+  padding: 6px 8px 18px;
+  color: var(--a-nav-text);
   font-family: var(--font-display);
   font-weight: 700;
   letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
 .admin-brand small {
   display: block;
-  color: var(--a-text-faint);
-  font-size: 11px;
+  margin-top: 2px;
+  color: var(--a-nav-muted);
+  font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
+.admin-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 10px;
+  background: var(--a-nav-rail);
+  color: var(--a-nav-bg);
+}
+
 .admin-nav-link {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
+  min-height: 42px;
   border-radius: var(--a-radius-sm);
-  padding: 9px 11px;
-  color: var(--a-text-muted);
+  padding: 9px 12px;
+  color: var(--a-nav-muted);
   font-size: 14px;
   font-weight: 600;
   text-align: left;
+  cursor: pointer;
   transition: background 150ms ease, color 150ms ease;
 }
 
 .admin-nav-link:hover {
-  background: var(--a-surface-2);
-  color: var(--a-text);
+  background: var(--a-nav-hover);
+  color: var(--a-nav-text);
 }
 
 .admin-nav-link[aria-current="page"] {
-  background: var(--a-brand-soft);
-  color: var(--a-brand-text);
+  background: var(--a-nav-active);
+  color: var(--a-nav-text);
+  box-shadow: inset 3px 0 0 var(--a-nav-rail);
+}
+
+.admin-nav-link[aria-current="page"] svg { color: var(--a-nav-rail); }
+
+.admin-nav-link:focus-visible,
+.admin-tab:focus-visible,
+.admin-icon-btn:focus-visible {
+  outline: 2px solid var(--a-nav-rail);
+  outline-offset: -2px;
 }
 
 .admin-nav-group {
-  margin: 14px 8px 4px;
-  color: var(--a-text-faint);
+  margin: 16px 12px 6px;
+  color: var(--a-nav-muted);
+  opacity: 0.8;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+
+.admin-nav-foot {
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid var(--a-nav-hover);
+}
+
+.admin-nav-foot .admin-help { color: var(--a-nav-muted); }
+
+/* ---- sign in ---- */
+
+.admin-signin {
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background:
+    radial-gradient(circle at 15% 10%, rgb(24 186 218 / 0.28) 0%, rgb(24 186 218 / 0) 42%),
+    radial-gradient(circle at 90% 90%, rgb(24 186 218 / 0.16) 0%, rgb(24 186 218 / 0) 40%),
+    var(--a-nav-bg);
+  color: var(--a-nav-text);
+}
+
+.admin-signin-card {
+  width: 100%;
+  border-radius: 18px;
+  background: var(--a-surface);
+  color: var(--a-text);
+  box-shadow: 0 30px 70px -30px rgb(0 0 0 / 0.6);
+  padding: clamp(22px, 5vw, 32px);
+}
+
+.admin[data-admin-theme="dark"] .admin-signin-card {
+  background: var(--a-surface-2);
+  border: 1px solid var(--a-line-strong);
 }
 
 /* ---- surfaces ---- */
@@ -206,23 +380,59 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 150ms ease, border-color 150ms ease, opacity 150ms ease;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease;
 }
 
 .admin-btn:disabled { cursor: not-allowed; opacity: 0.55; }
 
-.admin-btn-primary { background: var(--a-brand); color: #ffffff; }
-.admin-btn-primary:hover:not(:disabled) { background: var(--a-brand-text); }
-.admin[data-admin-theme="dark"] .admin-btn-primary { color: #04222b; }
+.admin-btn:focus-visible,
+.admin-chip:focus-visible,
+.admin-tab-card:focus-visible {
+  outline: 2px solid var(--a-brand);
+  outline-offset: 2px;
+}
 
+/* The action colour: orange under navy type. */
+.admin-btn-primary { background: var(--a-cta); color: var(--a-cta-text); }
+.admin-btn-primary:hover:not(:disabled) { background: var(--a-cta-hover); }
+
+/* The quiet button: a navy outline. */
 .admin-btn-quiet {
   border-color: var(--a-line-strong);
   background: var(--a-surface);
   color: var(--a-text);
 }
-.admin-btn-quiet:hover:not(:disabled) { background: var(--a-surface-2); }
+.admin-btn-quiet:hover:not(:disabled) { border-color: var(--a-brand); color: var(--a-brand-text); }
 
-.admin-btn-danger { background: var(--a-danger-soft); color: var(--a-danger); }
+/* Danger is orange too, but as a stronger fill with a full outline, and the
+   button says what it does. Hovering fills it solid. */
+.admin-btn-danger {
+  border-color: var(--a-danger-fill);
+  background: var(--a-danger-soft);
+  color: var(--a-danger);
+}
+.admin-btn-danger:hover:not(:disabled) { background: var(--a-danger-fill); color: var(--a-cta-text); }
+
+/* A smaller button for a row of them; still 44px on a touch screen. */
+.admin-btn-sm { min-height: 36px; padding: 0 11px; font-size: 13px; }
+
+/* A square button holding one icon. Always 44px, on every screen. */
+.admin-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: var(--a-radius-sm);
+  color: inherit;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.admin-icon-btn:hover:not(:disabled) { background: var(--a-surface-2); }
+.admin-topbar .admin-icon-btn:hover:not(:disabled),
+.admin-side .admin-icon-btn:hover:not(:disabled) { background: var(--a-nav-hover); }
+.admin-icon-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .admin-input,
 .admin-select,
@@ -245,7 +455,11 @@
 .admin-textarea:focus-visible {
   outline: 2px solid var(--a-brand);
   outline-offset: 1px;
+  border-color: var(--a-brand);
 }
+
+.admin-input:disabled,
+.admin-select:disabled { opacity: 0.6; }
 
 .admin-label {
   display: block;
@@ -260,6 +474,335 @@
   font-size: 12px;
   line-height: 1.45;
 }
+
+/* A choice chip: navy fill when chosen, navy outline when not. */
+.admin-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  border: 1px solid var(--a-line-strong);
+  border-radius: 999px;
+  padding: 0 13px;
+  background: var(--a-surface);
+  color: var(--a-text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+.admin-chip:hover { border-color: var(--a-brand); color: var(--a-brand-text); }
+.admin-chip[aria-pressed="true"],
+.admin-chip[aria-selected="true"] {
+  border-color: var(--a-text);
+  background: var(--a-text);
+  color: var(--a-surface);
+}
+
+/* A segmented switch, for Write and Preview. */
+.admin-segment {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--a-bg);
+}
+.admin-segment button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  border-radius: 999px;
+  padding: 0 14px;
+  color: var(--a-text-faint);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.admin-segment button[aria-pressed="true"] {
+  background: var(--a-surface);
+  color: var(--a-text);
+  box-shadow: var(--a-shadow);
+}
+
+/* ---- the editor drawer ---- */
+
+.admin-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  width: min(460px, 100vw);
+  height: 100dvh;
+  background: var(--a-surface);
+  box-shadow: var(--a-shadow-pop);
+}
+
+.admin-drawer-wide { width: min(800px, 100vw); }
+
+.admin-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 60px;
+  padding: max(8px, env(safe-area-inset-top, 0px)) 12px 8px 20px;
+  border-bottom: 1px solid var(--a-line);
+}
+
+.admin-drawer-body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 20px 28px;
+}
+
+.admin-drawer-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--a-line);
+  background: var(--a-surface);
+}
+
+/* A strip that stays at the top of the drawer body as it scrolls: the
+   editor's Write and Preview switch. Its margins cancel the body padding so
+   nothing scrolls past beside it. */
+.admin-drawer-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin: -20px -20px 20px;
+  padding: 20px 20px 12px;
+  background: var(--a-surface);
+}
+
+/* ---- popovers and sheets ---- */
+
+.admin-popover-anchor { position: relative; }
+
+.admin-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+  width: min(320px, calc(100vw - 32px));
+  border: 1px solid var(--a-line);
+  border-radius: var(--a-radius);
+  background: var(--a-surface);
+  box-shadow: var(--a-shadow-pop);
+  padding: 14px;
+}
+
+.admin-popover-scrim { display: none; }
+
+/* ---- colour picker parts ---- */
+
+.admin-sv {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: var(--a-radius-sm);
+  cursor: crosshair;
+  touch-action: none;
+  background-image:
+    linear-gradient(to top, #000, transparent),
+    linear-gradient(to right, #fff, transparent);
+  background-color: var(--sv-hue, #ff0000);
+}
+
+.admin-sv:focus-visible { outline: 2px solid var(--a-brand); outline-offset: 2px; }
+
+.admin-sv-thumb {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35), 0 2px 6px rgb(0 0 0 / 0.35);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.admin-hue {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 16px;
+  margin: 0;
+  border-radius: 999px;
+  background: linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%);
+  cursor: pointer;
+}
+.admin-hue::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border: 3px solid #ffffff;
+  border-radius: 999px;
+  background: var(--hue-thumb, #f00);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35), 0 2px 6px rgb(0 0 0 / 0.3);
+}
+.admin-hue::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 3px solid #ffffff;
+  border-radius: 999px;
+  background: var(--hue-thumb, #f00);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35), 0 2px 6px rgb(0 0 0 / 0.3);
+}
+.admin-hue::-moz-range-track { background: transparent; }
+.admin-hue:focus-visible { outline: 2px solid var(--a-brand); outline-offset: 3px; }
+
+.admin-swatch {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 999px;
+  border: 1px solid rgb(0 41 59 / 0.18);
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+.admin-swatch:hover { transform: scale(1.1); }
+.admin-swatch[aria-pressed="true"] {
+  outline: 2px solid var(--a-brand);
+  outline-offset: 2px;
+}
+
+.admin-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  max-width: 100%;
+  border: 1px solid var(--a-line-strong);
+  border-radius: var(--a-radius-sm);
+  padding: 4px 10px 4px 6px;
+  background: var(--a-surface);
+  color: var(--a-text);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+.admin-picker-trigger:hover { border-color: var(--a-brand); }
+.admin-picker-trigger:focus-visible { outline: 2px solid var(--a-brand); outline-offset: 1px; }
+.admin-picker-trigger[aria-expanded="true"] { border-color: var(--a-brand); }
+
+.admin-picker-mode {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--a-bg);
+}
+.admin-picker-mode button {
+  min-height: 30px;
+  min-width: 44px;
+  border-radius: 6px;
+  padding: 0 8px;
+  color: var(--a-text-faint);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.admin-picker-mode button[aria-pressed="true"] {
+  background: var(--a-surface);
+  color: var(--a-text);
+  box-shadow: var(--a-shadow);
+}
+
+.admin-mini-input {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--a-line-strong);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: var(--a-text);
+  background: var(--a-surface);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.admin-mini-input:focus-visible { outline: 2px solid var(--a-brand); outline-offset: 1px; }
+
+/* ---- font picker parts ---- */
+
+.admin-font-list {
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-font-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  width: 100%;
+  border-radius: var(--a-radius-sm);
+  padding: 6px 10px;
+  color: var(--a-text);
+  text-align: left;
+  cursor: pointer;
+}
+.admin-font-row:hover,
+.admin-font-row[data-active="true"] { background: var(--a-surface-2); }
+.admin-font-row[aria-selected="true"] { color: var(--a-brand-text); }
+.admin-font-row b { font-size: 17px; font-weight: 500; line-height: 1.2; }
+.admin-font-row small { color: var(--a-text-faint); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* ---- the template and animation choosers ---- */
+
+.admin-tab-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 44px;
+  border: 1px solid var(--a-line-strong);
+  border-radius: var(--a-radius);
+  padding: 10px;
+  background: var(--a-surface);
+  color: var(--a-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.admin-tab-card:hover { border-color: var(--a-brand); }
+.admin-tab-card[aria-checked="true"] {
+  border-color: var(--a-brand);
+  box-shadow: 0 0 0 2px var(--a-brand-soft), inset 0 0 0 1px var(--a-brand);
+}
+.admin-tab-card b { font-size: 13px; font-weight: 700; }
+.admin-tab-card small { color: var(--a-text-faint); font-size: 11.5px; line-height: 1.35; }
+
+/* A tiny wireframe of the article layout. */
+.admin-wire {
+  display: grid;
+  gap: 3px;
+  height: 58px;
+  border-radius: 6px;
+  padding: 5px;
+  background: var(--a-bg);
+}
+.admin-wire i { display: block; border-radius: 2px; background: var(--a-line-strong); }
+.admin-wire .w-hero { background: var(--a-nav-bg); }
+.admin-wire .w-pic { background: var(--a-accent); }
+.admin-wire .w-text { background: var(--a-line-strong); }
 
 /* ---- table ---- */
 
@@ -307,8 +850,8 @@
 .admin-badge-new { background: var(--a-brand-soft); color: var(--a-brand-text); }
 .admin-badge-ok { background: var(--a-ok-soft); color: var(--a-ok); }
 .admin-badge-warn { background: var(--a-warn-soft); color: var(--a-warn); }
-.admin-badge-danger { background: var(--a-danger-soft); color: var(--a-danger); }
-.admin-badge-quiet { background: var(--a-surface-2); color: var(--a-text-muted); }
+.admin-badge-danger { background: var(--a-danger-fill); color: var(--a-cta-text); }
+.admin-badge-quiet { background: var(--a-surface-2); color: var(--a-text-muted); border: 1px solid var(--a-line); }
 
 .admin-stat {
   display: grid;
@@ -336,45 +879,173 @@
   align-items: flex-start;
   gap: 10px;
   border: 1px solid var(--a-line);
+  border-left-width: 4px;
   border-radius: var(--a-radius-sm);
   padding: 11px 13px;
+  color: var(--a-text);
   font-size: 13.5px;
   line-height: 1.5;
 }
 
-.admin-banner-warn { border-color: var(--a-warn); background: var(--a-warn-soft); color: var(--a-warn); }
-.admin-banner-danger { border-color: var(--a-danger); background: var(--a-danger-soft); color: var(--a-danger); }
-.admin-banner-info { background: var(--a-brand-soft); border-color: transparent; color: var(--a-brand-text); }
+.admin-banner-warn { border-color: var(--a-warn-soft); border-left-color: var(--a-cta); background: var(--a-warn-soft); }
+.admin-banner-warn svg { color: var(--a-warn); }
+.admin-banner-danger { border-color: var(--a-danger-soft); border-left-color: var(--a-danger-fill); background: var(--a-danger-soft); }
+.admin-banner-danger svg { color: var(--a-danger); }
+.admin-banner-info { border-color: var(--a-brand-soft); border-left-color: var(--a-brand); background: var(--a-brand-soft); color: var(--a-brand-text); }
+.admin-banner-info svg { color: var(--a-brand); }
+
+.admin-toasts {
+  pointer-events: none;
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(360px, calc(100vw - 32px));
+}
 
 .admin-scrim {
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: rgb(4 14 18 / 0.55);
+  background: var(--a-scrim);
 }
 
-/* ---- responsive ---- */
+/* ---- responsive ----
+   Built at 375px first. The desktop sidebar appears from 1024px; below that
+   the phone header and footer take over, and every control is 44px tall. */
 
-@media (max-width: 900px) {
+@media (max-width: 1023px) {
   .admin-shell { grid-template-columns: minmax(0, 1fr); }
   .admin-topbar { display: flex; }
+  .admin-tabbar { display: grid; }
+
   .admin-side {
     position: fixed;
     z-index: 50;
     top: 0;
     bottom: 0;
     left: 0;
-    width: 264px;
+    width: min(300px, 86vw);
     height: 100dvh;
+    padding-top: max(18px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(18px, env(safe-area-inset-bottom, 0px));
     transform: translateX(-100%);
     transition: transform 220ms cubic-bezier(0.25, 1, 0.5, 1);
-    box-shadow: var(--a-shadow);
+    box-shadow: var(--a-shadow-pop);
   }
   .admin-side[data-open="true"] { transform: none; }
-  .admin-main { padding: 18px 14px 56px; }
-  .admin-table { white-space: normal; }
+  .admin-side .admin-side-close {
+    display: inline-flex;
+    position: absolute;
+    top: max(10px, env(safe-area-inset-top, 0px));
+    right: 8px;
+  }
+
+  .admin-main { padding: 16px 14px calc(80px + env(safe-area-inset-bottom, 0px)); }
+
+  .admin-btn,
+  .admin-input,
+  .admin-select,
+  .admin-nav-link,
+  .admin-chip,
+  .admin-picker-trigger { min-height: 44px; }
+  .admin-btn-sm { min-height: 44px; }
+  .admin-segment button { min-height: 44px; }
+
+  .admin-toasts { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+}
+
+@media (max-width: 639px) {
+  /* 16px stops iOS zooming the page when a field takes focus. */
+  .admin-input,
+  .admin-select,
+  .admin-textarea { font-size: 16px; }
+
+  .admin-toasts { left: 16px; right: 16px; width: auto; }
+
+  .admin-drawer,
+  .admin-drawer-wide { width: 100vw; }
+  .admin-drawer-body { padding: 16px 14px 24px; }
+  .admin-drawer-head { padding-left: 14px; }
+  .admin-drawer-sticky { margin: -16px -14px 16px; padding: 16px 14px 10px; }
+
+  /* Popovers become a sheet from the foot of the screen. */
+  .admin-popover {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 70;
+    width: auto;
+    max-height: 82dvh;
+    overflow-y: auto;
+    border-radius: 18px 18px 0 0;
+    padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+  .admin-popover-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    background: var(--a-scrim);
+  }
+  .admin-font-list { max-height: 48dvh; }
+
+  /*
+    Tables become a stack of labelled cards. The header row is hidden from
+    sight but not from a screen reader, each cell prints its own column name
+    from data-label, and a cell without one is the row of actions.
+  */
+  .admin-table:not(.admin-table-keep) thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .admin-table:not(.admin-table-keep),
+  .admin-table:not(.admin-table-keep) tbody,
+  .admin-table:not(.admin-table-keep) tr { display: block; white-space: normal; }
+  .admin-table:not(.admin-table-keep) tbody tr {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--a-line);
+  }
+  .admin-table:not(.admin-table-keep) tbody tr:hover { background: transparent; }
+  .admin-table:not(.admin-table-keep) td {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    padding: 5px 0;
+    border: 0;
+  }
+  .admin-table:not(.admin-table-keep) td::before {
+    content: attr(data-label);
+    padding-top: 3px;
+    color: var(--a-text-faint);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .admin-table:not(.admin-table-keep) td:not([data-label]) {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    padding-top: 8px;
+  }
+  .admin-table:not(.admin-table-keep) td:not([data-label])::before { content: none; }
+  .admin-table:not(.admin-table-keep) td.text-right { text-align: left; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .admin-side { transition: none; }
+  .admin-side,
+  .admin-swatch,
+  .admin-btn,
+  .admin-chip { transition: none; }
 }

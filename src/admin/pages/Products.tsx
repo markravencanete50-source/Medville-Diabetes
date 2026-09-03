@@ -142,7 +142,7 @@ export default function Products() {
                   const status = product.status ?? "available";
                   return (
                     <tr key={product.slug}>
-                      <td>
+                      <td data-label="Product">
                         <div className="flex items-center gap-3">
                           {product.imageFront && (
                             <img
@@ -164,18 +164,19 @@ export default function Products() {
                           </button>
                         </div>
                       </td>
-                      <td style={{ color: "var(--a-text-muted)" }}>{product.brand}</td>
-                      <td>
+                      <td data-label="Brand" style={{ color: "var(--a-text-muted)" }}>
+                        {product.brand}
+                      </td>
+                      <td data-label="Availability">
                         <Badge tone={STATUS_TONE[status]}>{PRODUCT_STATUS_LABEL[status]}</Badge>
                       </td>
-                      <td style={{ color: "var(--a-text-muted)" }}>
+                      <td data-label="Price" style={{ color: "var(--a-text-muted)" }}>
                         {typeof product.price === "number" ? `$${product.price.toFixed(2)}` : "Not shown"}
                       </td>
                       <td className="text-right">
                         <button
                           type="button"
-                          className="admin-btn admin-btn-danger"
-                          style={{ minHeight: 32, padding: "0 10px" }}
+                          className="admin-btn admin-btn-danger admin-btn-sm"
                           onClick={() => void remove(product)}
                         >
                           <Trash2 size={14} /> Remove
@@ -291,7 +292,7 @@ function ProductForm({
         />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Brand" htmlFor="p-brand">
           <input
             id="p-brand"
@@ -313,7 +314,7 @@ function ProductForm({
         </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Availability" htmlFor="p-status">
           <select
             id="p-status"
@@ -372,7 +373,7 @@ function ProductForm({
         />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <ImagePicker
           label="Front picture"
           value={draft.imageFront}

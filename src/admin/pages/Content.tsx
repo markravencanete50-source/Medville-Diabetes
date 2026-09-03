@@ -102,8 +102,8 @@ export default function Content() {
           <button
             key={entry.id}
             type="button"
-            className={`admin-btn ${entry.id === pageId ? "admin-btn-primary" : "admin-btn-quiet"}`}
-            style={{ minHeight: 34 }}
+            className={`admin-btn admin-btn-sm ${entry.id === pageId ? "admin-btn-primary" : "admin-btn-quiet"}`}
+            aria-pressed={entry.id === pageId}
             onClick={() => setPageId(entry.id)}
           >
             {entry.label}

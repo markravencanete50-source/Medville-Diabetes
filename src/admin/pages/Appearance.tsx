@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, RotateCcw, X } from "lucide-react";
 import { loadTheme, saveTheme, THEME_DEFAULTS, type ThemeRecord } from "../data";
+import { HEX_COLOR } from "../../data/blog";
 import { Banner, Card, Field, PageHeader, Spinner, useToast } from "../ui";
+import { ColorPicker } from "../ColorPicker";
 
 /*
   Colours.
@@ -113,8 +115,6 @@ export function contrast(a: string, b: string) {
   return (light + 0.05) / (dark + 0.05);
 }
 
-const HEX = /^#[0-9a-fA-F]{6}$/;
-
 export default function Appearance() {
   const toast = useToast();
   const [theme, setTheme] = useState<ThemeRecord | null>(null);
@@ -140,7 +140,7 @@ export default function Appearance() {
     return TOKENS.map((token) => {
       const value = theme[token.key];
       const against = token.check.against === "#ffffff" ? "#ffffff" : theme[token.check.against];
-      const valid = HEX.test(value) && HEX.test(against);
+      const valid = HEX_COLOR.test(value) && HEX_COLOR.test(against);
       const ratio = valid ? contrast(value, against) : 0;
       return { token, value, ratio, passes: valid && ratio >= token.check.ratio, valid };
     });
@@ -220,25 +220,13 @@ export default function Appearance() {
         {results.map(({ token, value, ratio, passes, valid }) => (
           <Card key={token.key}>
             <Field label={token.label} help={token.help} htmlFor={`theme-${token.key}`}>
-              <div className="flex items-center gap-2.5">
-                <input
-                  id={`theme-${token.key}`}
-                  type="color"
-                  value={HEX.test(value) ? value : "#000000"}
-                  className="h-10 w-12 flex-none cursor-pointer rounded border-0 bg-transparent p-0"
-                  onChange={(event) =>
-                    setTheme((current) => ({ ...current!, [token.key]: event.target.value }))
-                  }
-                />
-                <input
-                  className="admin-input"
-                  value={value}
-                  spellCheck={false}
-                  onChange={(event) =>
-                    setTheme((current) => ({ ...current!, [token.key]: event.target.value }))
-                  }
-                />
-              </div>
+              <ColorPicker
+                id={`theme-${token.key}`}
+                value={value}
+                onChange={(next) =>
+                  setTheme((current) => ({ ...current!, [token.key]: next ?? value }))
+                }
+              />
             </Field>
 
             <p

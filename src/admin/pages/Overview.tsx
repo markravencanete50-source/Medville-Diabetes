@@ -99,7 +99,7 @@ export default function Overview() {
     <>
       <PageHeader title="Overview" lede="How enquiries are arriving and where they stand." />
 
-      <div className="mb-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
+      <div className="mb-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
         <StatTile label="Total enquiries" value={stats.total} />
         <StatTile label="Last 30 days" value={last30} />
         <StatTile label="Still open" value={openCount} hint="New or contacted" />

@@ -10,7 +10,13 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { adminDb, adminStorage } from "./auth";
 import type { PageId, PageValues } from "../content/schema";
 import type { Product } from "../data/products";
-import { decodeBlocks, type PostBlock } from "../data/blog";
+import {
+  DEFAULT_TEMPLATE,
+  decodeBlocks,
+  isPostTemplate,
+  type PostBlock,
+  type PostTemplate,
+} from "../data/blog";
 
 /*
   Reads and writes for everything that is not Protected Health Information.
@@ -53,6 +59,9 @@ export interface PostRecord {
   author: string;
   publishedAt: string;
   published: boolean;
+  /* The article's layout. Always set on this side, so the editor never has
+     to guess; a document saved before layouts existed reads as Classic. */
+  template: PostTemplate;
 }
 
 /* There is no button colour here. Every button is cyan or navy, on the
@@ -249,6 +258,7 @@ export async function loadPosts(): Promise<PostRecord[]> {
         author: typeof data.author === "string" ? data.author : "",
         publishedAt: typeof data.publishedAt === "string" ? data.publishedAt : "",
         published: data.published === true,
+        template: isPostTemplate(data.template) ? data.template : DEFAULT_TEMPLATE,
       };
     })
     /* Newest first, and drafts with no date yet sort to the top where the
@@ -256,14 +266,24 @@ export async function loadPosts(): Promise<PostRecord[]> {
     .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
 }
 
+/* Firestore rejects undefined anywhere in a document, so every optional field
+   is dropped rather than sent as undefined, at every depth: a block's colour,
+   an animation's pace, all of it. */
+function stripUndefined<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(stripUndefined) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, entry]) => entry !== undefined)
+        .map(([key, entry]) => [key, stripUndefined(entry)]),
+    ) as T;
+  }
+  return value;
+}
+
 export async function savePost(record: PostRecord) {
   const { slug, ...rest } = record;
-  /* Blocks are stored as plain objects. Firestore rejects undefined, so every
-     optional field is dropped rather than sent as undefined. */
-  const body = rest.body.map((block) =>
-    Object.fromEntries(Object.entries(block).filter(([, value]) => value !== undefined)),
-  );
-  await setDoc(doc(adminDb(), "posts", slug), { ...rest, body }, { merge: false });
+  await setDoc(doc(adminDb(), "posts", slug), stripUndefined(rest), { merge: false });
 }
 
 export async function deletePost(slug: string) {

@@ -1,12 +1,16 @@
-import { useEffect, type CSSProperties } from "react";
+import { useEffect, type CSSProperties, type ReactElement } from "react";
 import {
+  animationById,
+  animationClass,
   colorToken,
   fontToken,
   parseInline,
+  type BlockAnimation,
   type PostBlock,
   type InlineSpan,
 } from "../data/blog";
 import { ensureFontLoaded } from "../data/fonts";
+import { reveal } from "../lib/useReveal";
 
 /*
   Renders a post's blocks.
@@ -23,6 +27,12 @@ import { ensureFontLoaded } from "../data/fonts";
   data/blog.ts has checked it, and React writes styles as properties, never
   as a parsed attribute string, so a stored value cannot become a selector or
   a second declaration.
+
+  Motion follows the same rule. A block that asks to arrive with an animation
+  gets the data-reveal attribute and the reveal classes the site's own pages
+  use, nothing more; the page's useReveal hook finds the attribute and plays
+  the arrival. A block that asks for nothing is rendered exactly as it was
+  before animations existed, with no attribute and no wrapper.
 */
 
 function Inline({ spans }: { spans: InlineSpan[] }) {
@@ -79,6 +89,43 @@ function textStyle(
   return style;
 }
 
+/*
+  What a block's animation becomes on the page. A plain arrival goes on the
+  block itself. A curtain needs a frame that holds still while the block
+  slides inside it, so the frame carries the reveal and the block is its one
+  child, which is what the curtain rules in index.css expect.
+*/
+interface Motion {
+  attrs: { "data-reveal": number };
+  className: string;
+  curtain: boolean;
+}
+
+function motionFor(animation: BlockAnimation | undefined): Motion | null {
+  if (!animation) return null;
+  return {
+    attrs: reveal(animation.delay ?? 0),
+    className: animationClass(animation),
+    curtain: animationById(animation.effect)?.curtain === true,
+  };
+}
+
+/* The attributes a block carries itself: its reveal, unless a frame carries
+   it instead. */
+function own(motion: Motion | null): { "data-reveal"?: number; className: string } {
+  return motion && !motion.curtain ? { ...motion.attrs, className: motion.className } : { className: "" };
+}
+
+/* Wraps a block in its curtain frame when it asked for one. */
+function framed(motion: Motion | null, key: string, element: ReactElement, extra = ""): ReactElement {
+  if (!motion?.curtain) return element;
+  return (
+    <div key={key} {...motion.attrs} className={`overflow-hidden ${motion.className} ${extra}`}>
+      {element}
+    </div>
+  );
+}
+
 export default function PostBody({ blocks }: { blocks: PostBlock[] }) {
   /* Any Google font the article uses is fetched once the blocks are known,
      before the browser has laid them out. The site's own faces and the
@@ -92,79 +139,111 @@ export default function PostBody({ blocks }: { blocks: PostBlock[] }) {
   return (
     <div className="flex flex-col gap-6">
       {blocks.map((block) => {
+        const motion = motionFor(block.animation);
+        const self = own(motion);
+
         switch (block.type) {
           case "heading": {
             const Tag = block.level === 3 ? "h3" : "h2";
-            return (
+            return framed(
+              motion,
+              block.id,
               <Tag
                 key={block.id}
+                {...(self["data-reveal"] !== undefined ? { "data-reveal": self["data-reveal"] } : {})}
                 className={`m-0 font-display font-bold text-ink ${
                   block.level === 3 ? "mt-3 text-[1.25rem]" : "mt-5 text-h3"
-                } ${block.align === "center" ? "text-center" : ""}`}
+                } ${block.align === "center" ? "text-center" : ""} ${self.className}`}
                 style={textStyle(block, "display")}
               >
                 <Inline spans={parseInline(block.text)} />
-              </Tag>
+              </Tag>,
             );
           }
 
           case "paragraph":
-            return (
+            return framed(
+              motion,
+              block.id,
               <p
                 key={block.id}
+                {...(self["data-reveal"] !== undefined ? { "data-reveal": self["data-reveal"] } : {})}
                 className={`m-0 text-body leading-relaxed ${
                   block.align === "center" ? "text-center" : ""
-                }`}
+                } ${self.className}`}
                 style={textStyle(block, "body", colorToken("muted"))}
               >
                 <Inline spans={parseInline(block.text)} />
-              </p>
+              </p>,
             );
 
           case "list": {
             const Tag = block.style === "number" ? "ol" : "ul";
-            return (
+            const center = block.align === "center";
+            return framed(
+              motion,
+              block.id,
               <Tag
                 key={block.id}
-                className={`m-0 flex flex-col gap-2 pl-6 text-body leading-relaxed text-grey-dark ${
+                {...(self["data-reveal"] !== undefined ? { "data-reveal": self["data-reveal"] } : {})}
+                className={`m-0 flex flex-col gap-2 text-body leading-relaxed text-grey-dark ${
                   block.style === "number" ? "list-decimal" : "list-disc"
-                }`}
+                } ${center ? "list-inside pl-0 text-center" : "pl-6"} ${self.className}`}
                 style={textStyle(block, "body")}
               >
                 {block.items
                   .filter((item) => item.trim() !== "")
                   .map((item, i) => (
-                    <li key={i} className="pl-1">
+                    <li key={i} className={center ? "" : "pl-1"}>
                       <Inline spans={parseInline(item)} />
                     </li>
                   ))}
-              </Tag>
+              </Tag>,
             );
           }
 
-          case "quote":
-            return (
-              <figure key={block.id} className="m-0">
+          case "quote": {
+            const center = block.align === "center";
+            return framed(
+              motion,
+              block.id,
+              <figure
+                key={block.id}
+                {...(self["data-reveal"] !== undefined ? { "data-reveal": self["data-reveal"] } : {})}
+                className={`m-0 ${self.className}`}
+              >
                 <blockquote
-                  className="m-0 rounded-lg border-l-4 border-brand bg-brand-tint px-7 py-5 font-display text-h3 font-semibold leading-snug text-brand"
+                  className={`m-0 rounded-lg border-l-4 border-brand bg-brand-tint px-7 py-5 font-display text-h3 font-semibold leading-snug text-brand ${
+                    center ? "text-center" : ""
+                  }`}
                   style={textStyle(block, "display")}
                 >
                   <Inline spans={parseInline(block.text)} />
                 </blockquote>
                 {block.attribution && (
-                  <figcaption className="mt-2 pl-7 text-small text-grey-muted">
+                  <figcaption
+                    className={`mt-2 text-small text-grey-muted ${center ? "text-center" : "pl-7"}`}
+                  >
                     {block.attribution}
                   </figcaption>
                 )}
-              </figure>
+              </figure>,
             );
+          }
 
-          case "image":
+          case "image": {
             if (!block.url) return null;
-            return (
+            /* A full width picture bleeds past the column with a negative
+               margin. Under a curtain the frame clips, so the bleed moves to
+               the frame and the figure stays inside it. */
+            const bleed = block.width === "full" ? "lg:-mx-16" : "";
+            return framed(
+              motion,
+              block.id,
               <figure
                 key={block.id}
-                className={`m-0 ${block.width === "full" ? "lg:-mx-16" : ""}`}
+                {...(self["data-reveal"] !== undefined ? { "data-reveal": self["data-reveal"] } : {})}
+                className={`m-0 ${motion?.curtain ? "" : bleed} ${self.className}`}
               >
                 <div className="overflow-hidden rounded-lg bg-grey-light">
                   <img
@@ -180,24 +259,35 @@ export default function PostBody({ blocks }: { blocks: PostBlock[] }) {
                     {block.caption}
                   </figcaption>
                 )}
-              </figure>
+              </figure>,
+              bleed,
             );
+          }
 
           case "callout":
-            return (
+            return framed(
+              motion,
+              block.id,
               <div
                 key={block.id}
+                {...(self["data-reveal"] !== undefined ? { "data-reveal": self["data-reveal"] } : {})}
                 className={`rounded-lg border-l-4 p-6 text-body leading-relaxed text-grey-dark ${
                   CALLOUT_TONE[block.tone] ?? CALLOUT_TONE.brand
-                }`}
+                } ${self.className}`}
               >
                 <Inline spans={parseInline(block.text)} />
-              </div>
+              </div>,
             );
 
           case "divider":
-            return (
-              <hr key={block.id} className="my-2 border-0 border-t border-line-brand" />
+            return framed(
+              motion,
+              block.id,
+              <hr
+                key={block.id}
+                {...(self["data-reveal"] !== undefined ? { "data-reveal": self["data-reveal"] } : {})}
+                className={`my-2 border-0 border-t border-line-brand ${self.className}`}
+              />,
             );
 
           default:

@@ -116,8 +116,7 @@ export default function Testimonials() {
                 </Badge>
                 <button
                   type="button"
-                  className="admin-btn admin-btn-danger"
-                  style={{ minHeight: 32, padding: "0 10px" }}
+                  className="admin-btn admin-btn-danger admin-btn-sm"
                   onClick={() => void remove(item)}
                 >
                   <Trash2 size={14} /> Remove
@@ -141,7 +140,7 @@ export default function Testimonials() {
                   />
                 </Field>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Name" htmlFor={`t-name-${item.id}`} help="A first name is enough.">
                     <input
                       id={`t-name-${item.id}`}

@@ -3,15 +3,17 @@ import {
   BarChart3,
   ClipboardList,
   FileText,
-  Image as ImageIcon,
   LogOut,
   Menu,
   MessageSquareQuote,
   Moon,
+  MoreHorizontal,
   Package,
+  Palette,
   PenSquare,
   ScrollText,
   ShieldCheck,
+  Star,
   Sun,
   Users,
   X,
@@ -19,7 +21,7 @@ import {
 import "./admin.css";
 import { AdminAuthProvider, canOpen, useAdminAuth, type AdminRole } from "./auth";
 import { isAdminApiConfigured } from "./api";
-import { Banner, Card, Field, ToastProvider, useAdminTheme } from "./ui";
+import { Badge, Banner, Field, ToastProvider, useAdminTheme } from "./ui";
 import { usePageMeta } from "../lib/usePageMeta";
 
 /*
@@ -33,6 +35,11 @@ import { usePageMeta } from "../lib/usePageMeta";
   Identity Platform token and a role claim, checked again on the server for
   anything touching Protected Health Information. Hiding the URL would add no
   security and would only make the client's own dashboard hard to find.
+
+  The shell is built for a phone first. Under 1024px the navy sidebar becomes
+  a drawer, a navy bar at the top names the screen, and a bar at the foot
+  holds the first few screens the person's role allows plus More, which opens
+  the drawer with the rest. From 1024px the sidebar is simply there.
 */
 
 /*
@@ -88,12 +95,18 @@ const NAV: { id: Section; label: string; icon: typeof BarChart3; group: string }
   { id: "products", label: "Products", icon: Package, group: "Website" },
   { id: "content", label: "Page text", icon: FileText, group: "Website" },
   { id: "blog", label: "Blog", icon: PenSquare, group: "Website" },
-  { id: "appearance", label: "Colours", icon: ImageIcon, group: "Website" },
+  { id: "appearance", label: "Colours", icon: Palette, group: "Website" },
   { id: "faqs", label: "Questions", icon: MessageSquareQuote, group: "Website" },
-  { id: "testimonials", label: "Reviews", icon: MessageSquareQuote, group: "Website" },
+  { id: "testimonials", label: "Reviews", icon: Star, group: "Website" },
   { id: "team", label: "Administrators", icon: Users, group: "Account" },
   { id: "audit", label: "Access log", icon: ScrollText, group: "Account" },
 ];
+
+const ROLE_LABEL: Record<AdminRole, string> = {
+  owner: "Owner",
+  editor: "Website editor",
+  agent: "Enquiries",
+};
 
 function firstSectionFor(role: AdminRole): Section {
   return (NAV.find((item) => canOpen(role, item.id))?.id ?? "content") as Section;
@@ -123,6 +136,22 @@ function useSection(role: AdminRole) {
   };
 
   return { section, go };
+}
+
+/* The lockup: a cyan tile with the shield, the name, and what this is. It
+   only ever sits on navy, so it is white and cyan in both themes. */
+function Brand() {
+  return (
+    <div className="admin-brand">
+      <span className="admin-brand-mark" aria-hidden="true">
+        <ShieldCheck size={20} strokeWidth={2.2} />
+      </span>
+      <span>
+        Medville
+        <small>Dashboard</small>
+      </span>
+    </div>
+  );
 }
 
 function SignIn() {
@@ -159,77 +188,80 @@ function SignIn() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-10">
-      <Card className="w-full max-w-[400px]">
-        <div className="admin-brand" style={{ padding: "0 0 14px" }}>
-          <ShieldCheck size={20} style={{ color: "var(--a-brand)" }} />
-          <span>
-            Medville
-            <small>Dashboard</small>
-          </span>
+    <div className="admin-signin">
+      <div className="w-full max-w-[420px]">
+        <Brand />
+
+        <div className="admin-signin-card">
+          {!configured && (
+            <div className="mb-4">
+              <Banner tone="warn">
+                Sign-in is not connected yet. Identity Platform has to be enabled on the
+                Google Cloud project and the site environment filled in. See
+                ADMIN-SETUP.md.
+              </Banner>
+            </div>
+          )}
+
+          {signedOutReason && (
+            <div className="mb-4">
+              <Banner tone="warn">{signedOutReason}</Banner>
+            </div>
+          )}
+
+          {pendingApproval && (
+            <div className="mb-4">
+              <Banner tone="warn">
+                Your account exists but has not been given access yet. Ask the account
+                owner to grant you a role.
+              </Banner>
+            </div>
+          )}
+
+          <h1 className="admin-page-title m-0 mb-1">Sign in</h1>
+          <p className="admin-help m-0 mb-5">Use the address and password you were invited with.</p>
+
+          <form onSubmit={submit} className="flex flex-col gap-3.5">
+            <Field label="Email address" htmlFor="admin-email">
+              <input
+                id="admin-email"
+                className="admin-input"
+                type="email"
+                autoComplete="username"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </Field>
+            <Field label="Password" htmlFor="admin-password">
+              <input
+                id="admin-password"
+                className="admin-input"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </Field>
+
+            {error && <Banner tone="danger">{error}</Banner>}
+
+            <button
+              type="submit"
+              className="admin-btn admin-btn-primary mt-1 min-h-12 w-full"
+              disabled={busy || !configured}
+            >
+              {busy ? "Signing in" : "Sign in"}
+            </button>
+          </form>
+
+          <p className="admin-help mt-4">
+            This dashboard holds patient information. Do not share your login, and sign
+            out when you leave the screen.
+          </p>
         </div>
-
-        {!configured && (
-          <div className="mb-4">
-            <Banner tone="warn">
-              Sign-in is not connected yet. Identity Platform has to be enabled on the
-              Google Cloud project and the site environment filled in. See
-              ADMIN-SETUP.md.
-            </Banner>
-          </div>
-        )}
-
-        {signedOutReason && (
-          <div className="mb-4">
-            <Banner tone="warn">{signedOutReason}</Banner>
-          </div>
-        )}
-
-        {pendingApproval && (
-          <div className="mb-4">
-            <Banner tone="warn">
-              Your account exists but has not been given access yet. Ask the account
-              owner to grant you a role.
-            </Banner>
-          </div>
-        )}
-
-        <form onSubmit={submit} className="flex flex-col gap-3.5">
-          <Field label="Email address" htmlFor="admin-email">
-            <input
-              id="admin-email"
-              className="admin-input"
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </Field>
-          <Field label="Password" htmlFor="admin-password">
-            <input
-              id="admin-password"
-              className="admin-input"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </Field>
-
-          {error && <Banner tone="danger">{error}</Banner>}
-
-          <button type="submit" className="admin-btn admin-btn-primary" disabled={busy || !configured}>
-            {busy ? "Signing in" : "Sign in"}
-          </button>
-        </form>
-
-        <p className="admin-help mt-4">
-          This dashboard holds patient information. Do not share your login, and sign
-          out when you leave the screen.
-        </p>
-      </Card>
+      </div>
     </div>
   );
 }
@@ -251,18 +283,37 @@ function Shell() {
     sessionStorage.removeItem(RELOADED_KEY);
   }, []);
 
+  /* Escape closes the phone menu, the way it closes every other panel. */
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setNavOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [navOpen]);
+
   const visible = NAV.filter((item) => canOpen(role, item.id));
   const groups = [...new Set(visible.map((item) => item.group))];
+  const current = NAV.find((item) => item.id === section);
+
+  /* The phone footer holds the first four screens this role can open; the
+     rest sit behind More, which is also where the theme and sign-out live. */
+  const tabs = visible.slice(0, 4);
+  const inTabs = tabs.some((item) => item.id === section);
+
+  const themeLabel = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
 
   const nav = (
     <>
-      <div className="admin-brand">
-        <ShieldCheck size={20} style={{ color: "var(--a-brand)" }} />
-        <span>
-          Medville
-          <small>Dashboard</small>
-        </span>
-      </div>
+      <button
+        type="button"
+        className="admin-icon-btn admin-side-close"
+        aria-label="Close the menu"
+        onClick={() => setNavOpen(false)}
+      >
+        <X size={20} />
+      </button>
+
+      <Brand />
 
       {groups.map((group) => (
         <div key={group}>
@@ -279,7 +330,7 @@ function Shell() {
                   aria-current={section === item.id ? "page" : undefined}
                   onClick={() => go(item.id)}
                 >
-                  <Icon size={16} aria-hidden="true" />
+                  <Icon size={17} aria-hidden="true" />
                   {item.label}
                 </button>
               );
@@ -287,14 +338,15 @@ function Shell() {
         </div>
       ))}
 
-      <div className="mt-auto pt-5">
-        <p className="admin-help mb-2 truncate" title={session!.email}>
+      <div className="admin-nav-foot">
+        <p className="admin-help mb-2 truncate px-3" title={session!.email}>
           {session!.email}
-          <br />
-          <span style={{ textTransform: "capitalize" }}>{role}</span>
         </p>
-        <button type="button" className="admin-nav-link w-full" onClick={toggle}>
-          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+        <div className="mb-2 px-3">
+          <Badge tone="new">{ROLE_LABEL[role]}</Badge>
+        </div>
+        <button type="button" className="admin-nav-link w-full" onClick={toggle} aria-label={themeLabel}>
+          {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
           {theme === "dark" ? "Light mode" : "Dark mode"}
         </button>
         <button
@@ -302,7 +354,7 @@ function Shell() {
           className="admin-nav-link w-full"
           onClick={() => void signOutNow("You signed out.")}
         >
-          <LogOut size={16} /> Sign out
+          <LogOut size={17} /> Sign out
         </button>
       </div>
     </>
@@ -311,24 +363,21 @@ function Shell() {
   return (
     <div className="admin" data-admin-theme={theme}>
       <div className="admin-topbar">
-        <button
-          type="button"
-          className="admin-btn admin-btn-quiet"
-          style={{ minHeight: 38, padding: "0 11px" }}
-          aria-expanded={navOpen}
-          onClick={() => setNavOpen((open) => !open)}
-        >
-          {navOpen ? <X size={18} /> : <Menu size={18} />}
-          Menu
+        <span className="admin-brand-mark" aria-hidden="true">
+          <ShieldCheck size={17} strokeWidth={2.2} />
+        </span>
+        <p className="admin-topbar-title m-0">{current?.label ?? "Dashboard"}</p>
+        <button type="button" className="admin-icon-btn" onClick={toggle} aria-label={themeLabel}>
+          {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
         </button>
         <button
           type="button"
-          className="admin-btn admin-btn-quiet"
-          style={{ minHeight: 38, padding: "0 11px" }}
-          onClick={toggle}
-          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          className="admin-icon-btn"
+          aria-expanded={navOpen}
+          aria-label={navOpen ? "Close the menu" : "Open the menu"}
+          onClick={() => setNavOpen((open) => !open)}
         >
-          {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+          {navOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
 
@@ -341,7 +390,11 @@ function Shell() {
             onClick={() => setNavOpen(false)}
           />
         )}
-        <aside className="admin-side" data-open={navOpen}>
+        <aside
+          className="admin-side"
+          data-open={navOpen}
+          {...(navOpen ? { role: "dialog", "aria-modal": true, "aria-label": "Menu" } : {})}
+        >
           {nav}
         </aside>
 
@@ -401,6 +454,38 @@ function Shell() {
           </Suspense>
         </main>
       </div>
+
+      <nav
+        className="admin-tabbar"
+        aria-label="Sections"
+        style={{ "--tabs": tabs.length + 1 } as React.CSSProperties}
+      >
+        {tabs.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className="admin-tab"
+              aria-current={section === item.id ? "page" : undefined}
+              onClick={() => go(item.id)}
+            >
+              <Icon size={22} strokeWidth={1.9} aria-hidden="true" />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          className="admin-tab"
+          aria-expanded={navOpen}
+          aria-current={!inTabs && !navOpen ? "page" : undefined}
+          onClick={() => setNavOpen((open) => !open)}
+        >
+          <MoreHorizontal size={22} strokeWidth={1.9} aria-hidden="true" />
+          <span>More</span>
+        </button>
+      </nav>
     </div>
   );
 }
@@ -412,9 +497,11 @@ function Gate() {
   if (!ready) {
     return (
       <div className="admin" data-admin-theme={theme}>
-        <p className="py-24 text-center text-[14px]" style={{ color: "var(--a-text-faint)" }}>
-          Checking your session
-        </p>
+        <div className="admin-signin">
+          <p className="text-[14px]" style={{ color: "var(--a-nav-muted)" }}>
+            Checking your session
+          </p>
+        </div>
       </div>
     );
   }

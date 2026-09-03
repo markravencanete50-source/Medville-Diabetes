@@ -128,10 +128,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={push}>
       {children}
-      <div
-        className="pointer-events-none fixed bottom-4 right-4 z-[60] flex w-[min(360px,calc(100vw-2rem))] flex-col gap-2"
-        aria-live="polite"
-      >
+      <div className="admin-toasts" aria-live="polite">
         {toasts.map((toast) => (
           <div
             key={toast.id}
@@ -167,12 +164,17 @@ export function Drawer({
   /* A wider panel for the blog editor, where a block and its preview both
      need room. Everything else keeps the reading width. */
   wide = false,
+  /* Actions that must stay in reach however far the body has been scrolled:
+     the editor's Publish and Save buttons. Rendered as a fixed foot with the
+     phone's safe area respected. */
+  footer,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
   wide?: boolean;
+  footer?: React.ReactNode;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -194,28 +196,18 @@ export function Drawer({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`fixed inset-y-0 right-0 z-50 flex flex-col ${
-          wide ? "w-[min(780px,100vw)]" : "w-[min(460px,100vw)]"
-        }`}
-        style={{ background: "var(--a-surface)", boxShadow: "var(--a-shadow)" }}
+        className={`admin-drawer ${wide ? "admin-drawer-wide" : ""}`}
       >
-        <header
-          className="flex items-center justify-between gap-3 px-5 py-4"
-          style={{ borderBottom: "1px solid var(--a-line)" }}
-        >
-          <h2 className="admin-page-title" style={{ fontSize: "1.15rem" }}>
+        <header className="admin-drawer-head">
+          <h2 className="admin-page-title m-0" style={{ fontSize: "1.15rem" }}>
             {title}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="admin-btn admin-btn-quiet"
-            style={{ minHeight: 34, padding: "0 10px" }}
-          >
-            <X size={16} /> Close
+          <button type="button" onClick={onClose} className="admin-icon-btn" aria-label="Close">
+            <X size={20} />
           </button>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
+        <div className="admin-drawer-body">{children}</div>
+        {footer && <footer className="admin-drawer-foot">{footer}</footer>}
       </aside>
     </>
   );
