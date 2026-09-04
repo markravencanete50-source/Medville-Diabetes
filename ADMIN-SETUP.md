@@ -229,28 +229,35 @@ to the site.
 
 ---
 
-## Current state, verified 2026-09-02
+## Current state, verified 2026-09-04
 
-Checked directly against the project rather than assumed:
+Checked directly against the project and the repository rather than assumed.
+The repository checks were a full build (TypeScript, Vite and the prerender
+step), a syntax check and a clean install of both functions, and the deploy
+workflow's last run on the current main commit, which succeeded. The project
+checks were made over the public Google APIs with the committed web key, which
+is the same access a visitor's browser has.
 
 | | |
 |---|---|
+| Repository | builds cleanly; both functions install and parse; main is deployed |
 | Firebase project and web config | done, committed |
 | Email / password sign-in | enabled and answering |
 | Firestore database | live |
-| Security rules | deployed and correct: the public content collections read, `leads` refuses the browser |
+| Security rules | deployed and correct: the public content collections read, `leads` refuses the browser with permission denied |
 | Content collections | empty, so the site serves its built-in wording, which is the intended fallback |
 | Cloud Storage bucket | does not exist; the default bucket needs Blaze |
-| Blaze plan and BAA (step 1) | not confirmed |
-| Identity Platform upgrade (step 2) | not confirmed; plain Firebase Auth is not BAA covered |
+| Blaze plan and BAA (step 1) | not done. Blaze takes no deposit: a card is linked and usage is billed monthly. The BAA is accepted by an administrator of the billing account, so the client must own that billing account, not only be a member of the Firebase project |
+| Identity Platform upgrade (step 2) | not confirmed; plain Firebase Auth is not BAA covered. This is a separate console switch from Blaze |
 | The two functions (step 4) | not deployed |
 | First owner (step 5) | not granted |
-| `VITE_ADMIN_API` secret (step 6) | not set |
-| Identity Platform authorized domains | the Firebase hosts and preview channels only; the custom domain is added in step 7 |
-| Custom domain (step 7) | not connected; www.medvillediabetes.com resolves to the registrar's parking page |
+| `VITE_ADMIN_API` and `VITE_QUALIFY_ENDPOINT` secrets (step 6) | not set; the deploy workflow already reads both |
+| Identity Platform authorized domains | localhost, the two Firebase hosts and five preview channels only; the custom domain is added in step 7 |
+| Custom domain (step 7) | not connected; both www.medvillediabetes.com and the apex resolve to the registrar's parking addresses |
 
 Steps 1, 2, 4, 5, 6 and 7 all need Google Cloud console, GoDaddy or `gcloud`
-access.
+access. Nothing in this repository changes for any of them except the one
+`SITE_ORIGIN` line in step 7.
 
 ---
 
