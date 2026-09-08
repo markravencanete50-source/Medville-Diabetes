@@ -462,7 +462,7 @@ export const PAGES: PageDef[] = [
         id: "details",
         label: "Contact details",
         fields: [
-          { key: "phone", label: "Phone number", kind: "text", max: 24, fallback: "800-394-3917" },
+          { key: "phone", label: "Phone number", kind: "text", max: 24, fallback: "888-564-2595" },
           {
             key: "email",
             label: "Email address",

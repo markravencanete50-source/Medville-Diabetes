@@ -15,8 +15,8 @@
   different domain and it does not carry their mail.
 */
 
-export const PHONE_DISPLAY = "800-394-3917";
-export const PHONE_TEL = "tel:+18003943917";
+export const PHONE_DISPLAY = "888-564-2595";
+export const PHONE_TEL = "tel:+18885642595";
 
 export const EMAIL = "info@medvillediabetes.com";
 export const EMAIL_HREF = `mailto:${EMAIL}`;

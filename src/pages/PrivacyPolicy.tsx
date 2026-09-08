@@ -32,7 +32,7 @@ export default function PrivacyPolicy() {
         servers. If you access Medville through an insecure connection you will not
         be able to place an order online. If you cannot access our shopping cart,
         please print out our order form and place your order by phone at
-        1-800-394-3917.
+        1-888-564-2595.
       </LegalText>
 
       <LegalHeading>How we use the information we collect</LegalHeading>
@@ -145,7 +145,7 @@ export default function PrivacyPolicy() {
       <LegalText>
         To exercise any of your rights as set out above on or after January 1, 2020,
         and are a California resident, please contact us by submitting a request at
-        DSAR Form or by contacting us at 800-394-3917. You will be required to verify
+        DSAR Form or by contacting us at 888-564-2595. You will be required to verify
         your identity before we are able to fulfill your request.
       </LegalText>
 
