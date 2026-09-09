@@ -11,8 +11,7 @@
 
   - firestore.rules denies the leads collection to every browser, signed in
     or not. Patient records are reachable only through the adminApi function.
-  - storage.rules allows writes only to a signed-in administrator with a
-    content role.
+  - storage.rules limits uploads to the administrator's assigned content scope.
   - Signing in requires an account that an owner created. Self sign-up is
     turned off, so knowing the API key does not let anyone make an account.
 

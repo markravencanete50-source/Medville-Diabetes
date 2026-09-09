@@ -148,9 +148,9 @@ The three roles are:
 
 | Role | Sees |
 |---|---|
-| `owner` | Everything, including administrators and the access log |
-| `editor` | The website only, including the blog. No access to enquiries or patient details |
-| `agent` | Enquiries only. Cannot change the website |
+| `owner` | Every feature, including the access log and Owner management |
+| `marketing` | Every feature except the access log. Cannot grant or change Owner access |
+| `sales` | Products and enquiries only |
 
 Give each person the narrowest role that lets them do their job. That is the
 minimum necessary rule, and the access log is only meaningful if every person
@@ -339,12 +339,12 @@ Firestore.
 
 | Role | Who | Enquiries | Website | Administrators |
 |---|---|---|---|---|
-| `owner` | Ann, Rose | Yes, and the access log | Yes | Invite and remove |
-| `agent` | The sales team | Yes: list, open, change status | No | No |
-| `editor` | Whoever writes articles or page copy | **No** | Yes | No |
+| `owner` | Account owners | Yes, and the access log | Yes | Full control, including Owner access |
+| `marketing` | Marketing team | Yes | Yes | Manage Sales and Marketing accounts only |
+| `sales` | Sales team | Yes: list, open, change status | Products only | No |
 
-`agent` is the right role for sales: it reaches enquiries and nothing else.
-Nobody needs `owner` in order to work a lead.
+`sales` is the minimum role for working enquiries and maintaining products.
+Nobody needs `owner` in order to work a lead or update the website.
 
 Two rules that hold this together:
 

@@ -39,7 +39,14 @@ import { firebaseConfig } from "../lib/firebaseConfig";
 const IDLE_LIMIT_MS = 20 * 60 * 1000;
 const IDLE_WARNING_MS = 2 * 60 * 1000;
 
-export type AdminRole = "owner" | "editor" | "agent";
+export type AdminRole = "owner" | "marketing" | "sales";
+
+function normalizeRole(role: unknown): AdminRole | null {
+  if (role === "owner") return "owner";
+  if (role === "marketing" || role === "editor") return "marketing";
+  if (role === "sales" || role === "agent") return "sales";
+  return null;
+}
 
 export interface AdminSession {
   user: User;
@@ -148,8 +155,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         // another token change and can continuously reload the dashboard.
         const token = await user.getIdTokenResult();
         if (auth.currentUser !== user) return;
-        const role = token.claims.role as AdminRole | undefined;
-        if (role === "owner" || role === "editor" || role === "agent") {
+        const role = normalizeRole(token.claims.role);
+        if (role) {
           setSession({ user, email: user.email ?? "", role });
           setPendingApproval(false);
         } else {
@@ -241,8 +248,8 @@ export function useAdminAuth() {
    same list; this only decides what is worth showing. */
 export const ROLE_ACCESS: Record<AdminRole, string[]> = {
   owner: ["overview", "leads", "products", "content", "blog", "appearance", "faqs", "testimonials", "team", "audit"],
-  editor: ["products", "content", "blog", "appearance", "faqs", "testimonials"],
-  agent: ["overview", "leads"],
+  marketing: ["overview", "leads", "products", "content", "blog", "appearance", "faqs", "testimonials", "team"],
+  sales: ["leads", "products"],
 };
 
 export function canOpen(role: AdminRole, section: string) {

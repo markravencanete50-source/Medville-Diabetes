@@ -18,9 +18,9 @@ rules_version = '2';
 
   Roles live in Identity Platform custom claims, not in documents, so a role
   cannot be escalated by writing to Firestore:
-    owner  — everything, including managing other administrators
-    editor — marketing content only, no access to leads
-    agent  — leads only, no ability to change the website
+    owner     — every feature, including the access log and Owner management
+    marketing — every feature except the access log
+    sales     — products and enquiries only
 
   If a change to this file appears to open leads to any client read, it is
   wrong. Route it through the function instead.
@@ -41,8 +41,20 @@ service cloud.firestore {
       return role() == 'owner';
     }
 
+    function isMarketing() {
+      return role() == 'marketing' || role() == 'editor';
+    }
+
+    function isSales() {
+      return role() == 'sales' || role() == 'agent';
+    }
+
     function canEditContent() {
-      return role() == 'owner' || role() == 'editor';
+      return isOwner() || isMarketing();
+    }
+
+    function canEditProducts() {
+      return canEditContent() || isSales();
     }
 
     /* ---- public marketing content ---- */
@@ -59,7 +71,7 @@ service cloud.firestore {
 
     match /products/{slug} {
       allow read: if true;
-      allow write: if canEditContent();
+      allow write: if canEditProducts();
     }
 
     match /faqs/{id} {
@@ -94,7 +106,7 @@ service cloud.firestore {
        function is the only thing that can set it. */
 
     match /adminUsers/{uid} {
-      allow read: if isOwner();
+      allow read: if isOwner() || isMarketing();
       allow write: if false;
     }
 

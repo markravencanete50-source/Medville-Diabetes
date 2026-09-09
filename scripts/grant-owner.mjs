@@ -26,9 +26,9 @@
 
   This grants the widest role there is. Give `owner` only to whoever should be
   able to read patient records and manage other administrators. Everyone else
-  should be added from the dashboard as `editor` (website only) or `agent`
-  (enquiries only), which is the minimum necessary rule Section 3.4(b) asks
-  for.
+  should be added from the dashboard as `marketing` (everything except the
+  access log) or `sales` (products and enquiries only), which is the minimum
+  necessary rule Section 3.4(b) asks for.
 */
 import { randomBytes } from "node:crypto";
 import { initializeApp, applicationDefault } from "firebase-admin/app";

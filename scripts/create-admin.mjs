@@ -11,9 +11,9 @@
     node scripts/create-admin.mjs <service-account.json> <email> <password> [role]
 
   role defaults to owner. The three roles are:
-    owner   everything, including administrators and the access log
-    editor  the website only, no access to enquiries or patient details
-    agent   enquiries only, cannot change the website
+    owner      every feature, including the access log and Owner management
+    marketing  every feature except the access log
+    sales      products and enquiries only
 
   The service account key comes from the Firebase console:
     Project settings, Service accounts, Generate new private key.
@@ -31,13 +31,13 @@ const [keyPath, email, password, role = "owner"] = process.argv.slice(2);
 
 if (!keyPath || !email || !password) {
   console.error(
-    "usage: node scripts/create-admin.mjs <service-account.json> <email> <password> [owner|editor|agent]",
+    "usage: node scripts/create-admin.mjs <service-account.json> <email> <password> [owner|marketing|sales]",
   );
   process.exit(2);
 }
 
-if (!["owner", "editor", "agent"].includes(role)) {
-  console.error(`"${role}" is not a role. Use owner, editor or agent.`);
+if (!["owner", "marketing", "sales"].includes(role)) {
+  console.error(`"${role}" is not a role. Use owner, marketing or sales.`);
   process.exit(2);
 }
 

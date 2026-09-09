@@ -5,7 +5,7 @@
     {
       "check": "Storage Abuse and Type Safety",
       "severity": "minor",
-      "issue": "Trusted owner/editor marketing writes lack comprehensive field type and size validation on both create and update. They can damage public content, but cannot escalate claims or access patient records through rules.",
+      "issue": "Trusted owner/marketing writes and sales product writes lack comprehensive field type and size validation on both create and update. They can damage public content within their assigned scope, but cannot escalate claims or access patient records through rules.",
       "recommendation": "Add a versioned marketing schema with compatible create/update validation, payload bounds and emulator regression tests."
     }
   ]

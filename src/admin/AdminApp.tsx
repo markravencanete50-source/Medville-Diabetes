@@ -104,8 +104,8 @@ const NAV: { id: Section; label: string; icon: typeof BarChart3; group: string }
 
 const ROLE_LABEL: Record<AdminRole, string> = {
   owner: "Owner",
-  editor: "Website editor",
-  agent: "Enquiries",
+  marketing: "Marketing",
+  sales: "Sales",
 };
 
 function firstSectionFor(role: AdminRole): Section {

@@ -22,14 +22,27 @@ service firebase.storage {
     }
 
     function canEditContent() {
-      return role() == 'owner' || role() == 'editor';
+      return role() == 'owner' || role() == 'marketing' || role() == 'editor';
+    }
+
+    function canEditProducts() {
+      return canEditContent() || role() == 'sales' || role() == 'agent';
+    }
+
+    function isValidImage() {
+      return request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp|gif|avif)');
+    }
+
+    match /site/products/{allPaths=**} {
+      allow read: if true;
+      allow write: if canEditProducts() && isValidImage();
+      allow delete: if canEditProducts();
     }
 
     match /site/{allPaths=**} {
       allow read: if true;
-      allow write: if canEditContent()
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/(jpeg|png|webp|gif|avif)');
+      allow write: if canEditContent() && isValidImage();
       allow delete: if canEditContent();
     }
 

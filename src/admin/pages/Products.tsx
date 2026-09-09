@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import {
   PRODUCT_STATUS_LABEL,
   products as builtInProducts,
@@ -173,14 +173,23 @@ export default function Products() {
                       <td data-label="Price" style={{ color: "var(--a-text-muted)" }}>
                         {typeof product.price === "number" ? `$${product.price.toFixed(2)}` : "Not shown"}
                       </td>
-                      <td className="text-right">
-                        <button
-                          type="button"
-                          className="admin-btn admin-btn-danger admin-btn-sm"
-                          onClick={() => void remove(product)}
-                        >
-                          <Trash2 size={14} /> Remove
-                        </button>
+                      <td className="text-right" data-label="Actions">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-quiet admin-btn-sm"
+                            onClick={() => setEditing(product)}
+                          >
+                            <Pencil size={14} /> Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-danger admin-btn-sm"
+                            onClick={() => void remove(product)}
+                          >
+                            <Trash2 size={14} /> Remove
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

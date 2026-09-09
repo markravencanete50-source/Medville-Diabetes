@@ -12,7 +12,7 @@ import { Badge, Banner, Card, Empty, Field, PageHeader, Spinner, formatDateTime,
   access rather than one shared account. This is the screen that keeps that
   true over time, and the roles it grants are the same ones the server checks.
 
-  An owner invites somebody by email. The function creates the account and
+  An owner or marketing administrator invites somebody by email. The function creates the account and
   gives it a role but sets no password, so the invitation is not a credential:
   the person can only get in by following the link emailed to them and
   choosing their own password. An intercepted invitation grants nothing.
@@ -49,8 +49,8 @@ const SHARED_MAILBOX_REFUSAL =
 
 const ROLE_NOTE: Record<string, string> = {
   owner: "Everything, including these settings and the access log.",
-  editor: "The website only. Cannot open enquiries or patient details.",
-  agent: "Enquiries only. Cannot change the website.",
+  marketing: "Everything except the access log. Cannot grant or change Owner access.",
+  sales: "Products and enquiries only.",
   none: "Signed out of everything. The account stays but has no access.",
 };
 
@@ -61,8 +61,9 @@ export default function Team() {
   const [error, setError] = useState("");
   const [busyUid, setBusyUid] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("editor");
+  const [inviteRole, setInviteRole] = useState("marketing");
   const [inviting, setInviting] = useState(false);
+  const isOwner = session?.role === "owner";
 
   /*
     Two steps, and the order matters. The account has to exist before Identity
@@ -181,9 +182,9 @@ export default function Team() {
                   value={inviteRole}
                   onChange={(event) => setInviteRole(event.target.value)}
                 >
-                  <option value="editor">Website editor</option>
-                  <option value="agent">Enquiries</option>
-                  <option value="owner">Owner</option>
+                  <option value="sales">Sales</option>
+                  <option value="marketing">Marketing</option>
+                  {isOwner && <option value="owner">Owner</option>}
                 </select>
               </Field>
             </div>
@@ -226,6 +227,7 @@ export default function Team() {
               <tbody>
                 {admins.map((user) => {
                   const isYou = user.uid === session?.user.uid;
+                  const isProtectedOwner = !isOwner && user.role === "owner";
                   return (
                     <tr key={user.uid}>
                       <td data-label="Person">
@@ -264,19 +266,21 @@ export default function Team() {
                             id={`role-${user.uid}`}
                             className="admin-select"
                             value={user.role}
-                            disabled={busyUid === user.uid || isYou}
+                            disabled={busyUid === user.uid || isYou || isProtectedOwner}
                             onChange={(event) => void setRole(user, event.target.value)}
                           >
-                            <option value="owner">Owner</option>
-                            <option value="editor">Website editor</option>
-                            <option value="agent">Enquiries</option>
+                            {(isOwner || user.role === "owner") && <option value="owner">Owner</option>}
+                            <option value="marketing">Marketing</option>
+                            <option value="sales">Sales</option>
                             <option value="none">No access</option>
                           </select>
                         </Field>
                         <p className="admin-help">
                           {isYou
                             ? "You cannot change your own access."
-                            : ROLE_NOTE[user.role] ?? ""}
+                            : isProtectedOwner
+                              ? "Only an Owner can change Owner access."
+                              : ROLE_NOTE[user.role] ?? ""}
                         </p>
                       </td>
                     </tr>

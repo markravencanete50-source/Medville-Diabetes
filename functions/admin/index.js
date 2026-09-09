@@ -25,9 +25,9 @@
     never the PHI values themselves.
 
   Roles, taken from the Identity Platform custom claim:
-    owner: everything, including inviting and removing administrators
-    editor: marketing content only; no lead access whatsoever
-    agent: leads, read and change status; no administrator management
+    owner: every feature, including the access log and Owner management
+    marketing: every feature except the access log; cannot grant or change Owner access
+    sales: products and enquiries only
 */
 
 import { onRequest } from "firebase-functions/v2/https";
@@ -36,6 +36,7 @@ import { getAuth } from "firebase-admin/auth";
 import { initializeApp, applicationDefault } from "firebase-admin/app";
 import { sendNotification } from "./notification.js";
 import { createAdminHandler } from "./handler.js";
+import { ADMIN_ROLES, normalizeRole, roleChangeError } from "./roles.js";
 
 initializeApp({ credential: applicationDefault() });
 
@@ -74,7 +75,6 @@ const MAX_TOKEN_AGE_SECONDS = 60 * 60;
 
 const LEAD_STATUSES = new Set(["new", "contacted", "qualified", "not-qualified", "closed"]);
 
-
 async function authenticate(req) {
   const header = req.get("Authorization") || "";
   if (!header.startsWith("Bearer ")) return null;
@@ -82,8 +82,9 @@ async function authenticate(req) {
     const decoded = await auth.verifyIdToken(header.slice(7), true);
     const issuedSecondsAgo = Math.floor(Date.now() / 1000) - decoded.auth_time;
     if (!Number.isFinite(issuedSecondsAgo) || issuedSecondsAgo < -60 || issuedSecondsAgo > MAX_TOKEN_AGE_SECONDS) return null;
-    if (!["owner", "editor", "agent"].includes(decoded.role)) return null;
-    return { uid: decoded.uid, email: decoded.email || "", role: decoded.role };
+    const role = normalizeRole(decoded.role);
+    if (!role) return null;
+    return { uid: decoded.uid, email: decoded.email || "", role };
   } catch {
     /* Never log the token or the reason. */
     return null;
@@ -241,7 +242,8 @@ async function listAudit(actor, body) {
 }
 
 /* Administrator management. Roles are custom claims, so this is the only
-   place a role can change, and it is restricted to the owner. */
+   place a role can change. Marketing may manage Sales and Marketing accounts,
+   but only an Owner may grant, remove, or alter Owner access. */
 async function listAdmins() {
   const users = [];
   let pageToken;
@@ -252,11 +254,11 @@ async function listAdmins() {
   } while (pageToken);
   return {
     admins: users
-      .filter((user) => user.customClaims?.role)
+      .filter((user) => normalizeRole(user.customClaims?.role))
       .map((user) => ({
         uid: user.uid,
         email: user.email ?? "",
-        role: user.customClaims.role,
+        role: normalizeRole(user.customClaims.role),
         disabled: user.disabled,
         lastSignIn: user.metadata.lastSignInTime ?? null,
       })),
@@ -272,7 +274,7 @@ async function listAdmins() {
   invitation to happen in the dashboard, and it is safe to move it here
   because the three things that made the console safer are all still true.
 
-  - Only an owner may call this, the same as every other route on this screen.
+  - Owners and Marketing may call this. Marketing cannot grant or alter Owner access.
   - It is written to the audit log before anything is returned, so an account
     can never appear without a record of who created it and when.
   - No password is set. The account exists but cannot be signed in to until
@@ -322,9 +324,11 @@ async function inviteAdmin(actor, body) {
 
   if (!EMAIL.test(email)) return { error: "Please enter a valid email address." };
   if (isSharedMailbox(email)) return { error: SHARED_MAILBOX_REFUSAL };
-  if (!["owner", "editor", "agent"].includes(role)) {
+  if (!ADMIN_ROLES.includes(role)) {
     return { error: "That role is not allowed." };
   }
+  const initialRoleError = roleChangeError({ actorRole: actor.role, nextRole: role });
+  if (initialRoleError) return { error: initialRoleError };
 
   let user;
   let created = false;
@@ -337,7 +341,14 @@ async function inviteAdmin(actor, body) {
     created = true;
   }
 
-  if (user.uid === actor.uid && role !== "owner") return { error: "You cannot remove your own owner access." };
+  const currentRole = normalizeRole(user.customClaims?.role);
+  const changeError = roleChangeError({
+    actorRole: actor.role,
+    targetRole: currentRole,
+    nextRole: role,
+    isSelf: user.uid === actor.uid,
+  });
+  if (changeError) return { error: changeError };
   await audit(actor, "admins.invite.requested", { targetUid: user.uid, role, created });
   await auth.setCustomUserClaims(user.uid, { ...user.customClaims, role });
   /* Anything they already held stops working immediately rather than at the
@@ -353,22 +364,29 @@ async function inviteAdmin(actor, body) {
 async function setAdminRole(actor, body) {
   const { uid, role } = body;
   if (typeof uid !== "string" || !uid) return { error: "Unknown administrator." };
-  if (!["owner", "editor", "agent", "none"].includes(role)) {
-    return { error: "That role is not allowed." };
-  }
-  if (uid === actor.uid && role !== "owner") {
-    return { error: "You cannot remove your own owner access." };
-  }
+  const initialRoleError = roleChangeError({
+    actorRole: actor.role,
+    nextRole: role,
+    isSelf: uid === actor.uid,
+  });
+  if (initialRoleError) return { error: initialRoleError };
+  const targetUser = await auth.getUser(uid);
+  const currentRole = normalizeRole(targetUser.customClaims?.role);
+  const changeError = roleChangeError({
+    actorRole: actor.role,
+    targetRole: currentRole,
+    nextRole: role,
+    isSelf: uid === actor.uid,
+  });
+  if (changeError) return { error: changeError };
   /* An account created before this rule, or outside the dashboard, must not
      be granted a role now. Taking access away is always allowed: refusing
      that would strand exactly the account most worth closing. */
   if (role !== "none") {
-    const target = await auth.getUser(uid).catch(() => null);
-    if (target?.email && isSharedMailbox(target.email.toLowerCase())) {
+    if (targetUser.email && isSharedMailbox(targetUser.email.toLowerCase())) {
       return { error: SHARED_MAILBOX_REFUSAL };
     }
   }
-  const targetUser = await auth.getUser(uid);
   const claims = { ...targetUser.customClaims };
   if (role === "none") delete claims.role;
   else claims.role = role;
@@ -383,15 +401,15 @@ async function setAdminRole(actor, body) {
 /* ---- routing ---- */
 
 const ROUTES = {
-  "leads.list": { roles: ["owner", "agent"], run: listLeads },
-  "leads.get": { roles: ["owner", "agent"], run: getLead },
-  "leads.update": { roles: ["owner", "agent"], run: updateLead },
-  "leads.stats": { roles: ["owner", "agent"], run: stats },
+  "leads.list": { roles: ["owner", "marketing", "sales"], run: listLeads },
+  "leads.get": { roles: ["owner", "marketing", "sales"], run: getLead },
+  "leads.update": { roles: ["owner", "marketing", "sales"], run: updateLead },
+  "leads.stats": { roles: ["owner", "marketing", "sales"], run: stats },
   "audit.list": { roles: ["owner"], run: listAudit },
-  "admins.list": { roles: ["owner"], run: listAdmins },
-  "admins.setRole": { roles: ["owner"], run: setAdminRole },
-  "admins.invite": { roles: ["owner"], run: inviteAdmin },
-  "leads.notify": { roles: ["owner", "agent"], run: async (actor, body) => {
+  "admins.list": { roles: ["owner", "marketing"], run: listAdmins },
+  "admins.setRole": { roles: ["owner", "marketing"], run: setAdminRole },
+  "admins.invite": { roles: ["owner", "marketing"], run: inviteAdmin },
+  "leads.notify": { roles: ["owner", "marketing", "sales"], run: async (actor, body) => {
     if (!validId(body.id)) return { error: "Not found." };
     const ref = db.collection("leads").doc(body.id);
     const lead = (await ref.get()).data();
@@ -402,7 +420,7 @@ const ROUTES = {
     await ref.update({ notificationStatus: "sent", notifiedAt: FieldValue.serverTimestamp() });
     return { ok: true };
   } },
-  "leads.export": { roles: ["owner", "agent"], run: async (actor, body) => {
+  "leads.export": { roles: ["owner", "marketing", "sales"], run: async (actor, body) => {
     if (!Array.isArray(body.ids) || body.ids.length > 500 || !body.ids.every(validId)) return { error: "Invalid export." };
     await audit(actor, "leads.export", { count: body.ids.length, leadIds: body.ids });
     return { ok: true };
