@@ -14,7 +14,8 @@
     this never invents any.
 */
 
-const ENDPOINT = import.meta.env.VITE_ADMIN_API as string | undefined;
+const ENDPOINT = (import.meta.env.VITE_ADMIN_API as string | undefined)
+  || "https://us-central1-medville-diabetes.cloudfunctions.net/adminApi";
 
 export function isAdminApiConfigured() {
   return Boolean(ENDPOINT);

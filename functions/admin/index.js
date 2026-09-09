@@ -30,7 +30,7 @@
     agent: leads, read and change status; no administrator management
 */
 
-import { http } from "@google-cloud/functions-framework";
+import { onRequest } from "firebase-functions/v2/https";
 import { Firestore, FieldValue } from "@google-cloud/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { initializeApp, applicationDefault } from "firebase-admin/app";
@@ -60,7 +60,7 @@ const auth = getAuth();
   Matching is exact. A prefix match would let evil-medvillediabetes.com
   through, and a suffix match would let medvillediabetes.com.evil.com through.
 */
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGIN || "")
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGIN || "https://www.medvillediabetes.com,https://medvillediabetes.com,https://medville-diabetes.web.app")
   .split(",")
   .map((origin) => origin.trim().replace(/\/$/, ""))
   .filter(Boolean);
@@ -409,4 +409,7 @@ const ROUTES = {
   } },
 };
 
-http("adminApi", createAdminHandler({ authenticate, audit, routes: ROUTES, origins: ALLOWED_ORIGINS }));
+export const adminApi = onRequest({
+  region: "us-central1", cors: false, maxInstances: 2,
+  memory: "256MiB", timeoutSeconds: 30,
+}, createAdminHandler({ authenticate, audit, routes: ROUTES, origins: ALLOWED_ORIGINS }));

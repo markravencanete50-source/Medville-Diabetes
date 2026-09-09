@@ -2,10 +2,10 @@
   "name": "medville-qualify-intake",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": { "node": "22" },
   "main": "index.js",
   "dependencies": {
     "@google-cloud/firestore": "^9.1.0",
-    "@google-cloud/functions-framework": "^5.0.5"
+    "firebase-functions": "^7.3.2"
   }
 }

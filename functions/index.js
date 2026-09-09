@@ -1,4 +1,4 @@
-import { http } from "@google-cloud/functions-framework";
+import { onRequest } from "firebase-functions/v2/https";
 import { Firestore, FieldValue } from "@google-cloud/firestore";
 import { createHmac } from "node:crypto";
 import { createIntakeHandler } from "./intake.js";
@@ -7,11 +7,12 @@ import { readFileSync } from "node:fs";
 
 const db = new Firestore();
 const catalog = JSON.parse(readFileSync(new URL("./catalog.json", import.meta.url), "utf8"));
+const DEFAULT_ORIGINS = "https://www.medvillediabetes.com,https://medvillediabetes.com,https://medville-diabetes.web.app";
 
-http("qualifyIntake", createIntakeHandler({
+const handler = createIntakeHandler({
   enabled: process.env.INTAKE_ENABLED === "true" && Boolean(process.env.RATE_LIMIT_SECRET)
     && Boolean(process.env.RESEND_API_KEY) && Boolean(process.env.NOTIFICATION_FROM),
-  origins: (process.env.ALLOWED_ORIGIN || "").split(",").map((s) => s.trim()).filter(Boolean),
+  origins: (process.env.ALLOWED_ORIGIN || DEFAULT_ORIGINS).split(",").map((s) => s.trim()).filter(Boolean),
   resolveProduct: async (slug) => {
     if (!slug) return { slug: "", name: "Not sure yet" };
     const saved = await db.collection("products").doc(slug).get();
@@ -53,4 +54,9 @@ http("qualifyIntake", createIntakeHandler({
       await ref.update({ notificationStatus: "failed" });
     }
   },
-}));
+});
+
+export const qualifyIntake = onRequest({
+  region: "us-central1", cors: false, maxInstances: 2,
+  memory: "256MiB", timeoutSeconds: 30,
+}, handler);

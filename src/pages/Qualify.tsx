@@ -9,11 +9,8 @@ import {
   AlertCircle,
   CheckCircle2,
   ClipboardList,
-  Clock,
   Headset,
   LockKeyhole,
-  Mail,
-  Phone,
   PhoneCall,
 } from "lucide-react";
 import Container from "../components/Container";
@@ -22,7 +19,6 @@ import { Blob, Eyebrow, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 import { useReveal } from "../lib/useReveal";
-import { EMAIL_HREF, HOURS_LONG, PHONE_DISPLAY, PHONE_TEL } from "../data/company";
 
 /*
   PHI NOTICE: read before changing this file.
@@ -121,7 +117,8 @@ export default function Qualify() {
     }
   }, [arrivedFrom, products, setValue]);
 
-  const endpoint = import.meta.env.VITE_QUALIFY_ENDPOINT as string | undefined;
+  const endpoint = (import.meta.env.VITE_QUALIFY_ENDPOINT as string | undefined)
+    || "https://us-central1-medville-diabetes.cloudfunctions.net/qualifyIntake";
   const intakeEnabled = Boolean(endpoint) && import.meta.env.VITE_INTAKE_ENABLED === "true";
 
   useEffect(() => {
@@ -246,49 +243,11 @@ export default function Qualify() {
           </div>
         </div>
 
-        {/* right: the form card, or the dormant panel in its place */}
+        {/* right: the form remains visible while its server-side launch gate is closed */}
         <div
           data-reveal={140}
           className="reveal-right reveal-slow rounded-[26px] bg-surface-raised p-6 shadow-overlay sm:p-9"
         >
-          {!intakeEnabled && (
-            /*
-              No intake endpoint, so there is nowhere for an answer to go. The
-              form is not shown at all rather than shown and quietly discarded:
-              collecting a person's insulin use and then dropping it is worse
-              than not asking. The page keeps its heading, its three steps and
-              its privacy notice, so it reads as a finished page that is not
-              open yet, and it offers the two routes that do work.
-
-              This whole branch disappears the moment VITE_QUALIFY_ENDPOINT is
-              set at launch. Nothing here needs undoing.
-            */
-            <div className="mb-6 rounded-lg border border-line-input p-5 text-center" role="status">
-              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-ink text-brand-bright">
-                <Clock size={26} strokeWidth={2} aria-hidden="true" />
-              </span>
-              <h2 className="mt-5 font-display text-h3 font-bold text-ink">
-                Online submissions are not open yet
-              </h2>
-              <p className="mx-auto mt-3 max-w-[42ch] text-body leading-relaxed text-grey-dark">
-                You can review the questions below. Entry and submission will be
-                available when online intake opens. Please call our team for help.
-              </p>
-              <div className="mt-7 flex flex-col gap-3">
-                <Button href={PHONE_TEL} variant="cta" className="w-full">
-                  <Phone size={16} strokeWidth={2.2} />
-                  Call {PHONE_DISPLAY}
-                </Button>
-                <Button href={EMAIL_HREF} variant="ghost" className="w-full">
-                  <Mail size={16} strokeWidth={2.2} />
-                  Email our team
-                </Button>
-              </div>
-              <p className="mt-6 text-caption leading-relaxed text-grey-muted">
-                {HOURS_LONG}
-              </p>
-            </div>
-          )}
           <form onSubmit={handleSubmit(onSubmit)} noValidate aria-label="Eligibility form" aria-busy={status === "submitting"} className="space-y-5">
             <h2 className="font-display text-h3 font-bold text-ink">Check your eligibility</h2>
             <p className="text-small text-grey-dark">All fields are required except product preference.</p>
@@ -379,8 +338,13 @@ export default function Qualify() {
             )}
 
             <Button type="submit" variant="cta" disabled={!intakeEnabled || status === "submitting"} className="w-full">
-              {!intakeEnabled ? "Online submissions opening soon" : status === "submitting" ? "Sending your information…" : "Check My Eligibility"}
+              {status === "submitting" ? "Sending your information…" : "Check My Eligibility"}
             </Button>
+            {!intakeEnabled && (
+              <p role="status" className="text-center text-caption text-grey-muted">
+                Submission will be enabled after the client completes the required compliance approval.
+              </p>
+            )}
             </fieldset>
 
             {/*
