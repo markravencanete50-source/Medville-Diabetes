@@ -34,6 +34,8 @@ import { http } from "@google-cloud/functions-framework";
 import { Firestore, FieldValue } from "@google-cloud/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { initializeApp, applicationDefault } from "firebase-admin/app";
+import { sendNotification } from "./notification.js";
+import { createAdminHandler } from "./handler.js";
 
 initializeApp({ credential: applicationDefault() });
 
@@ -63,13 +65,6 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGIN || "")
   .map((origin) => origin.trim().replace(/\/$/, ""))
   .filter(Boolean);
 
-function applyCors(req, res) {
-  res.set("Vary", "Origin");
-  const origin = (req.get("Origin") || "").replace(/\/$/, "");
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
-    res.set("Access-Control-Allow-Origin", origin);
-  }
-}
 
 /* Sessions are short by design. Section 3.4(b) requires automatic session
    timeouts rather than shared credentials that stay signed in. The dashboard
@@ -79,13 +74,6 @@ const MAX_TOKEN_AGE_SECONDS = 60 * 60;
 
 const LEAD_STATUSES = new Set(["new", "contacted", "qualified", "not-qualified", "closed"]);
 
-function send(req, res, status, body) {
-  res.set("Cache-Control", "no-store");
-  res.set("Pragma", "no-cache");
-  applyCors(req, res);
-  if (body === undefined) return res.status(status).send("");
-  return res.status(status).json(body);
-}
 
 async function authenticate(req) {
   const header = req.get("Authorization") || "";
@@ -93,8 +81,8 @@ async function authenticate(req) {
   try {
     const decoded = await auth.verifyIdToken(header.slice(7), true);
     const issuedSecondsAgo = Math.floor(Date.now() / 1000) - decoded.auth_time;
-    if (issuedSecondsAgo > MAX_TOKEN_AGE_SECONDS) return null;
-    if (!decoded.role) return null;
+    if (!Number.isFinite(issuedSecondsAgo) || issuedSecondsAgo < -60 || issuedSecondsAgo > MAX_TOKEN_AGE_SECONDS) return null;
+    if (!["owner", "editor", "agent"].includes(decoded.role)) return null;
     return { uid: decoded.uid, email: decoded.email || "", role: decoded.role };
   } catch {
     /* Never log the token or the reason. */
@@ -131,6 +119,8 @@ function leadToJson(doc) {
     state: d.state ?? "",
     injectsInsulinDaily: d.injectsInsulinDaily ?? "",
     productInterest: d.productInterest ?? "",
+    productName: d.productName ?? "",
+    notificationStatus: d.notificationStatus ?? "not-configured",
     status: d.status ?? "new",
     note: d.note ?? "",
     createdAt: d.createdAt?.toDate?.().toISOString() ?? null,
@@ -140,7 +130,7 @@ function leadToJson(doc) {
 /* ---- actions ---- */
 
 async function listLeads(actor, body) {
-  const limit = Math.min(Number(body.limit) || 200, 500);
+  const limit = Math.min(Math.max(Math.floor(Number(body.limit) || 50), 1), 200);
   let query = db.collection("leads").orderBy("createdAt", "desc").limit(limit);
   if (body.status && LEAD_STATUSES.has(body.status)) {
     query = db.collection("leads")
@@ -148,13 +138,23 @@ async function listLeads(actor, body) {
       .orderBy("createdAt", "desc")
       .limit(limit);
   }
+  if (body.cursor) {
+    if (!validId(body.cursor)) return { error: "Invalid page." };
+    const cursor = await db.collection("leads").doc(body.cursor).get();
+    if (!cursor.exists) return { error: "Please refresh the enquiry list." };
+    query = query.startAfter(cursor);
+  }
   const snapshot = await query.get();
-  await audit(actor, "leads.list", { count: snapshot.size });
-  return { leads: snapshot.docs.map(leadToJson) };
+  await audit(actor, "leads.list", { count: snapshot.size, leadIds: snapshot.docs.map((doc) => doc.id) });
+  return { leads: snapshot.docs.map(leadToJson), nextCursor: snapshot.size === limit ? snapshot.docs.at(-1).id : null };
+}
+
+function validId(id) {
+  return typeof id === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(id);
 }
 
 async function getLead(actor, body) {
-  if (typeof body.id !== "string" || !body.id) return { error: "Not found." };
+  if (!validId(body.id)) return { error: "Not found." };
   const doc = await db.collection("leads").doc(body.id).get();
   if (!doc.exists) return { error: "Not found." };
   await audit(actor, "leads.read", { leadId: doc.id });
@@ -162,21 +162,27 @@ async function getLead(actor, body) {
 }
 
 async function updateLead(actor, body) {
-  if (typeof body.id !== "string" || !body.id) return { error: "Not found." };
+  if (!validId(body.id)) return { error: "Not found." };
   const patch = {};
   if (typeof body.status === "string") {
     if (!LEAD_STATUSES.has(body.status)) return { error: "That status is not allowed." };
     patch.status = body.status;
   }
   if (typeof body.note === "string") {
-    patch.note = body.note.slice(0, 2000);
+    if (body.note.length > 2000) return { error: "The note is too long." };
+    patch.note = body.note;
   }
   if (!Object.keys(patch).length) return { error: "Nothing to change." };
 
   patch.updatedAt = FieldValue.serverTimestamp();
   patch.updatedBy = actor.email;
-  await db.collection("leads").doc(body.id).update(patch);
-  await audit(actor, "leads.update", { leadId: body.id, fields: Object.keys(patch) });
+  const batch = db.batch();
+  batch.update(db.collection("leads").doc(body.id), patch);
+  batch.create(db.collection("auditLog").doc(), {
+    actorUid: actor.uid, actorEmail: actor.email, actorRole: actor.role,
+    action: "leads.update", leadId: body.id, fields: Object.keys(patch), at: FieldValue.serverTimestamp(),
+  });
+  await batch.commit();
   return { ok: true };
 }
 
@@ -190,10 +196,10 @@ async function updateLead(actor, body) {
 async function stats(actor) {
   const snapshot = await db.collection("leads").select("status", "state", "createdAt", "productInterest", "injectsInsulinDaily").get();
 
-  const byStatus = {};
-  const byState = {};
-  const byProduct = {};
-  const byDay = {};
+  const byStatus = Object.create(null);
+  const byState = Object.create(null);
+  const byProduct = Object.create(null);
+  const byDay = Object.create(null);
   let insulinYes = 0;
 
   snapshot.forEach((doc) => {
@@ -216,7 +222,7 @@ async function stats(actor) {
 }
 
 async function listAudit(actor, body) {
-  const limit = Math.min(Number(body.limit) || 100, 300);
+  const limit = Math.min(Math.max(Math.floor(Number(body.limit) || 100), 1), 300);
   const snapshot = await db.collection("auditLog").orderBy("at", "desc").limit(limit).get();
   return {
     entries: snapshot.docs.map((doc) => {
@@ -237,9 +243,15 @@ async function listAudit(actor, body) {
 /* Administrator management. Roles are custom claims, so this is the only
    place a role can change, and it is restricted to the owner. */
 async function listAdmins() {
-  const list = await auth.listUsers(100);
+  const users = [];
+  let pageToken;
+  do {
+    const page = await auth.listUsers(1000, pageToken);
+    users.push(...page.users);
+    pageToken = page.pageToken;
+  } while (pageToken);
   return {
-    admins: list.users
+    admins: users
       .filter((user) => user.customClaims?.role)
       .map((user) => ({
         uid: user.uid,
@@ -325,7 +337,9 @@ async function inviteAdmin(actor, body) {
     created = true;
   }
 
-  await auth.setCustomUserClaims(user.uid, { role });
+  if (user.uid === actor.uid && role !== "owner") return { error: "You cannot remove your own owner access." };
+  await audit(actor, "admins.invite.requested", { targetUid: user.uid, role, created });
+  await auth.setCustomUserClaims(user.uid, { ...user.customClaims, role });
   /* Anything they already held stops working immediately rather than at the
      next token refresh. */
   await auth.revokeRefreshTokens(user.uid);
@@ -354,7 +368,12 @@ async function setAdminRole(actor, body) {
       return { error: SHARED_MAILBOX_REFUSAL };
     }
   }
-  await auth.setCustomUserClaims(uid, role === "none" ? {} : { role });
+  const targetUser = await auth.getUser(uid);
+  const claims = { ...targetUser.customClaims };
+  if (role === "none") delete claims.role;
+  else claims.role = role;
+  await audit(actor, "admins.setRole.requested", { targetUid: uid, role });
+  await auth.setCustomUserClaims(uid, claims);
   /* Force the next request from that person to carry the new role. */
   await auth.revokeRefreshTokens(uid);
   await audit(actor, "admins.setRole", { targetUid: uid, role });
@@ -372,34 +391,22 @@ const ROUTES = {
   "admins.list": { roles: ["owner"], run: listAdmins },
   "admins.setRole": { roles: ["owner"], run: setAdminRole },
   "admins.invite": { roles: ["owner"], run: inviteAdmin },
+  "leads.notify": { roles: ["owner", "agent"], run: async (actor, body) => {
+    if (!validId(body.id)) return { error: "Not found." };
+    const ref = db.collection("leads").doc(body.id);
+    const lead = (await ref.get()).data();
+    if (!lead) return { error: "Not found." };
+    if (lead.notificationStatus === "sent") return { ok: true };
+    await audit(actor, "leads.notify", { leadId: body.id });
+    await sendNotification({ id: body.id, productName: lead.productName });
+    await ref.update({ notificationStatus: "sent", notifiedAt: FieldValue.serverTimestamp() });
+    return { ok: true };
+  } },
+  "leads.export": { roles: ["owner", "agent"], run: async (actor, body) => {
+    if (!Array.isArray(body.ids) || body.ids.length > 500 || !body.ids.every(validId)) return { error: "Invalid export." };
+    await audit(actor, "leads.export", { count: body.ids.length, leadIds: body.ids });
+    return { ok: true };
+  } },
 };
 
-http("adminApi", async (req, res) => {
-  if (req.method === "OPTIONS") {
-    res.set("Access-Control-Allow-Methods", "POST");
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.set("Access-Control-Max-Age", "3600");
-    return send(req, res, 204);
-  }
-  if (req.method !== "POST") return send(req, res, 405, { error: "Method not allowed." });
-
-  const actor = await authenticate(req);
-  if (!actor) return send(req, res, 401, { error: "Please sign in again." });
-
-  const body = req.body ?? {};
-  const route = ROUTES[body.action];
-  if (!route) return send(req, res, 400, { error: "Unknown request." });
-  if (!route.roles.includes(actor.role)) {
-    await audit(actor, "access.denied", { attempted: body.action });
-    return send(req, res, 403, { error: "You do not have access to that." });
-  }
-
-  try {
-    const result = await route.run(actor, body);
-    if (result.error) return send(req, res, 400, result);
-    return send(req, res, 200, result);
-  } catch {
-    /* No error details out, no request body in the logs. */
-    return send(req, res, 500, { error: "That did not work. Please try again." });
-  }
-});
+http("adminApi", createAdminHandler({ authenticate, audit, routes: ROUTES, origins: ALLOWED_ORIGINS }));

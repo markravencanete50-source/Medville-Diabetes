@@ -47,7 +47,7 @@ export interface PageMeta {
   serve the development server, because the built home page is rewritten
   from here too.
 */
-export const SITE_ORIGIN = "https://medville-diabetes.web.app";
+export const SITE_ORIGIN = "https://www.medvillediabetes.com";
 export const SITE_NAME = "Medville Diabetes";
 
 export const PAGE_META: Record<string, PageMeta> = {

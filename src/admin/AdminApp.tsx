@@ -411,10 +411,9 @@ function Shell() {
           {!isAdminApiConfigured() && (section === "overview" || section === "leads" || section === "audit") && (
             <div className="mb-4">
               <Banner tone="warn">
-                Enquiries are not connected yet. The adminApi function has not been
-                deployed, or its address has not been added to the build, so this
-                screen has nothing to read. Everything under Website works as
-                normal. See ADMIN-SETUP.md, steps 4 and 6.
+                Online intake is awaiting activation. Enquiries and the access log
+                will become available after the backend is connected. Website
+                content can still be managed from the menu.
               </Banner>
             </div>
           )}

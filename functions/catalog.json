@@ -1,0 +1,50 @@
+{
+  "freestyle-libre-3": {
+    "name": "FreeStyle Libre 3",
+    "status": "available"
+  },
+  "freestyle-libre-2": {
+    "name": "FreeStyle Libre 2",
+    "status": "available"
+  },
+  "freestyle-libre-14-day": {
+    "name": "FreeStyle Libre 14 Day",
+    "status": "available"
+  },
+  "freestyle-libre-3-sensor": {
+    "name": "FreeStyle Libre 3 Sensor (Box of 1)",
+    "status": "available"
+  },
+  "freestyle-libre-2-sensor": {
+    "name": "FreeStyle Libre 2 Sensor (Box of 1)",
+    "status": "available"
+  },
+  "freestyle-libre-14-day-sensor": {
+    "name": "FreeStyle Libre 14 Day Sensor (Box of 1)",
+    "status": "available"
+  },
+  "stelo-by-dexcom": {
+    "name": "Stelo by Dexcom",
+    "status": "available"
+  },
+  "dexcom-g7": {
+    "name": "Dexcom G7",
+    "status": "available"
+  },
+  "dexcom-g6": {
+    "name": "Dexcom G6",
+    "status": "available"
+  },
+  "dexcom-g6-sensors-applicator": {
+    "name": "Dexcom G6 Sensors and Applicator (3 Sensors Per Box)",
+    "status": "available"
+  },
+  "dexcom-g6-transmitter": {
+    "name": "Dexcom G6 Transmitter",
+    "status": "available"
+  },
+  "tandem-tslim-x2": {
+    "name": "Tandem t:slim X2 Insulin Pump",
+    "status": "available"
+  }
+}

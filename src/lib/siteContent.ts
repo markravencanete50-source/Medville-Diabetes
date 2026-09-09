@@ -32,7 +32,7 @@ const API_KEY = firebaseConfig.apiKey;
 /* Content changes rarely and a stale minute is harmless, so one fetch per tab
    session is plenty. This also keeps Firestore reads far inside the free tier
    and protects the 0 to 5 USD per month ceiling in Section 7.3. */
-const CACHE_KEY = "medville:site-content:v1";
+const CACHE_KEY = "medville:site-content:v2";
 
 export interface ThemeOverrides {
   brand?: string;
@@ -114,6 +114,15 @@ function documentId(doc: RestDocument) {
 }
 
 async function fetchCollection(path: string, signal: AbortSignal): Promise<RestDocument[]> {
+  if (path === "posts" || path === "testimonials") {
+    const res = await fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:runQuery?key=${API_KEY}`, {
+      method: "POST", signal, cache: "no-store", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ structuredQuery: { from: [{ collectionId: path }], where: { fieldFilter: { field: { fieldPath: "published" }, op: "EQUAL", value: { booleanValue: true } } }, limit: 300 } }),
+    });
+    if (!res.ok) throw new Error(String(res.status));
+    const rows = await res.json() as { document?: RestDocument }[];
+    return rows.flatMap((row) => row.document ? [row.document] : []);
+  }
   const url =
     `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}` +
     `/databases/(default)/documents/${path}?key=${API_KEY}&pageSize=300`;
@@ -173,8 +182,16 @@ function readProducts(docs: RestDocument[]): Product[] {
     }
     const existing = bySlug.get(slug);
     const merged = { ...(existing ?? {}), ...fields, slug } as Product;
-    /* A product is only usable if it has the fields the cards render. */
-    if (!merged.name || !merged.imageFront) continue;
+    /* Reject malformed overrides before they can crash product cards/details. */
+    const strings = [merged.name, merged.imageFront, merged.imageBack, merged.shortDescription];
+    if (!strings.every((value) => typeof value === "string") || !merged.name || !merged.imageFront
+      || !Array.isArray(merged.description) || !merged.description.every((value) => typeof value === "string")
+      || !Array.isArray(merged.keyFacts) || !merged.keyFacts.every((value) => typeof value === "string")
+      || !["FreeStyle Libre", "Dexcom", "Tandem"].includes(merged.brand)
+      || !["cgm", "insulin-pump"].includes(merged.line)
+      || !["System", "Sensor", "Accessory"].includes(merged.category)
+      || (merged.status !== undefined && !["available", "coming-soon", "sold"].includes(merged.status))
+      || (merged.price !== undefined && (typeof merged.price !== "number" || !Number.isFinite(merged.price) || merged.price < 0))) continue;
     bySlug.set(slug, merged);
   }
 

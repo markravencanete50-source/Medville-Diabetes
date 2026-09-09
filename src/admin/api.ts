@@ -30,6 +30,8 @@ export interface Lead {
   state: string;
   injectsInsulinDaily: string;
   productInterest: string;
+  productName: string;
+  notificationStatus: string;
   status: LeadStatus;
   note: string;
   createdAt: string | null;
@@ -96,6 +98,7 @@ async function call<T>(getToken: GetToken, action: string, payload: Record<strin
   let res: Response;
   try {
     res = await fetch(ENDPOINT, {
+      signal: AbortSignal.timeout(20000),
       method: "POST",
       cache: "no-store",
       headers: {
@@ -110,13 +113,17 @@ async function call<T>(getToken: GetToken, action: string, payload: Record<strin
 
   if (res.status === 401) throw new AdminApiError("Your session has expired. Please sign in again.");
   if (res.status === 403) throw new AdminApiError("You do not have access to that.");
+  if (!(res.headers.get("Content-Type") || "").includes("application/json")) {
+    throw new AdminApiError("The enquiry service is not ready. Please contact the site administrator.");
+  }
 
   let body: Record<string, unknown> = {};
   try {
     body = (await res.json()) as Record<string, unknown>;
   } catch {
-    body = {};
+    throw new AdminApiError("The enquiry service returned an incomplete response. Please try again.");
   }
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new AdminApiError("The enquiry service returned an incomplete response.");
 
   if (!res.ok || typeof body.error === "string") {
     throw new AdminApiError(
@@ -127,8 +134,11 @@ async function call<T>(getToken: GetToken, action: string, payload: Record<strin
 }
 
 export const adminApi = {
-  listLeads: (getToken: GetToken, status?: LeadStatus) =>
-    call<{ leads: Lead[] }>(getToken, "leads.list", status ? { status } : {}),
+  listLeads: (getToken: GetToken, status?: LeadStatus, cursor?: string) =>
+    call<{ leads: Lead[]; nextCursor: string | null }>(getToken, "leads.list", { ...(status ? { status } : {}), ...(cursor ? { cursor } : {}) }),
+
+  retryNotification: (getToken: GetToken, id: string) => call<{ ok: true }>(getToken, "leads.notify", { id }),
+  auditExport: (getToken: GetToken, ids: string[]) => call<{ ok: true }>(getToken, "leads.export", { ids }),
 
   getLead: (getToken: GetToken, id: string) => call<{ lead: Lead }>(getToken, "leads.get", { id }),
 

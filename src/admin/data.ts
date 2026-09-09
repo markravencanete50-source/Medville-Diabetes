@@ -182,8 +182,8 @@ export async function deleteTestimonial(id: string) {
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
 export async function uploadImage(file: File, folder: string): Promise<string> {
-  if (!file.type.startsWith("image/")) {
-    throw new Error("Please choose an image file.");
+  if (!["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"].includes(file.type)) {
+    throw new Error("Please choose a JPEG, PNG, WebP, GIF or AVIF image.");
   }
   if (file.size > MAX_UPLOAD_BYTES) {
     throw new Error("That image is larger than 5 MB. Please use a smaller file.");

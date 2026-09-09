@@ -144,12 +144,14 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       try {
-        const token = await user.getIdTokenResult(true);
+        // Do not force a refresh inside the token-change listener: that emits
+        // another token change and can continuously reload the dashboard.
+        const token = await user.getIdTokenResult();
+        if (auth.currentUser !== user) return;
         const role = token.claims.role as AdminRole | undefined;
         if (role === "owner" || role === "editor" || role === "agent") {
           setSession({ user, email: user.email ?? "", role });
           setPendingApproval(false);
-          lastActivity.current = Date.now();
         } else {
           setSession(null);
           setPendingApproval(true);
@@ -202,7 +204,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       },
       signIn: async (email, password) => {
         setSignedOutReason("");
+        await setPersistence(adminAuth(), browserSessionPersistence);
         await signInWithEmailAndPassword(adminAuth(), email.trim(), password);
+        lastActivity.current = Date.now();
       },
       signOutNow,
       changePassword: async (next) => {

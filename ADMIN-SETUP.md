@@ -1,5 +1,9 @@
 # Dashboard setup
 
+> Current implementation and launch gates: read [LAUNCH-STATUS.md](LAUNCH-STATUS.md)
+> first. The historical commands below are not sufficient for the new notification
+> service. Use Node.js 22 and configure the server-only secrets and launch flags.
+
 The dashboard is built and deployed. It is dormant until the Google Cloud
 project is switched on, and it says so plainly on screen rather than failing.
 Work through this list in order. Nothing here touches Protected Health
@@ -87,7 +91,7 @@ log entry for each one.
 # form intake
 cd functions
 gcloud functions deploy qualifyIntake \
-  --gen2 --runtime=nodejs20 --region=us-central1 \
+  --gen2 --runtime=nodejs22 --region=us-central1 \
   --source=. --entry-point=qualifyIntake \
   --trigger-http --allow-unauthenticated \
   --set-env-vars=^|^ALLOWED_ORIGIN=https://medville-diabetes.web.app,https://www.medvillediabetes.com
@@ -95,7 +99,7 @@ gcloud functions deploy qualifyIntake \
 # dashboard API
 cd ../functions/admin
 gcloud functions deploy adminApi \
-  --gen2 --runtime=nodejs20 --region=us-central1 \
+  --gen2 --runtime=nodejs22 --region=us-central1 \
   --source=. --entry-point=adminApi \
   --trigger-http --allow-unauthenticated \
   --set-env-vars=^|^ALLOWED_ORIGIN=https://medville-diabetes.web.app,https://www.medvillediabetes.com
@@ -247,7 +251,7 @@ is the same access a visitor's browser has.
 | Security rules | deployed and correct: the public content collections read, `leads` refuses the browser with permission denied |
 | Content collections | empty, so the site serves its built-in wording, which is the intended fallback |
 | Cloud Storage bucket | does not exist; the default bucket needs Blaze |
-| Blaze plan and BAA (step 1) | not done. Blaze takes no deposit: a card is linked and usage is billed monthly. The BAA is accepted by an administrator of the billing account, so the client must own that billing account, not only be a member of the Firebase project |
+| Blaze plan and BAA (step 1) | Pending. On 2026-09-10 the console still showed Spark; the existing billing account required a one-time minimum $30 prepayment to activate. This is account-specific, not a fixed monthly Blaze fee. Client review and acceptance of the applicable BAA remain separate launch requirements. |
 | Identity Platform upgrade (step 2) | not confirmed; plain Firebase Auth is not BAA covered. This is a separate console switch from Blaze |
 | The two functions (step 4) | not deployed |
 | First owner (step 5) | not granted |

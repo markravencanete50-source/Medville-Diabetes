@@ -30,8 +30,6 @@ export default function HeroViewer({ product }: { product: Product }) {
   const drag = useRef<{ x: number; startX: number; moved: boolean } | null>(null);
   const reduced = prefersReducedMotion();
 
-  const showingBack = Math.abs(Math.round(angle / 180)) % 2 === 1;
-
   const onPointerDown = (e: React.PointerEvent) => {
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
     drag.current = { x: e.clientX, startX: e.clientX, moved: false };
@@ -68,18 +66,30 @@ export default function HeroViewer({ product }: { product: Product }) {
       />
       <div className={`relative ${reduced ? "" : "floaty"}`}>
         <div
-          role="img"
-          aria-label={`${product.name} sensor. Tap or drag to see the back.`}
+          role="button"
+          tabIndex={0}
+          aria-label={`Rotate ${product.name} product image`}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setSnapping(true);
+              setAngle((current) => Math.round(current / 180) * 180 + 180);
+            }
+          }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerEnd}
-          onPointerCancel={onPointerEnd}
+          onPointerCancel={() => {
+            drag.current = null;
+            setSnapping(true);
+            setAngle((current) => Math.round(current / 180) * 180);
+          }}
           onPointerLeave={onPointerEnd}
           className="relative mx-auto max-w-[480px] cursor-grab select-none overflow-hidden rounded-sheet bg-surface-raised shadow-overlay active:cursor-grabbing"
           /* touch-action keeps the page from scrolling under a drag; the
              callout setting keeps iOS from offering to save the picture when
              a finger rests on it a moment too long. */
-          style={{ touchAction: "none", WebkitTouchCallout: "none" }}
+          style={{ touchAction: "pan-y", WebkitTouchCallout: "none" }}
         >
           <div className="aspect-square" style={{ perspective: "1400px" }}>
             <div
@@ -99,7 +109,7 @@ export default function HeroViewer({ product }: { product: Product }) {
                 alt=""
                 /* The home page's largest paint. Asking for it at high
                    priority moves the request ahead of everything below. */
-                fetchPriority="high"
+                {...{ fetchpriority: "high" }}
                 draggable={false}
                 className="absolute inset-0 h-full w-full object-contain p-7"
                 style={{ backfaceVisibility: "hidden" }}
@@ -113,9 +123,6 @@ export default function HeroViewer({ product }: { product: Product }) {
               />
             </div>
           </div>
-          <span className="pointer-events-none absolute left-4 top-4 rounded-full bg-brand-soft px-3.5 py-1.5 text-caption font-semibold text-brand">
-            {showingBack ? "Back" : "Front"}
-          </span>
           <span className="pointer-events-none absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-ink/75 px-3.5 py-1.5 text-[0.75rem] font-medium text-on-dark backdrop-blur-[4px]">
             <RotateCw size={13} strokeWidth={2} />
             Tap or drag to flip

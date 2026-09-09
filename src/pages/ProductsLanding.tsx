@@ -107,7 +107,7 @@ export default function ProductsLanding() {
                            neither waits for scroll. Only the first is the
                            largest paint, so only it asks to jump the queue. */
                         loading="eager"
-                        fetchPriority={index === 0 ? "high" : "auto"}
+                        {...{ fetchpriority: index === 0 ? "high" : "auto" }}
                         data-parallax="0.4"
                         className="h-full w-full object-cover"
                       />

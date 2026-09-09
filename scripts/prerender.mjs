@@ -379,13 +379,16 @@ try {
   const { firebaseConfig } = await loadModule("src/lib/firebaseConfig.ts");
   const url =
     `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}` +
-    `/databases/(default)/documents/posts?key=${firebaseConfig.apiKey}&pageSize=300`;
-  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    `/databases/(default)/documents:runQuery?key=${firebaseConfig.apiKey}`;
+  const res = await fetch(url, {
+    method: "POST", signal: AbortSignal.timeout(15000), headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ structuredQuery: { from: [{ collectionId: "posts" }], where: { fieldFilter: { field: { fieldPath: "published" }, op: "EQUAL", value: { booleanValue: true } } }, limit: 300 } }),
+  });
   if (!res.ok) throw new Error(String(res.status));
   const body = await res.json();
 
   const read = (fields, key) => fields?.[key]?.stringValue ?? "";
-  posts = (body.documents ?? [])
+  posts = body.flatMap((row) => row.document ? [row.document] : [])
     .map((doc) => ({
       slug: (doc.name ?? "").split("/").pop(),
       title: read(doc.fields, "title"),

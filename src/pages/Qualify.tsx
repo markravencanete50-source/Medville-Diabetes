@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { cloneElement, isValidElement, useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { isEnquirable } from "../data/products";
@@ -59,6 +59,7 @@ const schema = z.object({
   /* Which product prompted the enquiry. Optional, and a slug rather than
      free text, so nothing unexpected reaches the record. */
   productInterest: z.string().max(60).optional(),
+  website: z.string().max(0).optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -86,6 +87,9 @@ const STEPS = [
 export default function Qualify() {
   usePageMeta(metaFor("/qualify"));
   const [status, setStatus] = useState<Status>("idle");
+  const submissionId = useRef(crypto.randomUUID());
+  const sending = useRef(false);
+  const successHeading = useRef<HTMLHeadingElement>(null);
   const revealRef = useReveal<HTMLElement>();
   const {
     register,
@@ -108,13 +112,21 @@ export default function Qualify() {
     address free of anything about the visitor.
   */
   const arrivedFrom = (location.state as { product?: string } | null)?.product ?? "";
-  const enquirable = useProducts().filter(isEnquirable);
+  const products = useProducts();
+  const enquirable = products.filter(isEnquirable);
 
   useEffect(() => {
-    if (arrivedFrom) setValue("productInterest", arrivedFrom);
-  }, [arrivedFrom, setValue]);
+    if (products.some((product) => product.slug === arrivedFrom && isEnquirable(product))) {
+      setValue("productInterest", arrivedFrom);
+    }
+  }, [arrivedFrom, products, setValue]);
 
   const endpoint = import.meta.env.VITE_QUALIFY_ENDPOINT as string | undefined;
+  const intakeEnabled = Boolean(endpoint) && import.meta.env.VITE_INTAKE_ENABLED === "true";
+
+  useEffect(() => {
+    if (status === "success") successHeading.current?.focus();
+  }, [status]);
 
   const onSubmit = async (values: FormValues) => {
     /*
@@ -122,21 +134,30 @@ export default function Qualify() {
       An earlier build simulated one when no endpoint was configured, which
       told a visitor "We Received Your Information" while nothing had been
       sent. On a public address that is a person with diabetes waiting for a
-      call that is never coming. When there is no endpoint the form is not
-      rendered at all; see the dormant panel below.
+      call that is never coming. Until launch is approved, the questions are
+      visible for review but entry and submission remain disabled.
     */
-    if (!endpoint) return;
+    if (!endpoint || !intakeEnabled || sending.current) return;
+    sending.current = true;
     setStatus("submitting");
     try {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        cache: "no-store",
+        signal: AbortSignal.timeout(20000),
+        body: JSON.stringify({ ...values, submissionId: submissionId.current }),
       });
       if (!res.ok) throw new Error(String(res.status));
+      // A misconfigured Hosting rewrite can return index.html with status 200.
+      // Only the explicit intake receipt is evidence of a saved submission.
+      const receipt = await res.json();
+      if (receipt?.ok !== true) throw new Error("Missing receipt");
       setStatus("success");
     } catch {
       setStatus("error");
+    } finally {
+      sending.current = false;
     }
   };
 
@@ -146,7 +167,7 @@ export default function Qualify() {
         <Grain opacity={0.05} />
         <Container className="relative max-w-2xl py-20 text-center md:py-28">
           <CheckCircle2 size={52} className="mx-auto text-brand-bright" aria-hidden="true" />
-          <h1 className="mt-5 font-display text-h1 font-bold text-on-dark">
+          <h1 ref={successHeading} tabIndex={-1} className="mt-5 font-display text-h1 font-bold text-on-dark">
             Thank You. We Received Your Information.
           </h1>
           <p className="mx-auto mt-4 max-w-[60ch] text-body-lg leading-relaxed text-on-dark-brand">
@@ -173,7 +194,7 @@ export default function Qualify() {
             Does Your Insurance Help Cover a CGM?
           </h1>
           <p className="mt-4 max-w-[54ch] text-body leading-relaxed text-on-dark-brand">
-            {endpoint
+            {intakeEnabled
               ? "Not sure what your plan may cover? Complete the short form below and our team will review your information to help you understand your potential eligibility and next steps."
               : "Not sure what your plan may cover? Our team can review your information and help you understand your potential eligibility and next steps."}
           </p>
@@ -197,7 +218,7 @@ export default function Qualify() {
                     {step.title}
                   </h2>
                   <p className="mt-1 text-small leading-relaxed text-on-dark-brand">
-                    {!endpoint && index === 0
+                    {!intakeEnabled && index === 0
                       ? "Call or email us with your basic information."
                       : step.body}
                   </p>
@@ -230,7 +251,7 @@ export default function Qualify() {
           data-reveal={140}
           className="reveal-right reveal-slow rounded-[26px] bg-surface-raised p-6 shadow-overlay sm:p-9"
         >
-          {!endpoint ? (
+          {!intakeEnabled && (
             /*
               No intake endpoint, so there is nowhere for an answer to go. The
               form is not shown at all rather than shown and quietly discarded:
@@ -242,17 +263,16 @@ export default function Qualify() {
               This whole branch disappears the moment VITE_QUALIFY_ENDPOINT is
               set at launch. Nothing here needs undoing.
             */
-            <div className="flex h-full flex-col justify-center py-4 text-center">
+            <div className="mb-6 rounded-lg border border-line-input p-5 text-center" role="status">
               <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-ink text-brand-bright">
                 <Clock size={26} strokeWidth={2} aria-hidden="true" />
               </span>
               <h2 className="mt-5 font-display text-h3 font-bold text-ink">
-                Eligibility checks open soon
+                Online submissions are not open yet
               </h2>
               <p className="mx-auto mt-3 max-w-[42ch] text-body leading-relaxed text-grey-dark">
-                The online eligibility form is not accepting submissions yet. Our
-                team can still answer your questions and start the process with you
-                over the phone or by email.
+                You can review the questions below. Entry and submission will be
+                available when online intake opens. Please call our team for help.
               </p>
               <div className="mt-7 flex flex-col gap-3">
                 <Button href={PHONE_TEL} variant="cta" className="w-full">
@@ -268,8 +288,15 @@ export default function Qualify() {
                 {HOURS_LONG}
               </p>
             </div>
-          ) : (
-          <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
+          )}
+          <form onSubmit={handleSubmit(onSubmit)} noValidate aria-label="Eligibility form" aria-busy={status === "submitting"} className="space-y-5">
+            <h2 className="font-display text-h3 font-bold text-ink">Check your eligibility</h2>
+            <p className="text-small text-grey-dark">All fields are required except product preference.</p>
+            <fieldset disabled={!intakeEnabled || status === "submitting"} className="min-w-0 space-y-5 disabled:opacity-70">
+            <legend className="sr-only">Your contact details and eligibility questions</legend>
+            <div hidden aria-hidden="true">
+              <label>Leave this blank<input {...register("website")} tabIndex={-1} autoComplete="off" /></label>
+            </div>
             <div className="grid gap-5 sm:grid-cols-2">
               <Field label="First Name" error={errors.firstName?.message}>
                 <input {...register("firstName")} autoComplete="given-name" className={inputClass(!!errors.firstName)} />
@@ -315,31 +342,28 @@ export default function Qualify() {
               </select>
             </Field>
 
-            <Field label="Do you inject insulin daily?" error={errors.injectsInsulinDaily?.message}>
-              <input type="hidden" {...register("injectsInsulinDaily")} />
-              <div className="grid grid-cols-2 gap-2.5" role="group" aria-label="Do you inject insulin daily?">
+            <fieldset aria-describedby={errors.injectsInsulinDaily ? "insulin-error" : undefined}>
+              <legend className="mb-1.5 text-small font-semibold text-ink">Do you inject insulin daily?</legend>
+              <div className="grid grid-cols-2 gap-2.5">
                 {(["yes", "no"] as const).map((value) => {
                   const selected = insulinAnswer === value;
                   return (
-                    <button
+                    <label
                       key={value}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() =>
-                        setValue("injectsInsulinDaily", value, { shouldValidate: true })
-                      }
-                      className={`min-h-[46px] rounded-md border-[1.5px] font-display text-small font-semibold transition-all duration-(--duration-micro) ${
+                      className={`flex cursor-pointer items-center justify-center gap-2 min-h-[46px] rounded-md border-[1.5px] font-display text-small font-semibold transition-all duration-(--duration-micro) ${
                         selected
                           ? "border-ink bg-ink text-on-dark"
                           : "border-line-input bg-surface-raised text-ink hover:border-ink"
                       }`}
                     >
+                      <input type="radio" value={value} {...register("injectsInsulinDaily")} aria-invalid={!!errors.injectsInsulinDaily} />
                       {value === "yes" ? "Yes" : "No"}
-                    </button>
+                    </label>
                   );
                 })}
               </div>
-            </Field>
+              {errors.injectsInsulinDaily && <p id="insulin-error" className="mt-2 text-small text-danger">{errors.injectsInsulinDaily.message}</p>}
+            </fieldset>
 
             {status === "error" && (
               <div role="alert" className="flex items-start gap-3 rounded-md border border-danger/30 bg-danger/5 p-4">
@@ -354,9 +378,10 @@ export default function Qualify() {
               </div>
             )}
 
-            <Button type="submit" variant="cta" disabled={status === "submitting"} className="w-full">
-              {status === "submitting" ? "Sending your information…" : "Check My Eligibility"}
+            <Button type="submit" variant="cta" disabled={!intakeEnabled || status === "submitting"} className="w-full">
+              {!intakeEnabled ? "Online submissions opening soon" : status === "submitting" ? "Sending your information…" : "Check My Eligibility"}
             </Button>
+            </fieldset>
 
             {/*
               Consent language delivered by the client on 2026-08-26
@@ -390,7 +415,6 @@ export default function Qualify() {
               .
             </p>
           </form>
-          )}
         </div>
       </Container>
     </section>
@@ -400,12 +424,15 @@ export default function Qualify() {
 function Field({ label, error, children }: {
   label: string; error?: string; children: React.ReactNode;
 }) {
+  const id = useId();
   return (
-    <label className="block">
+    <label className="block" htmlFor={id}>
       <span className="mb-1.5 block text-small font-semibold text-ink">{label}</span>
-      {children}
+      {isValidElement(children) ? cloneElement(children as React.ReactElement<Record<string, unknown>>, {
+        id, "aria-invalid": Boolean(error), "aria-describedby": error ? `${id}-error` : undefined,
+      }) : children}
       {error && (
-        <span className="mt-1.5 flex items-center gap-1 text-caption font-medium text-danger">
+        <span id={`${id}-error`} className="mt-1.5 flex items-center gap-1 text-caption font-medium text-danger">
           <AlertCircle size={13} aria-hidden="true" /> {error}
         </span>
       )}

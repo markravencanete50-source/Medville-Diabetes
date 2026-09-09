@@ -83,7 +83,7 @@ export default function ProductCard({
             src={product.imageFront}
             alt={`${product.name}, front`}
             loading={priority || eager ? "eager" : "lazy"}
-            fetchPriority={priority ? "high" : "auto"}
+            {...{ fetchpriority: priority ? "high" : "auto" }}
             draggable={false}
             className="absolute inset-0 h-full w-full rounded-md object-contain transition-opacity duration-[420ms] ease-(--ease-out-quart)"
             style={{ opacity: showBack ? 0 : 1 }}

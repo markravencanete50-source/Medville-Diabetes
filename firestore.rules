@@ -68,14 +68,13 @@ service cloud.firestore {
     }
 
     match /testimonials/{id} {
-      allow read: if true;
+      allow read: if canEditContent() || resource.data.published == true;
       allow write: if canEditContent();
     }
 
-    /* Blog posts. Drafts live here too, which is safe: a post carries no
-       personal data, and the public site filters to published itself. */
+    /* Drafts are private. Filtering only in the browser exposes unpublished copy. */
     match /posts/{slug} {
-      allow read: if true;
+      allow read: if canEditContent() || resource.data.published == true;
       allow write: if canEditContent();
     }
 
@@ -95,8 +94,8 @@ service cloud.firestore {
        function is the only thing that can set it. */
 
     match /adminUsers/{uid} {
-      allow read: if signedIn();
-      allow write: if isOwner();
+      allow read: if isOwner();
+      allow write: if false;
     }
 
     /* Everything else stays closed. */

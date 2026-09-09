@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, Search } from "lucide-react";
+import { Download, RefreshCw, Search } from "lucide-react";
 import {
   adminApi,
   AdminApiError,
@@ -60,6 +60,9 @@ export default function Leads() {
   const [search, setSearch] = useState("");
   const [openLead, setOpenLead] = useState<Lead | null>(null);
   const [saving, setSaving] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [opening, setOpening] = useState(false);
   const connected = isAdminApiConfigured();
 
   const load = useCallback(async () => {
@@ -73,11 +76,41 @@ export default function Leads() {
     try {
       const result = await adminApi.listLeads(getToken);
       setLeads(result.leads);
+      setNextCursor(result.nextCursor);
     } catch (problem) {
       setLeads([]);
       setError(problem instanceof AdminApiError ? problem.message : "That did not work.");
     }
   }, [getToken, connected]);
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const result = await adminApi.listLeads(getToken, undefined, nextCursor);
+      setLeads((current) => [...new Map([...(current ?? []), ...result.leads].map((lead) => [lead.id, lead])).values()]);
+      setNextCursor(result.nextCursor);
+    } catch { toast("The next page could not be loaded. Please try again.", "danger"); }
+    finally { setLoadingMore(false); }
+  };
+
+  const open = async (id: string) => {
+    setOpening(true);
+    try { setOpenLead((await adminApi.getLead(getToken, id)).lead); }
+    catch { toast("The enquiry could not be opened. Please try again.", "danger"); }
+    finally { setOpening(false); }
+  };
+
+  const retryNotification = async () => {
+    if (!openLead) return;
+    setSaving(true);
+    try {
+      await adminApi.retryNotification(getToken, openLead.id);
+      setOpenLead({ ...openLead, notificationStatus: "sent" });
+      toast("Notification sent.");
+    } catch { toast("The notification could not be sent. Contact the site administrator.", "danger"); }
+    finally { setSaving(false); }
+  };
 
   useEffect(() => {
     void load();
@@ -119,7 +152,10 @@ export default function Leads() {
     spreadsheet of patient details on a laptop is outside every safeguard the
     hosting provides, so the client should have to mean it.
   */
-  const exportCsv = () => {
+  const exportCsv = async () => {
+    if (!window.confirm("This downloads patient details to this device. Continue only if you can store the file securely.")) return;
+    try { await adminApi.auditExport(getToken, visible.map((lead) => lead.id)); }
+    catch { toast("The export could not be recorded. Please try again.", "danger"); return; }
     const rows = [
       ["Received", "First name", "Last name", "Email", "Phone", "City", "State", "Insulin daily", "Product", "Stage", "Note"],
       ...visible.map((lead) => [
@@ -131,7 +167,7 @@ export default function Leads() {
         lead.city,
         lead.state,
         lead.injectsInsulinDaily,
-        PRODUCT_NAME.get(lead.productInterest) ?? lead.productInterest,
+        lead.productName || PRODUCT_NAME.get(lead.productInterest) || lead.productInterest || "Not sure yet",
         LEAD_STATUS_LABEL[lead.status] ?? lead.status,
         lead.note,
       ]),
@@ -141,7 +177,7 @@ export default function Leads() {
        with an apostrophe, which Excel and Sheets treat as "this is text". */
     const cell = (value: unknown) => {
       const text = String(value ?? "");
-      const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+      const safe = /^[\s]*[=+\-@]|^[\t\r\n]/.test(text) ? `'${text}` : text;
       return `"${safe.replace(/"/g, '""')}"`;
     };
     const csv = rows.map((row) => row.map(cell).join(",")).join("\r\n");
@@ -160,14 +196,17 @@ export default function Leads() {
         title="Enquiries"
         lede="Everyone who has completed the qualification form, and where each one stands."
         actions={
+          <>
+          <button type="button" className="admin-btn admin-btn-quiet" disabled={!connected} onClick={() => void load()}><RefreshCw size={16} /> Refresh</button>
           <button
             type="button"
             className="admin-btn admin-btn-quiet"
-            onClick={exportCsv}
-            disabled={!visible.length}
+            onClick={() => void exportCsv()}
+            disabled={!visible.length || visible.length > 500}
           >
-            <Download size={16} /> Export
+            <Download size={16} /> Export loaded enquiries
           </button>
+          </>
         }
       />
 
@@ -250,7 +289,8 @@ export default function Leads() {
                         type="button"
                         className="font-semibold underline underline-offset-2"
                         style={{ color: "var(--a-brand-text)" }}
-                        onClick={() => setOpenLead(lead)}
+                        disabled={opening}
+                        onClick={() => void open(lead.id)}
                       >
                         {leadName(lead)}
                       </button>
@@ -262,7 +302,7 @@ export default function Leads() {
                       {[lead.city, lead.state].filter(Boolean).join(", ") || "Not given"}
                     </td>
                     <td data-label="Product" style={{ color: "var(--a-text-muted)" }}>
-                      {PRODUCT_NAME.get(lead.productInterest) ?? lead.productInterest ?? "Not stated"}
+                      {lead.productName || PRODUCT_NAME.get(lead.productInterest) || lead.productInterest || "Not sure yet"}
                     </td>
                     <td data-label="Stage">
                       <Badge tone={STATUS_TONE[lead.status] ?? "quiet"}>
@@ -276,6 +316,8 @@ export default function Leads() {
           </div>
         )}
       </Card>
+      {nextCursor && <div className="mt-4 flex items-center gap-3"><button type="button" className="admin-btn admin-btn-quiet" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? "Loading…" : "Load more enquiries"}</button><p className="admin-help">Search and export apply to loaded enquiries.</p></div>}
+      {opening && <p role="status" className="admin-help">Opening enquiry…</p>}
 
       <Drawer
         open={Boolean(openLead)}
@@ -303,9 +345,11 @@ export default function Leads() {
                 {openLead.injectsInsulinDaily === "yes" ? "Yes" : "No"}
               </Detail>
               <Detail label="Product">
-                {PRODUCT_NAME.get(openLead.productInterest) ?? openLead.productInterest ?? "Not stated"}
+                {openLead.productName || PRODUCT_NAME.get(openLead.productInterest) || openLead.productInterest || "Not sure yet"}
               </Detail>
+              <Detail label="Email notification">{openLead.notificationStatus === "sent" ? "Sent" : openLead.notificationStatus === "failed" ? "Delivery failed" : "Pending setup or delivery"}</Detail>
             </dl>
+            {openLead.notificationStatus !== "sent" && <button type="button" className="admin-btn admin-btn-quiet" disabled={saving} onClick={() => void retryNotification()}>Retry company notification</button>}
 
             <Field label="Stage" htmlFor="lead-status">
               <select

@@ -29,7 +29,7 @@ service firebase.storage {
       allow read: if true;
       allow write: if canEditContent()
         && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && request.resource.contentType.matches('image/(jpeg|png|webp|gif|avif)');
       allow delete: if canEditContent();
     }
 

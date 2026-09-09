@@ -191,7 +191,7 @@ export default function ProductViewer({
               <img
                 src={front}
                 alt=""
-                fetchPriority="high"
+                {...{ fetchpriority: "high" }}
                 draggable={false}
                 className="absolute inset-0 h-full w-full object-contain p-6"
                 style={{ backfaceVisibility: "hidden" }}

@@ -2,6 +2,11 @@
 
 Read this file completely before making any change.
 
+Current launch status and activation requirements are in `LAUNCH-STATUS.md`.
+That file supersedes older operational statements here: live intake remains
+disabled pending billing activation, client review and approved email sending.
+The current function runtime target is Node.js 22.
+
 ## What this project is
 
 A product catalog and lead-qualification website for Medville Diabetes, a
