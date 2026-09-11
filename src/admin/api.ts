@@ -32,6 +32,7 @@ export interface Lead {
   injectsInsulinDaily: string;
   productInterest: string;
   productName: string;
+  referralCode: string;
   notificationStatus: string;
   status: LeadStatus;
   note: string;
@@ -81,6 +82,17 @@ export interface AdminUser {
   role: string;
   disabled: boolean;
   lastSignIn: string | null;
+}
+
+export interface Influencer {
+  slug: string;
+  name: string;
+  handle: string;
+  platform: string;
+  active: boolean;
+  clicks: number;
+  leads: number;
+  createdAt: string | null;
 }
 
 export class AdminApiError extends Error {}
@@ -147,6 +159,15 @@ export const adminApi = {
     call<{ ok: true }>(getToken, "leads.update", { id, ...patch }),
 
   stats: (getToken: GetToken) => call<LeadStats>(getToken, "leads.stats"),
+
+  listInfluencers: (getToken: GetToken) =>
+    call<{ influencers: Influencer[] }>(getToken, "influencers.list"),
+
+  createInfluencer: (getToken: GetToken, input: { name: string; handle: string; platform: string }) =>
+    call<{ ok: true; influencer: Influencer }>(getToken, "influencers.create", input),
+
+  setInfluencerActive: (getToken: GetToken, slug: string, active: boolean) =>
+    call<{ ok: true }>(getToken, "influencers.setActive", { slug, active }),
 
   listAudit: (getToken: GetToken) => call<{ entries: AuditEntry[] }>(getToken, "audit.list"),
 

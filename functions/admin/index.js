@@ -37,6 +37,7 @@ import { initializeApp, applicationDefault } from "firebase-admin/app";
 import { sendNotification } from "./notification.js";
 import { createAdminHandler } from "./handler.js";
 import { ADMIN_ROLES, normalizeRole, roleChangeError } from "./roles.js";
+import { validateInfluencerInput } from "./influencers.js";
 
 initializeApp({ credential: applicationDefault() });
 
@@ -121,6 +122,7 @@ function leadToJson(doc) {
     injectsInsulinDaily: d.injectsInsulinDaily ?? "",
     productInterest: d.productInterest ?? "",
     productName: d.productName ?? "",
+    referralCode: d.referralCode ?? "",
     notificationStatus: d.notificationStatus ?? "not-configured",
     status: d.status ?? "new",
     note: d.note ?? "",
@@ -220,6 +222,57 @@ async function stats(actor) {
   await audit(actor, "leads.stats", { count: snapshot.size });
 
   return { total: snapshot.size, insulinYes, byStatus, byState, byProduct, byDay };
+}
+
+function influencerToJson(doc) {
+  const d = doc.data();
+  return {
+    slug: doc.id,
+    name: d.name ?? "",
+    handle: d.handle ?? "",
+    platform: d.platform ?? "Other",
+    active: d.active === true,
+    clicks: Number.isFinite(d.clicks) ? d.clicks : 0,
+    leads: Number.isFinite(d.leads) ? d.leads : 0,
+    createdAt: d.createdAt?.toDate?.().toISOString() ?? null,
+  };
+}
+
+async function listInfluencers(actor) {
+  const snapshot = await db.collection("influencers").orderBy("createdAt", "desc").limit(200).get();
+  await audit(actor, "influencers.list", { count: snapshot.size });
+  return { influencers: snapshot.docs.map(influencerToJson) };
+}
+
+async function createInfluencer(actor, body) {
+  const input = validateInfluencerInput(body);
+  if (!input) return { error: "Please check the influencer details." };
+  const reference = db.collection("influencers").doc(input.slug);
+  const result = await db.runTransaction(async (tx) => {
+    if ((await tx.get(reference)).exists) return { error: "That influencer link already exists." };
+    tx.create(reference, {
+      ...input, active: true, clicks: 0, leads: 0,
+      createdAt: FieldValue.serverTimestamp(), createdBy: actor.uid,
+      updatedAt: FieldValue.serverTimestamp(), updatedBy: actor.uid,
+    });
+    return { ok: true };
+  });
+  if (result.error) return result;
+  await audit(actor, "influencers.create", { influencerId: input.slug });
+  return { ok: true, influencer: { ...input, active: true, clicks: 0, leads: 0, createdAt: null } };
+}
+
+async function setInfluencerActive(actor, body) {
+  if (!validId(body.slug) || typeof body.active !== "boolean") {
+    return { error: "Unknown influencer." };
+  }
+  const reference = db.collection("influencers").doc(body.slug);
+  if (!(await reference.get()).exists) return { error: "Unknown influencer." };
+  await reference.update({
+    active: body.active, updatedAt: FieldValue.serverTimestamp(), updatedBy: actor.uid,
+  });
+  await audit(actor, "influencers.setActive", { influencerId: body.slug, active: body.active });
+  return { ok: true };
 }
 
 async function listAudit(actor, body) {
@@ -405,6 +458,9 @@ const ROUTES = {
   "leads.get": { roles: ["owner", "marketing", "sales"], run: getLead },
   "leads.update": { roles: ["owner", "marketing", "sales"], run: updateLead },
   "leads.stats": { roles: ["owner", "marketing", "sales"], run: stats },
+  "influencers.list": { roles: ["owner", "marketing"], run: listInfluencers },
+  "influencers.create": { roles: ["owner", "marketing"], run: createInfluencer },
+  "influencers.setActive": { roles: ["owner", "marketing"], run: setInfluencerActive },
   "audit.list": { roles: ["owner"], run: listAudit },
   "admins.list": { roles: ["owner", "marketing"], run: listAdmins },
   "admins.setRole": { roles: ["owner", "marketing"], run: setAdminRole },

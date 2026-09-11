@@ -25,7 +25,7 @@ Nothing that stores a patient's answers may run before this.
    <https://support.google.com/cloud/answer/6329727>
 3. Set a budget alert of 10 USD on the project, per Section 7.3.
 
-Until this is done, do not deploy the two functions and do not point the live
+Until this is done, do not enable the patient intake function or point the live
 site at them. The rest of the dashboard, the page text, products, colours,
 questions and reviews, holds no patient information and is safe to enable
 first.
@@ -81,7 +81,7 @@ change.
 
 ---
 
-## 4. Deploy the two functions
+## 4. Deploy the three functions
 
 The intake function receives the qualification form. The admin function serves
 the dashboard everything that touches patient records, and writes the access
@@ -95,6 +95,14 @@ gcloud functions deploy qualifyIntake \
   --source=. --entry-point=qualifyIntake \
   --trigger-http --allow-unauthenticated \
   --set-env-vars=^|^ALLOWED_ORIGIN=https://medville-diabetes.web.app,https://www.medvillediabetes.com
+
+# anonymous referral visits (no PHI)
+gcloud functions deploy trackReferralClick \
+  --gen2 --runtime=nodejs22 --region=us-central1 \
+  --source=. --entry-point=trackReferralClick \
+  --trigger-http --allow-unauthenticated \
+  --set-env-vars=^|^ALLOWED_ORIGIN=https://medville-diabetes.web.app,https://www.medvillediabetes.com \
+  --set-secrets=REFERRAL_RATE_LIMIT_SECRET=REFERRAL_RATE_LIMIT_SECRET:latest
 
 # dashboard API
 cd ../functions/admin
@@ -158,11 +166,11 @@ signs in as themselves.
 
 ---
 
-## 6. Give the build the two function addresses
+## 6. Give the build the three function addresses
 
 The Firebase web configuration is already committed in
 `src/lib/firebaseConfig.ts`, so nothing needs to be set for sign-in to work.
-Only the two function addresses are missing, and they are not known until
+Only the three function addresses are missing, and they are not known until
 step 4 has run.
 
 They are read at build time, which means a build made before they are set
@@ -172,9 +180,10 @@ secrets** (GitHub, Settings, Secrets and variables, Actions):
 ```
 VITE_ADMIN_API         https://...adminApi...
 VITE_QUALIFY_ENDPOINT  https://...qualifyIntake...
+VITE_ATTRIBUTION_ENDPOINT https://...trackReferralClick...
 ```
 
-Both deploy workflows already read those two names and pass them into
+Both deploy workflows already read those three names and pass them into
 `npm run build`, so nothing else changes. **Re-run the deploy afterwards**:
 these are compiled into the JavaScript, so adding a secret does nothing until
 the next build.
@@ -183,7 +192,7 @@ Until `VITE_ADMIN_API` is set, the dashboard signs in and the whole Website
 half works, while Overview, Enquiries and the access log say on screen that
 enquiries are not connected yet.
 
-For local work, copy `.env.example` to `.env` and put the same two values
+For local work, copy `.env.example` to `.env` and put the same three values
 there.
 
 ---
@@ -204,7 +213,7 @@ page. Everything here is a console job except the last step but one.
    add `www.medvillediabetes.com` and `medvillediabetes.com`. Without this,
    sign-in and the invitation emails refuse the new host. Checked 2026-09-02:
    the list holds only the Firebase hosts and the preview channels.
-4. The two functions already accept both hosts. `ALLOWED_ORIGIN` in step 4
+4. The three functions already accept both hosts. `ALLOWED_ORIGIN` in step 4
    names the Firebase address and the custom domain, so nothing is redeployed.
 5. In this repository, set `SITE_ORIGIN` in `src/data/pageMeta.ts` to
    `https://www.medvillediabetes.com` and push. That one line drives the
@@ -237,14 +246,14 @@ to the site.
 
 Checked directly against the project and the repository rather than assumed.
 The repository checks were a full build (TypeScript, Vite and the prerender
-step), a syntax check and a clean install of both functions, and the deploy
+step), a syntax check and a clean install of both function source packages, and the deploy
 workflow's last run on the current main commit, which succeeded. The project
 checks were made over the public Google APIs with the committed web key, which
 is the same access a visitor's browser has.
 
 | | |
 |---|---|
-| Repository | builds cleanly; both functions install and parse; main is deployed |
+| Repository | builds cleanly; both function source packages install and all entry points parse; main is deployed |
 | Firebase project and web config | done, committed |
 | Email / password sign-in | enabled and answering |
 | Firestore database | live |
@@ -253,7 +262,7 @@ is the same access a visitor's browser has.
 | Cloud Storage bucket | does not exist; the default bucket needs Blaze |
 | Blaze plan and BAA (step 1) | Pending. On 2026-09-10 the console still showed Spark; the existing billing account required a one-time minimum $30 prepayment to activate. This is account-specific, not a fixed monthly Blaze fee. Client review and acceptance of the applicable BAA remain separate launch requirements. |
 | Identity Platform upgrade (step 2) | not confirmed; plain Firebase Auth is not BAA covered. This is a separate console switch from Blaze |
-| The two functions (step 4) | not deployed |
+| The backend functions (step 4) | see the newer `LAUNCH-STATUS.md` record |
 | First owner (step 5) | not granted |
 | `VITE_ADMIN_API` and `VITE_QUALIFY_ENDPOINT` secrets (step 6) | not set; the deploy workflow already reads both |
 | Identity Platform authorized domains | localhost, the two Firebase hosts and five preview channels only; the custom domain is added in step 7 |
@@ -271,6 +280,7 @@ access. Nothing in this repository changes for any of them except the one
 |---|---|
 | Overview | Counts and charts for enquiries. Nothing editable |
 | Enquiries | The people who completed the form, their details, the product they asked about, and what stage each one is at |
+| Influencers | Create and pause unique eligibility links; view anonymous visits, attributed enquiries and conversion |
 | Products | Add, edit and remove products, front and back photographs, price, and whether a product is available, coming soon or sold out |
 | Page text | The wording and pictures on Home, Our Products, Our Services, About Us and Contact |
 | Blog | Write, edit and publish articles. Blocks for paragraphs, headings, lists, quotes, pictures, highlights and dividers. Any colour (the brand swatches, a colour wheel, or a typed code) and a choice of 55 fonts on paragraphs, headings, lists and quotes; picture shapes; and a preview that renders exactly what a reader will see. Draft until published |

@@ -247,8 +247,8 @@ export function useAdminAuth() {
    navigation and the route guard cannot drift apart. The server enforces the
    same list; this only decides what is worth showing. */
 export const ROLE_ACCESS: Record<AdminRole, string[]> = {
-  owner: ["overview", "leads", "products", "content", "blog", "appearance", "faqs", "testimonials", "team", "audit"],
-  marketing: ["overview", "leads", "products", "content", "blog", "appearance", "faqs", "testimonials", "team"],
+  owner: ["overview", "leads", "influencers", "products", "content", "blog", "appearance", "faqs", "testimonials", "team", "audit"],
+  marketing: ["overview", "leads", "influencers", "products", "content", "blog", "appearance", "faqs", "testimonials", "team"],
   sales: ["leads", "products"],
 };
 

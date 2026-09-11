@@ -98,6 +98,8 @@ export default function Qualify() {
   });
 
   const location = useLocation();
+  const referralCode = new URLSearchParams(location.search).get("ref")?.trim().toLowerCase() ?? "";
+  const validReferralCode = /^[a-z0-9][a-z0-9-]{0,39}$/.test(referralCode) ? referralCode : "";
   const insulinAnswer = watch("injectsInsulinDaily");
 
   /*
@@ -122,6 +124,23 @@ export default function Qualify() {
   const intakeEnabled = Boolean(endpoint) && import.meta.env.VITE_INTAKE_ENABLED === "true";
 
   useEffect(() => {
+    if (!validReferralCode) return;
+    const clickEndpoint = (import.meta.env.VITE_ATTRIBUTION_ENDPOINT as string | undefined)
+      || "https://us-central1-medville-diabetes.cloudfunctions.net/trackReferralClick";
+    const storageKey = `medville:referral-visit:${validReferralCode}`;
+    let visitId = "";
+    try {
+      visitId = sessionStorage.getItem(storageKey) || crypto.randomUUID();
+      sessionStorage.setItem(storageKey, visitId);
+    } catch { visitId = crypto.randomUUID(); }
+    void fetch(clickEndpoint, {
+      method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
+      signal: AbortSignal.timeout(10000),
+      body: JSON.stringify({ referralCode: validReferralCode, visitId }),
+    }).catch(() => undefined);
+  }, [validReferralCode]);
+
+  useEffect(() => {
     if (status === "success") successHeading.current?.focus();
   }, [status]);
 
@@ -143,7 +162,10 @@ export default function Qualify() {
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
         signal: AbortSignal.timeout(20000),
-        body: JSON.stringify({ ...values, submissionId: submissionId.current }),
+        body: JSON.stringify({
+          ...values, submissionId: submissionId.current,
+          ...(validReferralCode ? { referralCode: validReferralCode } : {}),
+        }),
       });
       if (!res.ok) throw new Error(String(res.status));
       // A misconfigured Hosting rewrite can return index.html with status 200.

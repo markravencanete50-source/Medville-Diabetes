@@ -14,6 +14,11 @@ tokens and role claims; audit failures do not disclose records. Draft blog posts
 and testimonials are no longer readable by anonymous visitors. Direct browser
 access to enquiries, audit logs, and role writes remains denied.
 
+The dashboard also creates a unique `/qualify?ref=...` link for each influencer,
+counts anonymous visits once per browser tab session, attributes completed
+enquiries on the trusted intake server, and reports visits, enquiries and
+conversion. Referral URLs contain only a campaign code, never patient details.
+
 ## Blockers — do not enable real patient intake yet
 
 1. **Client compliance review:** BAA acceptance is deferred to the client. Confirm
@@ -52,7 +57,7 @@ Then run `npm ci` separately in `functions` and `functions/admin`.
 module into the independently deployed admin source directory.
 
 Use Node.js 22 Cloud Run functions, source `functions` / `functions/admin`,
-entry points `qualifyIntake` / `adminApi`, region `us-central1`.
+entry points `qualifyIntake` / `trackReferralClick` / `adminApi`, region `us-central1`.
 Keep minimum instances at zero and set a reviewed maximum instance limit (for
 example, two). This limits scaling, not total charges. Use dedicated runtime
 service accounts with only required database, auth-management and secret access.
@@ -66,6 +71,7 @@ Configure these **server-side** values, never `VITE_` variables:
 | `RATE_LIMIT_SECRET` | Random secret in Secret Manager | Not used |
 | `RESEND_API_KEY` | Approved restricted key in Secret Manager | Same approved key |
 | `NOTIFICATION_FROM` | Verified Medville sender address | Same |
+| `REFERRAL_RATE_LIMIT_SECRET` | Secret Manager binding on `trackReferralClick` only | Not used |
 
 Production origins: `https://www.medvillediabetes.com`,
 `https://medvillediabetes.com`, `https://medville-diabetes.web.app`.
@@ -80,11 +86,12 @@ approved role on every action; do not replace it with an unauthenticated databas
 proxy. The intake endpoint is public and has validation, a honeypot and a
 transactional per-IP hourly limit. CORS is not bot protection. Verify client IP
 behavior behind the actual proxy, and review additional abuse controls before
-opening public intake. Configure a Firestore TTL policy on
-`intakeLimits.expiresAt`; expiration is not immediate and does not affect limits.
+opening public intake. Configure Firestore TTL policies on
+`intakeLimits.expiresAt`, `attributionLimits.expiresAt` and
+`attributionVisits.expiresAt`; expiration is not immediate and does not affect limits.
 
-In GitHub Actions settings, set secrets `VITE_ADMIN_API` and
-`VITE_QUALIFY_ENDPOINT` to verified deployment URLs. Leave repository variable
+In GitHub Actions settings, set secrets `VITE_ADMIN_API`,
+`VITE_QUALIFY_ENDPOINT` and `VITE_ATTRIBUTION_ENDPOINT` to verified deployment URLs. Leave repository variable
 `VITE_INTAKE_ENABLED=false` until the complete synthetic flow passes and the
 client approves launch. Turning on only the frontend flag cannot bypass the
 server flag. Preview builds always keep entry disabled.
@@ -96,7 +103,7 @@ for development. Remove synthetic production records through an approved process
 
 ## Verification and remaining review
 
-- `npm test`: 26 passing HTTP-boundary, role-boundary and notification tests, using fake services.
+- `npm test`: 31 passing HTTP-boundary, role-boundary, referral and notification tests, using fake services.
 - Firestore emulator: 5 passing suites covering publication filtering, role-based
   marketing edits, private collections and roster restrictions.
 - TypeScript and production build pass. Large 3D/admin bundles remain a performance

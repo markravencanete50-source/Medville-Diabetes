@@ -6,7 +6,7 @@ let env;
 before(async () => {
   env = await initializeTestEnvironment({ projectId: "demo-medville-test", firestore: { host: "127.0.0.1", port: 8086, rules: await readFile("firestore.rules", "utf8") } });
   await env.withSecurityRulesDisabled(async (ctx) => {
-    for (const path of ["posts/draft", "testimonials/draft", "leads/synthetic", "auditLog/test", "adminUsers/test"]) await setDoc(doc(ctx.firestore(), path), { published: false });
+    for (const path of ["posts/draft", "testimonials/draft", "leads/synthetic", "auditLog/test", "adminUsers/test", "influencers/synthetic", "attributionVisits/test", "attributionLimits/test"]) await setDoc(doc(ctx.firestore(), path), { published: false });
     for (const path of ["posts/published", "testimonials/published"]) await setDoc(doc(ctx.firestore(), path), { published: true });
   });
 });
@@ -23,7 +23,7 @@ test("public visitors can only read published articles and testimonials", async 
 test("patient data and audit logs cannot be accessed directly by any browser role", async () => {
   for (const role of [undefined, "owner", "marketing", "sales"]) {
     const db = role ? env.authenticatedContext(`test-${role}`, { role }).firestore() : env.unauthenticatedContext().firestore();
-    for (const path of ["leads/synthetic", "auditLog/test", "intakeLimits/test"]) {
+    for (const path of ["leads/synthetic", "auditLog/test", "intakeLimits/test", "influencers/synthetic", "attributionVisits/test", "attributionLimits/test"]) {
       await assertFails(getDoc(doc(db, path))); await assertFails(setDoc(doc(db, path), { name: "Synthetic" }));
     }
   }

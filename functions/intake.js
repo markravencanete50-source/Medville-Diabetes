@@ -9,11 +9,13 @@ export function validateSubmission(b) {
     || !STATES.has(b.state) || !["yes", "no"].includes(b.injectsInsulinDaily)
     || typeof b.submissionId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(b.submissionId)
     || (b.productInterest !== undefined && (typeof b.productInterest !== "string" || !/^[a-z0-9-]{0,60}$/.test(b.productInterest)))
+    || (b.referralCode !== undefined && (typeof b.referralCode !== "string" || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(b.referralCode)))
     || (b.website !== undefined && b.website !== "")) return null;
   return {
     firstName: b.firstName.trim(), lastName: b.lastName.trim(), email: b.email.trim().toLowerCase(),
     phone: b.phone.trim(), city: b.city.trim(), state: b.state,
-    injectsInsulinDaily: b.injectsInsulinDaily, productInterest: b.productInterest || "", submissionId: b.submissionId,
+    injectsInsulinDaily: b.injectsInsulinDaily, productInterest: b.productInterest || "",
+    referralCode: b.referralCode || "", submissionId: b.submissionId,
   };
 }
 

@@ -126,7 +126,8 @@ export default function Leads() {
         lead.email.toLowerCase().includes(term) ||
         lead.phone.toLowerCase().includes(term) ||
         lead.city.toLowerCase().includes(term) ||
-        lead.state.toLowerCase().includes(term)
+        lead.state.toLowerCase().includes(term) ||
+        lead.referralCode.toLowerCase().includes(term)
       );
     });
   }, [leads, filter, search]);
@@ -157,7 +158,7 @@ export default function Leads() {
     try { await adminApi.auditExport(getToken, visible.map((lead) => lead.id)); }
     catch { toast("The export could not be recorded. Please try again.", "danger"); return; }
     const rows = [
-      ["Received", "First name", "Last name", "Email", "Phone", "City", "State", "Insulin daily", "Product", "Stage", "Note"],
+      ["Received", "First name", "Last name", "Email", "Phone", "City", "State", "Insulin daily", "Product", "Influencer", "Stage", "Note"],
       ...visible.map((lead) => [
         lead.createdAt ?? "",
         lead.firstName,
@@ -168,6 +169,7 @@ export default function Leads() {
         lead.state,
         lead.injectsInsulinDaily,
         lead.productName || PRODUCT_NAME.get(lead.productInterest) || lead.productInterest || "Not sure yet",
+        lead.referralCode,
         LEAD_STATUS_LABEL[lead.status] ?? lead.status,
         lead.note,
       ]),
@@ -278,6 +280,7 @@ export default function Leads() {
                   <th scope="col">Received</th>
                   <th scope="col">Location</th>
                   <th scope="col">Product</th>
+                  <th scope="col">Influencer</th>
                   <th scope="col">Stage</th>
                 </tr>
               </thead>
@@ -303,6 +306,9 @@ export default function Leads() {
                     </td>
                     <td data-label="Product" style={{ color: "var(--a-text-muted)" }}>
                       {lead.productName || PRODUCT_NAME.get(lead.productInterest) || lead.productInterest || "Not sure yet"}
+                    </td>
+                    <td data-label="Influencer" style={{ color: "var(--a-text-muted)" }}>
+                      {lead.referralCode ? `@${lead.referralCode}` : "Direct"}
                     </td>
                     <td data-label="Stage">
                       <Badge tone={STATUS_TONE[lead.status] ?? "quiet"}>
@@ -347,6 +353,7 @@ export default function Leads() {
               <Detail label="Product">
                 {openLead.productName || PRODUCT_NAME.get(openLead.productInterest) || openLead.productInterest || "Not sure yet"}
               </Detail>
+              <Detail label="Influencer">{openLead.referralCode ? `@${openLead.referralCode}` : "Direct"}</Detail>
               <Detail label="Email notification">{openLead.notificationStatus === "sent" ? "Sent" : openLead.notificationStatus === "failed" ? "Delivery failed" : "Pending setup or delivery"}</Detail>
             </dl>
             {openLead.notificationStatus !== "sent" && <button type="button" className="admin-btn admin-btn-quiet" disabled={saving} onClick={() => void retryNotification()}>Retry company notification</button>}

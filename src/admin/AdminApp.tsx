@@ -5,6 +5,7 @@ import {
   FileText,
   LogOut,
   Menu,
+  Megaphone,
   MessageSquareQuote,
   Moon,
   MoreHorizontal,
@@ -68,6 +69,7 @@ function screen(load: () => Promise<{ default: React.ComponentType }>) {
 
 const Overview = screen(() => import("./pages/Overview"));
 const Leads = screen(() => import("./pages/Leads"));
+const Influencers = screen(() => import("./pages/Influencers"));
 const Products = screen(() => import("./pages/Products"));
 const Content = screen(() => import("./pages/Content"));
 const Blog = screen(() => import("./pages/Blog"));
@@ -80,6 +82,7 @@ const Audit = screen(() => import("./pages/Audit"));
 type Section =
   | "overview"
   | "leads"
+  | "influencers"
   | "products"
   | "content"
   | "blog"
@@ -92,6 +95,7 @@ type Section =
 const NAV: { id: Section; label: string; icon: typeof BarChart3; group: string }[] = [
   { id: "overview", label: "Overview", icon: BarChart3, group: "Enquiries" },
   { id: "leads", label: "Enquiries", icon: ClipboardList, group: "Enquiries" },
+  { id: "influencers", label: "Influencers", icon: Megaphone, group: "Enquiries" },
   { id: "products", label: "Products", icon: Package, group: "Website" },
   { id: "content", label: "Page text", icon: FileText, group: "Website" },
   { id: "blog", label: "Blog", icon: PenSquare, group: "Website" },
@@ -408,7 +412,7 @@ function Shell() {
             yet"; without it, Enquiries and the access log fail with an error
             that explains nothing.
           */}
-          {!isAdminApiConfigured() && (section === "overview" || section === "leads" || section === "audit") && (
+          {!isAdminApiConfigured() && (section === "overview" || section === "leads" || section === "influencers" || section === "audit") && (
             <div className="mb-4">
               <Banner tone="warn">
                 Online intake is awaiting activation. Enquiries and the access log
@@ -442,6 +446,7 @@ function Shell() {
           >
             {section === "overview" && <Overview />}
             {section === "leads" && <Leads />}
+            {section === "influencers" && <Influencers />}
             {section === "products" && <Products />}
             {section === "content" && <Content />}
             {section === "blog" && <Blog />}

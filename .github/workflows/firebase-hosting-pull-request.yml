@@ -33,6 +33,7 @@ jobs:
         env:
           VITE_ADMIN_API: ${{ secrets.VITE_ADMIN_API }}
           VITE_QUALIFY_ENDPOINT: ${{ secrets.VITE_QUALIFY_ENDPOINT }}
+          VITE_ATTRIBUTION_ENDPOINT: ${{ secrets.VITE_ATTRIBUTION_ENDPOINT }}
           VITE_INTAKE_ENABLED: 'false'
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:

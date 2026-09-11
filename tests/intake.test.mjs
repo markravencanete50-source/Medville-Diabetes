@@ -93,3 +93,9 @@ test("only explicitly allowed fields survive validation", () => {
   const data = validateSubmission({ ...sample(), role: "owner", status: "qualified", productName: "forged" });
   assert.equal(data.role, undefined); assert.equal(data.status, undefined); assert.equal(data.productName, undefined);
 });
+test("accepts a safe referral code and rejects forged referral values", () => {
+  assert.equal(validateSubmission({ ...sample(), referralCode: "t1d1girlie" }).referralCode, "t1d1girlie");
+  for (const referralCode of ["../../owner", "T1D Girlie", "@t1d1girlie", "x".repeat(41)]) {
+    assert.equal(validateSubmission({ ...sample(), referralCode }), null);
+  }
+});
