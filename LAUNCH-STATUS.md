@@ -1,4 +1,4 @@
-# Medville launch handoff — 2026-09-10
+# Medville launch handoff — 2026-09-12
 
 ## Release scope
 
@@ -32,7 +32,7 @@ conversion. Referral URLs contain only a campaign code, never patient details.
    Obtain approval for the Medville sending account/domain, verify its DNS, and
    configure a restricted sending key. Do not use the other client's domain/key.
 
-Billing is active on Blaze. Both backend functions are deployed and their
+Billing is active on Blaze. All three backend functions are deployed and their
 verified production addresses are connected to the website build. Public intake
 remains disabled at both the interface and server gates.
 
@@ -108,7 +108,7 @@ for development. Remove synthetic production records through an approved process
   marketing edits, private collections and roster restrictions.
 - TypeScript and production build pass. Large 3D/admin bundles remain a performance
   warning; they are separate lazy-loaded chunks.
-- The deployed Admin API and closed Intake API boundaries are verified. The
+- The deployed Admin API, referral counter and closed Intake API boundaries are verified. The
   production mail round-trip remains blocked by the BAA and sender setup.
 - The latest successful root dependency audit reported 6 moderate, 0 high and
   0 critical findings, primarily transitive Google SDK dependencies. Automated
