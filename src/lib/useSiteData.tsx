@@ -51,7 +51,16 @@ function applyTheme(theme: ThemeOverrides) {
 }
 
 export function SiteDataProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<SiteData>(() => readCache() ?? EMPTY_SITE_DATA);
+  const [data, setData] = useState<SiteData>(() => {
+    const cached = readCache();
+    if (!cached) return EMPTY_SITE_DATA;
+    const bySlug = new Map(EMPTY_SITE_DATA.posts.map((post) => [post.slug, post]));
+    for (const post of cached.posts ?? []) bySlug.set(post.slug, post);
+    return {
+      ...cached,
+      posts: [...bySlug.values()].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)),
+    };
+  });
   const applied = useRef(false);
 
   /* Paint the cached colours before the browser shows anything, so a themed

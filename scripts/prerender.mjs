@@ -23,12 +23,11 @@
   ----------------------------
   Fixed pages: src/data/pageMeta.ts, the same module the pages read.
   Product pages: src/data/products.ts, the same catalog the site renders.
-  Articles: the published posts in Firestore, read over the public REST API.
+  Articles: the bundled client drafts plus published posts in Firestore.
   Nothing is duplicated here, so nothing can drift.
 
-  Articles are best effort. If the network is unavailable the build still
-  succeeds and the articles simply keep the generic tags, because a failed
-  preview is worth less than a failed deploy.
+  Firestore articles are best effort. If the network is unavailable the build
+  still succeeds and the bundled articles keep their own tags and sitemap entries.
 
   An article published after a deploy has no file of its own until the next
   one. It still works: the rewrite serves index.html and React renders the
@@ -373,8 +372,14 @@ for (const product of catalog.products) {
   sitemap.push({ loc: `${origin}${path}` });
 }
 
-/* Articles, best effort. */
-let posts = [];
+/* The launch articles are bundled, so their crawler-visible pages and sitemap
+   entries are present even if the public Firestore query fails. */
+const editorial = await loadModule("src/data/editorialPosts.ts");
+const bundledPosts = editorial.EDITORIAL_POSTS.map((post) => ({
+  ...post,
+  updatedAt: post.publishedAt,
+}));
+let livePosts = [];
 try {
   const { firebaseConfig } = await loadModule("src/lib/firebaseConfig.ts");
   const url =
@@ -388,7 +393,7 @@ try {
   const body = await res.json();
 
   const read = (fields, key) => fields?.[key]?.stringValue ?? "";
-  posts = body.flatMap((row) => row.document ? [row.document] : [])
+  livePosts = body.flatMap((row) => row.document ? [row.document] : [])
     .map((doc) => ({
       slug: (doc.name ?? "").split("/").pop(),
       title: read(doc.fields, "title"),
@@ -403,7 +408,16 @@ try {
     }))
     .filter((post) => post.published && post.slug && post.title);
 
-  for (const post of posts) {
+  console.log(`  live articles: ${livePosts.length}`);
+} catch (problem) {
+  console.log(`  live articles skipped (${problem?.message ?? problem}); bundled articles remain`);
+}
+
+const bySlug = new Map(bundledPosts.map((post) => [post.slug, post]));
+for (const post of livePosts) bySlug.set(post.slug, post);
+const posts = [...bySlug.values()].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+
+for (const post of posts) {
     const path = `/blog/${post.slug}`;
     await emit(path, pageHtml(template, {
       path,
@@ -425,11 +439,8 @@ try {
       origin,
     }));
     sitemap.push({ loc: `${origin}${path}`, lastmod: post.updatedAt || post.publishedAt });
-  }
-  console.log(`  articles: ${posts.length}`);
-} catch (problem) {
-  console.log(`  articles skipped (${problem?.message ?? problem}); the build continues`);
 }
+console.log(`  articles: ${posts.length}`);
 
 /* The blog index is rewritten last, now that the articles are known, so it
    can name them. Everything else about the page is unchanged. */

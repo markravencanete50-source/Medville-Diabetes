@@ -202,9 +202,13 @@ only change made to their wording.
   `admin-table-keep` opts a table out). `src/admin/ColorPicker.tsx` and
   `src/admin/FontPicker.tsx` are the only places a colour or a font is
   chosen; both open in `src/admin/Popover.tsx`, which is a sheet on a phone.
-- Blog. Articles live in the Firestore `posts` collection, written from the
-  dashboard's Blog screen and read by the public site, following the same
-  pattern as faqs and testimonials. A post body is a list of typed blocks, not
+- Blog. Three client-provided launch articles live in
+  `src/data/editorialPosts.ts` so they appear even when Firestore is unavailable
+  and receive build-time search metadata. Additional articles live in the
+  Firestore `posts` collection, written from the dashboard's Blog screen.
+  A published dashboard post with the same slug replaces a bundled article
+  on the public site. Bundled articles are edited in source, not the dashboard.
+  A post body is a list of typed blocks, not
   HTML: `src/data/blog.ts` holds the shapes, the markdown-lite inline parser
   (**bold**, *italic*, [link](url)) and the decoder, and
   `src/components/PostBody.tsx` is the only thing that renders them. The

@@ -82,9 +82,9 @@ export const PAGE_META: Record<string, PageMeta> = {
       "Refer patients to Medville Diabetes for CGMs and diabetes supplies. Download the referral form and requirements and send your referral through our secure process.",
   },
   "/blog": {
-    title: "Blog | Medville Diabetes",
+    title: "Diabetes Education and Everyday Life | Medville Diabetes",
     description:
-      "Plain English articles about continuous glucose monitors, insurance coverage, and living with diabetes, from the team at Medville Diabetes.",
+      "Clear articles on food, alcohol, glucose patterns, and daily life with diabetes. Explore practical questions with Medville Diabetes.",
   },
   "/qualify": {
     title: "Check Your Potential Eligibility | Medville Diabetes",
