@@ -22,8 +22,8 @@ export const ADDITIONAL_EDITORIAL_POSTS: Post[] = [
     "what-is-a-continuous-glucose-monitor",
     "What Is a Continuous Glucose Monitor and How Does It Work?",
     "A clear introduction to CGM sensors, glucose trends, alerts, and the questions to ask before choosing a device.",
-    "/about/about-hero.webp",
-    "A woman with a glucose sensor on her arm checks a reading at home",
+    "/blog/inline/cgm-sensor-arm.webp",
+    "A woman wearing a continuous glucose sensor on her upper arm",
     [
       paragraph("A continuous glucose monitor, or CGM, is a wearable device that estimates glucose levels throughout the day and night. Instead of showing only one result when you test, it shows how your glucose changes over time. That can make daily patterns easier to discuss with your healthcare team."),
       heading("What Does a CGM Measure?"),
@@ -46,8 +46,8 @@ export const ADDITIONAL_EDITORIAL_POSTS: Post[] = [
     "cgm-vs-finger-stick-blood-sugar-checks",
     "CGM vs. Fingerstick Blood Sugar Checks: What Is the Difference?",
     "Learn what each method measures, why readings can differ, and when a standard meter remains useful.",
-    "/home/why-monitoring.webp",
-    "A woman views a glucose trend graph on a phone while wearing a sensor",
+    "/blog/inline/finger-test-home.webp",
+    "A person using a lancet for a fingerstick blood glucose check",
     [
       paragraph("A blood glucose meter and a continuous glucose monitor answer related but different questions. A finger-stick test measures glucose in a small drop of blood at that moment. A CGM estimates glucose in fluid just below the skin and shows readings over time. Many people use both as part of a care plan."),
       heading("A Meter Gives You a Result at One Moment"),
@@ -69,8 +69,8 @@ export const ADDITIONAL_EDITORIAL_POSTS: Post[] = [
     "how-to-understand-cgm-glucose-trends",
     "How to Understand CGM Glucose Trends in Daily Life",
     "Use the graph, trend arrows, and time in range to prepare better questions for your healthcare team.",
-    "/services/journey/journey-hero.webp",
-    "A woman wearing a glucose sensor reviews information on her phone",
+    "/blog/inline/cgm-food-app.webp",
+    "A person wearing a glucose sensor checks a phone beside a prepared meal",
     [
       paragraph("A CGM can give you many readings each day. You do not need to judge every change on its own. The most useful starting point is to look for repeated patterns and bring them to your healthcare team. This guide explains what the common displays mean without setting a treatment target for you."),
       heading("Start With the Current Reading and Trend Arrow"),
@@ -93,8 +93,8 @@ export const ADDITIONAL_EDITORIAL_POSTS: Post[] = [
     "what-to-ask-about-cgm-coverage",
     "What to Ask About CGM Coverage and Diabetes Supplies",
     "A practical checklist for discussing a CGM prescription, insurance benefits, supplier status, and out-of-pocket costs.",
-    "/about/mission-bg.webp",
-    "A delivery of health supplies is handed to a woman at her front door",
+    "/blog/inline/doctor-conversation.webp",
+    "A doctor talks with a patient in a consultation room",
     [
       paragraph("A CGM can be useful, but the path to getting one may involve your healthcare professional, an insurance plan, and a supplier. Coverage depends on the plan and the details of your care. A short list of questions can help you understand the steps before you place an order."),
       heading("Start With Your Healthcare Professional"),

@@ -1,10 +1,11 @@
 import type { Post } from "./blog";
 import { ADDITIONAL_EDITORIAL_POSTS } from "./additionalEditorialPosts";
+import { addInlinePhotos } from "./blogPhotoPlacements";
 
 /* Client-provided article drafts, edited for clear headings and launch-safe links.
    Keep these available at build time so article metadata and sitemap entries
    do not depend on a live Firestore request. */
-export const EDITORIAL_POSTS: Post[] = [
+const BASE_EDITORIAL_POSTS: Post[] = [
   ...ADDITIONAL_EDITORIAL_POSTS,
   {
     "slug": "did-eating-too-much-sugar-cause-diabetes",
@@ -749,3 +750,5 @@ export const EDITORIAL_POSTS: Post[] = [
     "template": "classic"
   }
 ];
+
+export const EDITORIAL_POSTS: Post[] = BASE_EDITORIAL_POSTS.map(addInlinePhotos);

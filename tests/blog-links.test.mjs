@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { test } from "node:test";
+import { build } from "esbuild";
+import { fileURLToPath } from "node:url";
 
 const original = readFileSync(new URL("../src/data/editorialPosts.ts", import.meta.url), "utf8");
 const additional = readFileSync(new URL("../src/data/additionalEditorialPosts.ts", import.meta.url), "utf8");
@@ -10,6 +12,8 @@ const slugs = new Set([
   ...[...additional.matchAll(/article\(\s*"([a-z0-9-]+)"/g)].map((match) => match[1]),
 ]);
 const publicRoutes = new Set(["/", "/blog", "/products/cgm", "/services", "/contact"]);
+const bundled = await build({ entryPoints: [fileURLToPath(new URL("../src/data/editorialPosts.ts", import.meta.url))], bundle: true, platform: "node", format: "esm", write: false });
+const { EDITORIAL_POSTS } = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
 
 test("every editorial internal link resolves to a published article or public page", () => {
   assert.equal(slugs.size, 7);
@@ -21,13 +25,17 @@ test("every editorial internal link resolves to a published article or public pa
   }
 });
 
-test("editorial cover images exist in public assets", () => {
-  const images = [
-    ...[...original.matchAll(/"image": "(\/[^\"]+)"/g)].map((match) => match[1]),
-    ...[...additional.matchAll(/"(\/(?:about|home|services)\/[^\"]+\.webp)"/g)].map((match) => match[1]),
-  ];
-  assert.equal(images.length, 7);
-  for (const image of images) {
-    assert.ok(existsSync(new URL(`../public${image}`, import.meta.url)), `Missing blog image: ${image}`);
+test("each article has a cover and three distinct, locally available photographs", () => {
+  assert.equal(EDITORIAL_POSTS.length, 7);
+  for (const post of EDITORIAL_POSTS) {
+    const photos = post.body.filter((block) => block.type === "image");
+    assert.equal(photos.length, 3, `Expected three inline photographs in ${post.slug}`);
+    assert.equal(new Set([post.image, ...photos.map((photo) => photo.url)]).size, 4, `Repeated photograph within ${post.slug}`);
+    assert.ok(existsSync(new URL(`../public${post.image}`, import.meta.url)), `Missing cover image: ${post.image}`);
+    assert.ok(post.imageAlt, `Missing cover description: ${post.slug}`);
+    for (const photo of photos) {
+      assert.ok(existsSync(new URL(`../public${photo.url}`, import.meta.url)), `Missing photograph: ${photo.url}`);
+      assert.ok(photo.alt, `Missing photo description: ${post.slug}`);
+    }
   }
 });
