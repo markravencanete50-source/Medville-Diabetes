@@ -17,9 +17,9 @@ import { useParallax, useReveal } from "../lib/useReveal";
   and links here, and the footer links here, so there is a single destination
   rather than an anchor on one page and a list on another.
 
-  Posts come from the `posts` collection, which the client writes from the
-  dashboard. Until the first one is published this page says so plainly and
-  offers the phone number, rather than showing invented articles.
+  The three client-provided launch articles are bundled with the site. New
+  posts published from the dashboard join them through the `posts` collection.
+  If there are no articles, this page says so plainly and offers the phone.
 */
 export default function Blog() {
   usePageMeta(metaFor("/blog"));
@@ -45,14 +45,14 @@ export default function Blog() {
               className="rise-in mt-3 max-w-[20ch] font-display text-h1 font-bold text-on-dark"
               style={{ "--rise-delay": "150ms" } as React.CSSProperties}
             >
-              Simple Answers for Everyday Diabetes Questions
+              Diabetes Education for Everyday Life
             </h1>
             <p
               className="rise-in mt-4 max-w-[62ch] text-body-lg leading-relaxed text-on-dark-brand"
               style={{ "--rise-delay": "320ms" } as React.CSSProperties}
             >
-              Straightforward articles about continuous glucose monitors, insurance
-              coverage, and the questions that come up while managing diabetes.
+              Clear answers about food, glucose patterns, and daily life with diabetes.
+              Learn what to discuss with your healthcare team and explore tools that may help.
             </p>
           </Container>
         </section>
@@ -86,17 +86,17 @@ export default function Blog() {
                   data-reveal={0}
                   className="reveal-curtain reveal-glacial group grid gap-0 overflow-hidden rounded-[26px] bg-surface-raised shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover lg:grid-cols-2"
                 >
-                  <div>
                     {lead.image && (
-                      <div className="aspect-[16/10] overflow-hidden bg-grey-light lg:h-full">
+                      <div className="aspect-[16/10] overflow-hidden bg-grey-light lg:aspect-auto lg:h-full">
                         <img
                           src={lead.image}
                           alt={lead.imageAlt}
+                          fetchPriority="high"
                           className="h-full w-full object-cover"
                         />
                       </div>
                     )}
-                    <div className="flex flex-col justify-center p-8 md:p-10">
+                    <div className="flex min-w-0 flex-col justify-center p-8 md:p-10">
                       <PostMeta post={lead} />
                       <h2 className="mt-3 font-display text-h2 font-bold leading-tight text-ink">
                         {lead.title}
@@ -115,7 +115,6 @@ export default function Blog() {
                         />
                       </span>
                     </div>
-                  </div>
                 </Link>
 
                 {rest.length > 0 && (

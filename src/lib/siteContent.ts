@@ -22,6 +22,7 @@
 
 import { defaultsFor, type PageId, type PageValues, type SiteContent } from "../content/schema";
 import { decodeBlocks, isPostTemplate, type Post } from "../data/blog";
+import { EDITORIAL_POSTS } from "../data/editorialPosts";
 import type { Product } from "../data/products";
 import { products as builtInProducts } from "../data/products";
 import { firebaseConfig } from "./firebaseConfig";
@@ -63,7 +64,7 @@ export const EMPTY_SITE_DATA: SiteData = {
   products: builtInProducts,
   faqs: [],
   testimonials: [],
-  posts: [],
+  posts: EDITORIAL_POSTS,
 };
 
 export function isLiveContentConfigured() {
@@ -279,8 +280,17 @@ export async function loadSiteData(signal: AbortSignal): Promise<SiteData> {
     products: readProducts(productDocs),
     faqs: readFaqs(faqDocs),
     testimonials: readTestimonials(testimonialDocs),
-    posts: readPosts(postDocs),
+    posts: mergePosts(readPosts(postDocs)),
   };
+}
+
+/* The client-provided launch articles are part of the build, so they remain
+   readable even when Firestore is unavailable. Published dashboard posts can
+   replace a matching slug and add new articles without changing the routes. */
+function mergePosts(live: Post[]): Post[] {
+  const bySlug = new Map(EDITORIAL_POSTS.map((post) => [post.slug, post]));
+  for (const post of live) bySlug.set(post.slug, post);
+  return [...bySlug.values()].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
 }
 
 export function readCache(): SiteData | null {

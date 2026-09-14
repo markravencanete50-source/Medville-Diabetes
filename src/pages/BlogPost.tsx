@@ -92,14 +92,14 @@ export default function BlogPost() {
               <Grain opacity={0.07} />
               <div className="relative">
                 <h2 className="m-0 max-w-[26ch] font-display text-h3 font-bold text-on-dark">
-                  Wondering if your insurance may help cover a CGM?
+                  Have questions about CGMs or diabetes supplies?
                 </h2>
                 <p className="mt-2.5 max-w-[54ch] text-small leading-relaxed text-on-dark-brand">
-                  It only takes a few minutes to get started. Our team can review your
-                  potential eligibility and explain what comes next.
+                  Contact our team to discuss your options and potential eligibility.
+                  The conversation is free and carries no obligation.
                 </p>
-                <Button to="/qualify" variant="on-band" className="mt-6">
-                  Check My Eligibility
+                <Button to="/contact" variant="on-band" className="mt-6">
+                  Contact Our Team
                   <ArrowRight size={16} strokeWidth={2.2} />
                 </Button>
               </div>

@@ -11,6 +11,7 @@ const links = [
   { to: "/", label: "Home" },
   { to: "/products", label: "Our Products" },
   { to: "/services", label: "How It Works" },
+  { to: "/blog", label: "Blog" },
   { to: "/refer-a-patient", label: "Refer a Patient" },
   { to: "/about", label: "About Us" },
   { to: "/contact", label: "Contact" },
@@ -41,7 +42,7 @@ export default function Header() {
             <Logo className="h-12" />
           </Link>
 
-          <nav className="hidden items-center gap-6 lg:flex" aria-label="Main navigation">
+          <nav className="hidden items-center gap-6 xl:flex" aria-label="Main navigation">
             {links.map((l) => (
               <NavLink
                 key={l.to}
@@ -67,7 +68,7 @@ export default function Header() {
             ))}
           </nav>
 
-          <div className="hidden lg:block">
+          <div className="hidden xl:block">
             <Button to="/qualify" variant="cta" className="px-6 text-[0.875rem]">
               Check Eligibility
               <ArrowRight size={15} strokeWidth={2.2} />
@@ -76,7 +77,7 @@ export default function Header() {
 
           <button
             type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-md text-ink lg:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-md text-ink xl:hidden"
             aria-expanded={open}
             aria-controls="mobile-menu"
             aria-label={open ? "Close the menu" : "Open the menu"}
@@ -89,7 +90,7 @@ export default function Header() {
 
       {/* mobile drawer */}
       {open && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-50 xl:hidden">
           <button
             type="button"
             aria-label="Close the menu"
