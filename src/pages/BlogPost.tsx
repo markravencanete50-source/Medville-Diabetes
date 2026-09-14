@@ -10,6 +10,7 @@ import {
   hasAnimations,
   postPlainText,
   readingMinutes,
+  type HeadingBlock,
 } from "../data/blog";
 import { usePost, usePosts } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
@@ -54,6 +55,7 @@ export default function BlogPost() {
 
   const template = post.template ?? DEFAULT_TEMPLATE;
   const more = posts.filter((other) => other.slug !== post.slug).slice(0, 3);
+  const sections = post.body.filter((block): block is HeadingBlock => block.type === "heading" && block.level === 2);
 
   /* An article whose blocks arrive one by one is not wrapped in a reveal of
      its own, or every block would be animated twice. One without any block
@@ -78,9 +80,15 @@ export default function BlogPost() {
 
         <section className="py-12 md:py-16">
           <Container className={BODY_COLUMN[template]}>
+            {sections.length > 2 && <nav aria-label="In this article" className="mb-12 rounded-[18px] border border-line-brand bg-brand-tint p-6 md:p-8">
+              <h2 className="font-display text-[1.15rem] font-bold text-ink">In this article</h2>
+              <ol className="mt-4 grid list-none gap-y-3 p-0">
+                {sections.map((section) => <li key={section.id}><a href={`#section-${section.id}`} className="text-small font-medium leading-snug text-brand underline-offset-4 hover:underline">{section.text}</a></li>)}
+              </ol>
+            </nav>}
             <div
               {...(perBlock ? {} : reveal(80))}
-              className={perBlock ? undefined : "reveal-settle reveal-slow"}
+              className={perBlock ? "article-prose" : "article-prose reveal-settle reveal-slow"}
             >
               <PostBody blocks={post.body} />
             </div>
@@ -117,7 +125,7 @@ export default function BlogPost() {
                     key={other.slug}
                     to={`/blog/${other.slug}`}
                     data-reveal={index * 170}
-                    className="reveal-tilt reveal-slow group flex flex-col overflow-hidden rounded-lg bg-surface-raised shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover"
+                    className="group flex flex-col overflow-hidden rounded-[18px] border border-line-brand bg-surface-raised transition-shadow hover:shadow-soft"
                   >
                     {other.image && (
                       <div className="aspect-[3/2] overflow-hidden bg-grey-light">

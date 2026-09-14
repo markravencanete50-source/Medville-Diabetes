@@ -1,193 +1,80 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, CalendarDays, Clock, PenLine } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Container from "../components/Container";
-import Button from "../components/Button";
-import { Blob, Eyebrow, Grain } from "../components/Decor";
-import { formatPostDate, readingMinutes } from "../data/blog";
-import { PHONE_DISPLAY, PHONE_TEL } from "../data/company";
+import { formatPostDate, readingMinutes, type Post } from "../data/blog";
 import { usePosts } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
-import { useParallax, useReveal } from "../lib/useReveal";
 
-/*
-  The blog index: every published post, newest first.
+const TOPICS = [
+  { id: "monitoring", label: "Glucose monitoring", description: "Understand CGMs, glucose readings, and the patterns behind them." },
+  { id: "everyday", label: "Everyday living", description: "Practical answers about food, drinks, and life with diabetes." },
+  { id: "supplies", label: "Supplies and coverage", description: "Know what to ask about devices, prescriptions, and insurance." },
+] as const;
 
-  This is the one place posts live. The home page shows the three most recent
-  and links here, and the footer links here, so there is a single destination
-  rather than an anchor on one page and a list on another.
+export const TOPIC_BY_SLUG: Record<string, (typeof TOPICS)[number]["id"]> = {
+  "what-is-a-continuous-glucose-monitor": "monitoring",
+  "cgm-vs-finger-stick-blood-sugar-checks": "monitoring",
+  "how-to-understand-cgm-glucose-trends": "monitoring",
+  "did-eating-too-much-sugar-cause-diabetes": "everyday",
+  "do-i-have-to-give-up-carbs-with-diabetes": "everyday",
+  "can-i-drink-alcohol-with-diabetes": "everyday",
+  "what-to-ask-about-cgm-coverage": "supplies",
+};
 
-  The three client-provided launch articles are bundled with the site. New
-  posts published from the dashboard join them through the `posts` collection.
-  If there are no articles, this page says so plainly and offers the phone.
-*/
+function TopicFor({ post }: { post: Post }) {
+  return <span className="text-caption font-semibold uppercase tracking-[0.13em] text-brand">{TOPICS.find((topic) => topic.id === TOPIC_BY_SLUG[post.slug])?.label ?? "Diabetes education"}</span>;
+}
+
+function PostCard({ post }: { post: Post }) {
+  return <Link to={`/blog/${post.slug}`} className="group flex h-full flex-col overflow-hidden rounded-[18px] border border-line-brand bg-surface-raised transition-shadow hover:shadow-soft focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-brand">
+    {post.image && <div className="aspect-[16/10] overflow-hidden bg-grey-light"><img src={post.image} alt={post.imageAlt} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.025]" /></div>}
+    <div className="flex flex-1 flex-col p-6"><TopicFor post={post} />
+      <h3 className="mt-3 font-display text-[1.22rem] font-bold leading-[1.3] text-ink group-hover:text-brand">{post.title}</h3>
+      <p className="mt-3 text-small leading-relaxed text-grey-dark">{post.excerpt}</p>
+      <span className="mt-auto flex items-center justify-between gap-3 pt-6 text-caption text-grey-muted"><span>{formatPostDate(post.publishedAt)} · {readingMinutes(post.body)} min read</span><ArrowRight size={19} className="shrink-0 text-brand" aria-hidden="true" /></span>
+    </div>
+  </Link>;
+}
+
 export default function Blog() {
   usePageMeta(metaFor("/blog"));
-
-  const revealRef = useReveal<HTMLDivElement>();
-  const parallaxRef = useParallax<HTMLDivElement>();
   const posts = usePosts();
+  const featured = posts.find((post) => post.slug === "what-is-a-continuous-glucose-monitor") ?? posts[0];
+  const remaining = posts.filter((post) => post.slug !== featured?.slug);
+  const uncategorized = remaining.filter((post) => !TOPIC_BY_SLUG[post.slug]);
 
-  const [lead, ...rest] = posts;
+  return <>
+    <section className="bg-wash"><Container wide className="py-11 md:py-16">
+      <p className="text-caption font-semibold uppercase tracking-[0.18em] text-on-dark-accent">Medville Diabetes journal</p>
+      <h1 className="mt-4 max-w-[21ch] font-display text-h1 font-bold leading-tight text-on-dark">Clear Answers for Life With Diabetes</h1>
+      <p className="mt-4 max-w-[62ch] text-body-lg leading-relaxed text-on-dark-brand">Explore practical guides to glucose monitoring, daily choices, and getting the supplies you need. Each article gives you useful questions to take to your healthcare team.</p>
+    </Container></section>
 
-  return (
-    <div ref={revealRef}>
-      <div ref={parallaxRef}>
-        <section className="bg-wash relative overflow-hidden">
-          <Blob tone="brand" strength={0.18} blur={44} size={460} duration="20s" className="-left-[130px] -top-[150px]" />
-          <Blob tone="cyan" strength={0.12} blur={46} size={440} duration="26s" reverse className="-bottom-[190px] -right-[110px]" />
-          <Grain opacity={0.05} />
-          <Container wide className="relative py-12 md:py-20">
-            <p className="rise-in m-0">
-              <Eyebrow onDark>Learn</Eyebrow>
-            </p>
-            <h1
-              className="rise-in mt-3 max-w-[20ch] font-display text-h1 font-bold text-on-dark"
-              style={{ "--rise-delay": "150ms" } as React.CSSProperties}
-            >
-              Diabetes Education for Everyday Life
-            </h1>
-            <p
-              className="rise-in mt-4 max-w-[62ch] text-body-lg leading-relaxed text-on-dark-brand"
-              style={{ "--rise-delay": "320ms" } as React.CSSProperties}
-            >
-              Clear answers about food, glucose patterns, and daily life with diabetes.
-              Learn what to discuss with your healthcare team and explore tools that may help.
-            </p>
-          </Container>
-        </section>
+    <Container wide className="py-10 md:py-14">
+      {posts.length === 0 ? <p className="text-body text-grey-dark">Articles are coming soon. Explore our <Link to="/products/cgm" className="font-semibold text-brand underline">CGM products</Link> in the meantime.</p> : <>
+        <nav aria-label="Blog topics" className="flex flex-wrap gap-2 border-b border-line-brand pb-8">{TOPICS.map((topic) => <a key={topic.id} href={`#${topic.id}`} className="rounded-full border border-line-brand bg-surface-raised px-4 py-2 text-small font-semibold text-brand transition-colors hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-brand">{topic.label}</a>)}</nav>
+        {featured && <section aria-labelledby="start-heading" className="pt-10 md:pt-14">
+          <p className="text-caption font-semibold uppercase tracking-[0.16em] text-brand">Start here</p><h2 id="start-heading" className="mt-2 font-display text-h2 font-bold text-ink">A Guide to Glucose Monitoring</h2>
+          <Link to={`/blog/${featured.slug}`} className="group mt-6 grid overflow-hidden rounded-[20px] border border-line-brand bg-surface-raised shadow-soft focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-brand lg:grid-cols-[1.05fr_1fr]">
+            {featured.image && <div className="aspect-[16/10] overflow-hidden bg-grey-light lg:aspect-auto"><img src={featured.image} alt={featured.imageAlt} fetchPriority="high" className="h-full w-full object-cover" /></div>}
+            <div className="flex flex-col justify-center p-7 md:p-10"><TopicFor post={featured} /><h3 className="mt-3 max-w-[24ch] font-display text-h2 font-bold leading-tight text-ink group-hover:text-brand">{featured.title}</h3><p className="mt-4 max-w-[54ch] text-body leading-relaxed text-grey-dark">{featured.excerpt}</p><span className="mt-6 inline-flex items-center gap-2 text-small font-semibold text-brand">Read the guide <ArrowRight size={17} aria-hidden="true" /></span></div>
+          </Link>
+        </section>}
+        {TOPICS.map((topic) => {
+          const matches = remaining.filter((post) => TOPIC_BY_SLUG[post.slug] === topic.id);
+          return <section id={topic.id} key={topic.id} aria-labelledby={`${topic.id}-heading`} className="scroll-mt-24 pt-14 md:pt-20">
+            <div className="flex flex-col justify-between gap-3 border-t border-line-brand pt-8 md:flex-row md:items-end"><div><h2 id={`${topic.id}-heading`} className="font-display text-h2 font-bold text-ink">{topic.label}</h2><p className="mt-2 max-w-[60ch] text-body text-grey-dark">{topic.description}</p></div><span className="text-caption font-semibold text-grey-muted">{matches.length} {matches.length === 1 ? "article" : "articles"}</span></div>
+            {matches.length ? <div className="mt-7 grid gap-6 md:grid-cols-2 lg:grid-cols-3">{matches.map((post) => <PostCard key={post.slug} post={post} />)}</div> : <p className="mt-6 text-small text-grey-dark">More guides are on the way.</p>}
+          </section>;
+        })}
+        {uncategorized.length > 0 && <section aria-labelledby="more-heading" className="pt-16"><h2 id="more-heading" className="font-display text-h2 font-bold text-ink">More articles</h2><div className="mt-7 grid gap-6 md:grid-cols-2 lg:grid-cols-3">{uncategorized.map((post) => <PostCard key={post.slug} post={post} />)}</div></section>}
+      </>}
+    </Container>
 
-        <section className="pb-16 pt-10 md:pb-24 md:pt-14">
-          <Container wide>
-            {posts.length === 0 ? (
-              <div
-                data-reveal={0}
-                className="reveal-settle mx-auto max-w-[52ch] rounded-[24px] bg-surface-raised p-10 text-center shadow-soft"
-              >
-                <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft text-brand">
-                  <PenLine size={26} strokeWidth={2} aria-hidden="true" />
-                </span>
-                <h2 className="mt-5 font-display text-h3 font-bold text-ink">
-                  The first articles are on the way
-                </h2>
-                <p className="mt-3 text-body leading-relaxed text-grey-dark">
-                  We are writing them now. In the meantime, our team is happy to answer
-                  any question about continuous glucose monitors or coverage.
-                </p>
-                <Button href={PHONE_TEL} variant="cta" className="mt-7">
-                  Call {PHONE_DISPLAY}
-                </Button>
-              </div>
-            ) : (
-              <>
-                {/* The newest post gets the wide treatment. */}
-                <Link
-                  to={`/blog/${lead.slug}`}
-                  data-reveal={0}
-                  className="reveal-curtain reveal-glacial group grid gap-0 overflow-hidden rounded-[26px] bg-surface-raised shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover lg:grid-cols-2"
-                >
-                    {lead.image && (
-                      <div className="aspect-[16/10] overflow-hidden bg-grey-light lg:aspect-auto lg:h-full">
-                        <img
-                          src={lead.image}
-                          alt={lead.imageAlt}
-                          fetchPriority="high"
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <div className="flex min-w-0 flex-col justify-center p-8 md:p-10">
-                      <PostMeta post={lead} />
-                      <h2 className="mt-3 font-display text-h2 font-bold leading-tight text-ink">
-                        {lead.title}
-                      </h2>
-                      {lead.excerpt && (
-                        <p className="mt-3 max-w-[52ch] text-body leading-relaxed text-grey-dark">
-                          {lead.excerpt}
-                        </p>
-                      )}
-                      <span className="mt-6 inline-flex items-center gap-1.5 text-small font-semibold text-brand">
-                        Read the article
-                        <ArrowRight
-                          size={15}
-                          strokeWidth={2.2}
-                          className="transition-transform duration-(--duration-micro) group-hover:translate-x-0.5"
-                        />
-                      </span>
-                    </div>
-                </Link>
-
-                {rest.length > 0 && (
-                  <div className="mt-6 grid gap-6 [grid-template-columns:repeat(auto-fill,minmax(300px,1fr))]">
-                    {rest.map((post, index) => (
-                      <PostCard key={post.slug} post={post} delay={(index % 3) * 170} />
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </Container>
-        </section>
-      </div>
-    </div>
-  );
-}
-
-function PostMeta({ post }: { post: { publishedAt: string; body: unknown[] } }) {
-  const date = formatPostDate(post.publishedAt);
-  return (
-    <p className="m-0 flex flex-wrap items-center gap-x-4 gap-y-1 text-caption font-semibold uppercase tracking-[0.12em] text-brand">
-      {date && (
-        <span className="inline-flex items-center gap-1.5">
-          <CalendarDays size={14} strokeWidth={2.2} aria-hidden="true" />
-          {date}
-        </span>
-      )}
-      <span className="inline-flex items-center gap-1.5 text-grey-muted">
-        <Clock size={14} strokeWidth={2.2} aria-hidden="true" />
-        {readingMinutes(post.body as never)} min read
-      </span>
-    </p>
-  );
-}
-
-function PostCard({
-  post,
-  delay,
-}: {
-  post: ReturnType<typeof usePosts>[number];
-  delay: number;
-}) {
-  return (
-    <Link
-      to={`/blog/${post.slug}`}
-      data-reveal={delay}
-      className="reveal-tilt reveal-slow group flex flex-col overflow-hidden rounded-lg bg-surface-raised shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover"
-    >
-      {post.image && (
-        <div className="aspect-[3/2] overflow-hidden bg-grey-light">
-          <img
-            src={post.image}
-            alt={post.imageAlt}
-            loading="lazy"
-            data-parallax="0.4"
-            className="h-full w-full object-cover"
-          />
-        </div>
-      )}
-      <div className="flex flex-1 flex-col px-6 pb-6 pt-5">
-        <PostMeta post={post} />
-        <h3 className="mt-2.5 font-display text-[1.1rem] font-semibold leading-snug text-ink">
-          {post.title}
-        </h3>
-        {post.excerpt && (
-          <p className="mt-2 text-small leading-relaxed text-grey-dark">{post.excerpt}</p>
-        )}
-        <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-small font-semibold text-brand">
-          Read the article
-          <ArrowRight size={15} strokeWidth={2.2} />
-        </span>
-      </div>
-    </Link>
-  );
+    <section className="bg-brand-tint py-12 md:py-16"><Container wide className="grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
+      <div><h2 className="font-display text-h3 font-bold text-ink">Need help with diabetes supplies?</h2><p className="mt-2 max-w-[60ch] text-body leading-relaxed text-grey-dark">Learn about our CGM options and how our team helps you navigate the supply process.</p></div>
+      <div className="flex flex-wrap gap-3"><Link to="/products/cgm" className="rounded-full bg-brand px-5 py-3 text-small font-semibold text-on-dark hover:bg-brand-hover">Explore CGMs</Link><Link to="/services" className="rounded-full border border-brand px-5 py-3 text-small font-semibold text-brand hover:bg-surface-raised">How we help</Link></div>
+    </Container></section>
+  </>;
 }
