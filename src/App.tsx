@@ -81,7 +81,7 @@ function PublicSite() {
 }
 
 /*
-  Scrolls to the section named in the address bar.
+  Starts a new page at its top, or scrolls to the named section.
 
   The footer links to the guides band and the questions band on the home page,
   which are sections rather than pages. React Router changes the address
@@ -92,7 +92,10 @@ function ScrollToHash() {
   const { hash, pathname } = useLocation();
 
   useEffect(() => {
-    if (!hash) return;
+    if (!hash) {
+      window.scrollTo({ top: 0, behavior: "auto" });
+      return;
+    }
     const id = hash.slice(1);
     const frame = requestAnimationFrame(() => {
       document.getElementById(id)?.scrollIntoView({

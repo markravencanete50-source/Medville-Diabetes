@@ -150,6 +150,7 @@ export default function PostBody({ blocks }: { blocks: PostBlock[] }) {
               block.id,
               <Tag
                 key={block.id}
+                id={`section-${block.id}`}
                 {...(self["data-reveal"] !== undefined ? { "data-reveal": self["data-reveal"] } : {})}
                 className={`m-0 font-display font-bold text-ink ${
                   block.level === 3 ? "mt-3 text-[1.25rem]" : "mt-5 text-h3"

@@ -125,6 +125,7 @@ function Cover({
    Magazine post that has no picture yet. */
 function NavyHero({
   title,
+  excerpt,
   author,
   publishedAt,
   minutes,
@@ -133,6 +134,7 @@ function NavyHero({
   reserve,
 }: {
   title: string;
+  excerpt: string;
   author: string;
   publishedAt: string;
   minutes: number;
@@ -145,7 +147,7 @@ function NavyHero({
     <section className="bg-wash relative overflow-hidden">
       <Blob tone="brand" strength={0.15} blur={44} size={420} duration="22s" className="-left-[150px] -top-[160px]" />
       <Grain opacity={0.05} />
-      <Container className={`relative ${column} py-10 md:py-14 ${reserve ? "pb-24 md:pb-28" : ""}`}>
+      <Container className={`relative ${column} py-9 md:py-12 ${reserve ? "pb-12 md:pb-14" : ""}`}>
         {backLink && <Back tone="dark" />}
         <h1
           className={`rise-in font-display text-h1 font-bold leading-[1.12] text-on-dark ${backLink ? "mt-5" : ""}`}
@@ -153,6 +155,7 @@ function NavyHero({
         >
           {title}
         </h1>
+        {excerpt && <p className="rise-in mt-5 max-w-[65ch] text-body-lg leading-relaxed text-on-dark-brand" style={rise("220ms")}>{excerpt}</p>}
         <Meta publishedAt={publishedAt} minutes={minutes} author={author} tone="dark" />
       </Container>
     </section>
@@ -209,6 +212,7 @@ export default function ArticleHeader({
       return (
         <NavyHero
           title={title}
+          excerpt={excerpt}
           {...meta}
           backLink={backLink}
           column={BODY_COLUMN.magazine}
@@ -309,6 +313,7 @@ export default function ArticleHeader({
     <>
       <NavyHero
         title={title}
+        excerpt={excerpt}
         {...meta}
         backLink={backLink}
         column={column}
@@ -318,7 +323,7 @@ export default function ArticleHeader({
         <Container className={feature ? "max-w-[1100px]" : "max-w-[900px]"}>
           <div
             data-reveal={0}
-            className="reveal-curtain reveal-glacial -mt-16 overflow-hidden rounded-[24px] shadow-overlay md:-mt-20"
+            className="mt-6 overflow-hidden rounded-[18px] shadow-soft md:mt-8"
           >
             <div>
               <Cover

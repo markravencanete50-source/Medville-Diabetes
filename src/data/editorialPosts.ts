@@ -1,9 +1,11 @@
 import type { Post } from "./blog";
+import { ADDITIONAL_EDITORIAL_POSTS } from "./additionalEditorialPosts";
 
 /* Client-provided article drafts, edited for clear headings and launch-safe links.
    Keep these available at build time so article metadata and sitemap entries
    do not depend on a live Firestore request. */
 export const EDITORIAL_POSTS: Post[] = [
+  ...ADDITIONAL_EDITORIAL_POSTS,
   {
     "slug": "did-eating-too-much-sugar-cause-diabetes",
     "title": "Did Eating Too Much Sugar Cause My Diabetes?",
@@ -205,6 +207,11 @@ export const EDITORIAL_POSTS: Post[] = [
         "id": "did-eating-too-much-sugar-cause-diabetes-36",
         "type": "paragraph",
         "text": "This article is for educational purposes only and is not a substitute for medical advice, diagnosis, or treatment. Talk with your healthcare professional about your individual diabetes care."
+      },
+      {
+        "id": "did-eating-too-much-sugar-cause-diabetes-related",
+        "type": "paragraph",
+        "text": "For practical next steps, read about [carbohydrates and diabetes](/blog/do-i-have-to-give-up-carbs-with-diabetes) and [understanding CGM glucose trends](/blog/how-to-understand-cgm-glucose-trends)."
       },
       {
         "id": "did-eating-too-much-sugar-cause-diabetes-37",
@@ -460,6 +467,11 @@ export const EDITORIAL_POSTS: Post[] = [
         "text": "This article is for educational purposes only and is not a substitute for medical advice, diagnosis, or treatment. Talk with your healthcare professional before making major changes to your diet, medication, or diabetes treatment plan."
       },
       {
+        "id": "do-i-have-to-give-up-carbs-with-diabetes-related",
+        "type": "paragraph",
+        "text": "You can also read about [glucose trends in daily life](/blog/how-to-understand-cgm-glucose-trends) and [whether eating sugar causes diabetes](/blog/did-eating-too-much-sugar-cause-diabetes)."
+      },
+      {
         "id": "do-i-have-to-give-up-carbs-with-diabetes-42",
         "type": "heading",
         "level": 2,
@@ -705,6 +717,11 @@ export const EDITORIAL_POSTS: Post[] = [
         "id": "can-i-drink-alcohol-with-diabetes-38",
         "type": "paragraph",
         "text": "This article is for educational purposes only and is not a substitute for medical advice, diagnosis, or treatment. Speak with your healthcare professional about whether alcohol is safe with your medications and health conditions."
+      },
+      {
+        "id": "can-i-drink-alcohol-with-diabetes-related",
+        "type": "paragraph",
+        "text": "Learn more about [CGM and finger-stick checks](/blog/cgm-vs-finger-stick-blood-sugar-checks), including when a meter may still be needed."
       },
       {
         "id": "can-i-drink-alcohol-with-diabetes-39",
