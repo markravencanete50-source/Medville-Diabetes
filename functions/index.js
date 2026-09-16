@@ -11,6 +11,7 @@ const db = new Firestore();
 const catalog = JSON.parse(readFileSync(new URL("./catalog.json", import.meta.url), "utf8"));
 const DEFAULT_ORIGINS = "https://www.medvillediabetes.com,https://medvillediabetes.com,https://medville-diabetes.web.app";
 const referralRateLimitSecret = defineSecret("REFERRAL_RATE_LIMIT_SECRET");
+const resendApiKey = defineSecret("RESEND_API_KEY");
 
 const handler = createIntakeHandler({
   enabled: process.env.INTAKE_ENABLED === "true" && Boolean(process.env.RATE_LIMIT_SECRET)
@@ -67,7 +68,7 @@ const handler = createIntakeHandler({
 
 export const qualifyIntake = onRequest({
   region: "us-central1", cors: false, maxInstances: 2,
-  memory: "256MiB", timeoutSeconds: 30,
+  memory: "256MiB", timeoutSeconds: 30, secrets: [resendApiKey],
 }, handler);
 
 const attributionHandler = createAttributionHandler({

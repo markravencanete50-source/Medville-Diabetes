@@ -31,6 +31,7 @@
 */
 
 import { onRequest } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
 import { Firestore, FieldValue } from "@google-cloud/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { initializeApp, applicationDefault } from "firebase-admin/app";
@@ -43,6 +44,7 @@ initializeApp({ credential: applicationDefault() });
 
 const db = new Firestore();
 const auth = getAuth();
+const resendApiKey = defineSecret("RESEND_API_KEY");
 
 /*
   Allowed origins.
@@ -485,5 +487,5 @@ const ROUTES = {
 
 export const adminApi = onRequest({
   region: "us-central1", cors: false, maxInstances: 2,
-  memory: "256MiB", timeoutSeconds: 30,
+  memory: "256MiB", timeoutSeconds: 30, secrets: [resendApiKey],
 }, createAdminHandler({ authenticate, audit, routes: ROUTES, origins: ALLOWED_ORIGINS }));
