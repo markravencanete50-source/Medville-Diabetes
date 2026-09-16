@@ -158,9 +158,10 @@ export default function Leads() {
     try { await adminApi.auditExport(getToken, visible.map((lead) => lead.id)); }
     catch { toast("The export could not be recorded. Please try again.", "danger"); return; }
     const rows = [
-      ["Received", "First name", "Last name", "Email", "Phone", "City", "State", "Insulin daily", "Product", "Influencer", "Stage", "Note"],
+      ["Received", "Source", "First name", "Last name", "Email", "Phone", "City", "State", "Insulin daily", "Product", "Influencer", "Question", "Stage", "Internal note"],
       ...visible.map((lead) => [
         lead.createdAt ?? "",
+        lead.source === "contact" ? "Contact form" : "Eligibility form",
         lead.firstName,
         lead.lastName,
         lead.email,
@@ -170,6 +171,7 @@ export default function Leads() {
         lead.injectsInsulinDaily,
         lead.productName || PRODUCT_NAME.get(lead.productInterest) || lead.productInterest || "Not sure yet",
         lead.referralCode,
+        lead.message,
         LEAD_STATUS_LABEL[lead.status] ?? lead.status,
         lead.note,
       ]),
@@ -196,7 +198,7 @@ export default function Leads() {
     <>
       <PageHeader
         title="Enquiries"
-        lede="Everyone who has completed the qualification form, and where each one stands."
+        lede="Eligibility submissions and general contact questions, with their current status."
         actions={
           <>
           <button type="button" className="admin-btn admin-btn-quiet" disabled={!connected} onClick={() => void load()}><RefreshCw size={16} /> Refresh</button>
@@ -279,7 +281,7 @@ export default function Leads() {
                   <th scope="col">Name</th>
                   <th scope="col">Received</th>
                   <th scope="col">Location</th>
-                  <th scope="col">Product</th>
+                  <th scope="col">Enquiry</th>
                   <th scope="col">Influencer</th>
                   <th scope="col">Stage</th>
                 </tr>
@@ -304,8 +306,8 @@ export default function Leads() {
                     <td data-label="Location" style={{ color: "var(--a-text-muted)" }}>
                       {[lead.city, lead.state].filter(Boolean).join(", ") || "Not given"}
                     </td>
-                    <td data-label="Product" style={{ color: "var(--a-text-muted)" }}>
-                      {lead.productName || PRODUCT_NAME.get(lead.productInterest) || lead.productInterest || "Not sure yet"}
+                    <td data-label="Enquiry" style={{ color: "var(--a-text-muted)" }}>
+                      {lead.source === "contact" ? "General question" : lead.productName || PRODUCT_NAME.get(lead.productInterest) || lead.productInterest || "Not sure yet"}
                     </td>
                     <td data-label="Influencer" style={{ color: "var(--a-text-muted)" }}>
                       {lead.referralCode ? `@${lead.referralCode}` : "Direct"}
@@ -347,15 +349,14 @@ export default function Leads() {
               <Detail label="Location">
                 {[openLead.city, openLead.state].filter(Boolean).join(", ") || "Not given"}
               </Detail>
-              <Detail label="Insulin daily">
-                {openLead.injectsInsulinDaily === "yes" ? "Yes" : "No"}
-              </Detail>
-              <Detail label="Product">
-                {openLead.productName || PRODUCT_NAME.get(openLead.productInterest) || openLead.productInterest || "Not sure yet"}
-              </Detail>
-              <Detail label="Influencer">{openLead.referralCode ? `@${openLead.referralCode}` : "Direct"}</Detail>
+              {openLead.source === "contact" ? <Detail label="Enquiry type">General contact question</Detail> : <>
+                <Detail label="Insulin daily">{openLead.injectsInsulinDaily === "yes" ? "Yes" : "No"}</Detail>
+                <Detail label="Product">{openLead.productName || PRODUCT_NAME.get(openLead.productInterest) || openLead.productInterest || "Not sure yet"}</Detail>
+                <Detail label="Influencer">{openLead.referralCode ? `@${openLead.referralCode}` : "Direct"}</Detail>
+              </>}
               <Detail label="Email notification">{openLead.notificationStatus === "sent" ? "Sent" : openLead.notificationStatus === "failed" ? "Delivery failed" : "Pending setup or delivery"}</Detail>
             </dl>
+            {openLead.source === "contact" && <div className="rounded-lg p-4" style={{ background: "var(--a-brand-soft)" }}><p className="admin-label">Question</p><p className="mt-2 whitespace-pre-wrap text-[14px] leading-relaxed">{openLead.message}</p></div>}
             {openLead.notificationStatus !== "sent" && <button type="button" className="admin-btn admin-btn-quiet" disabled={saving} onClick={() => void retryNotification()}>Retry company notification</button>}
 
             <Field label="Stage" htmlFor="lead-status">

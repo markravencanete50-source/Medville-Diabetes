@@ -114,6 +114,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /contactLimits/{id} {
+      allow read, write: if false;
+    }
+
     /* ---- administrator roster ----
        A display mirror only, so the dashboard can list colleagues without a
        function round trip. The claim is what actually grants access, and the

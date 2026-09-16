@@ -166,11 +166,11 @@ signs in as themselves.
 
 ---
 
-## 6. Give the build the three function addresses
+## 6. Give the build the function addresses
 
 The Firebase web configuration is already committed in
 `src/lib/firebaseConfig.ts`, so nothing needs to be set for sign-in to work.
-Only the three function addresses are missing, and they are not known until
+Only the function addresses are missing, and they are not known until
 step 4 has run.
 
 They are read at build time, which means a build made before they are set
@@ -181,9 +181,10 @@ secrets** (GitHub, Settings, Secrets and variables, Actions):
 VITE_ADMIN_API         https://...adminApi...
 VITE_QUALIFY_ENDPOINT  https://...qualifyIntake...
 VITE_ATTRIBUTION_ENDPOINT https://...trackReferralClick...
+VITE_CONTACT_ENDPOINT    https://...contactEnquiry...
 ```
 
-Both deploy workflows already read those three names and pass them into
+Both deploy workflows read these names and pass them into
 `npm run build`, so nothing else changes. **Re-run the deploy afterwards**:
 these are compiled into the JavaScript, so adding a secret does nothing until
 the next build.

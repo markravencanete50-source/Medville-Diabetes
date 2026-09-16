@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, BookOpenText } from "lucide-react";
 import Container from "../components/Container";
 import { formatPostDate, readingMinutes, type Post } from "../data/blog";
 import { usePosts } from "../lib/useSiteData";
@@ -26,15 +26,29 @@ function TopicFor({ post }: { post: Post }) {
   return <span className="text-caption font-semibold uppercase tracking-[0.13em] text-brand">{TOPICS.find((topic) => topic.id === TOPIC_BY_SLUG[post.slug])?.label ?? "Diabetes education"}</span>;
 }
 
-function PostCard({ post }: { post: Post }) {
-  return <Link to={`/blog/${post.slug}`} className="group flex h-full flex-col overflow-hidden rounded-[18px] border border-line-brand bg-surface-raised transition-shadow hover:shadow-soft focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-brand">
-    {post.image && <div className="aspect-[16/10] overflow-hidden bg-grey-light"><img src={post.image} alt={post.imageAlt} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.025]" /></div>}
-    <div className="flex flex-1 flex-col p-6"><TopicFor post={post} />
-      <h3 className="mt-3 font-display text-[1.22rem] font-bold leading-[1.3] text-ink group-hover:text-brand">{post.title}</h3>
-      <p className="mt-3 text-small leading-relaxed text-grey-dark">{post.excerpt}</p>
-      <span className="mt-auto flex items-center justify-between gap-3 pt-6 text-caption text-grey-muted"><span>{formatPostDate(post.publishedAt)} · {readingMinutes(post.body)} min read</span><ArrowRight size={19} className="shrink-0 text-brand" aria-hidden="true" /></span>
-    </div>
-  </Link>;
+function EditorialPostRow({ post, imageRight = false }: { post: Post; imageRight?: boolean }) {
+  return <article>
+    <Link
+      to={`/blog/${post.slug}`}
+      className={`group grid overflow-hidden rounded-[20px] border border-line-brand shadow-soft transition-shadow hover:shadow-soft-hover focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-brand lg:grid-cols-2 ${imageRight ? "bg-brand-tint" : "bg-surface-raised"}`}
+    >
+      <div className={`relative aspect-[16/10] overflow-hidden bg-grey-light lg:aspect-auto lg:min-h-[340px] ${imageRight ? "lg:order-2" : ""}`}>
+        {post.image ? <img src={post.image} alt={post.imageAlt} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.035] motion-reduce:transition-none motion-reduce:group-hover:scale-100" /> : <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-4 bg-wash px-8 text-center text-on-dark">
+          <BookOpenText size={42} strokeWidth={1.5} aria-hidden="true" />
+          <span className="max-w-[18ch] font-display text-h3 font-bold">Practical diabetes education</span>
+        </div>}
+      </div>
+      <div className={`flex flex-col justify-center p-7 sm:p-9 lg:p-11 ${imageRight ? "lg:order-1" : ""}`}>
+        <TopicFor post={post} />
+        <h3 className="mt-3 max-w-[24ch] font-display text-h3 font-bold leading-tight text-ink transition-colors group-hover:text-brand">{post.title}</h3>
+        <p className="mt-4 max-w-[58ch] text-body leading-relaxed text-grey-dark">{post.excerpt}</p>
+        <div className="mt-7 flex flex-wrap items-center justify-between gap-4 border-t border-line-brand pt-5">
+          <span className="text-caption text-grey-muted">{formatPostDate(post.publishedAt)} · {readingMinutes(post.body)} min read</span>
+          <span className="inline-flex items-center gap-2 text-small font-semibold text-brand">Read article <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transition-none" aria-hidden="true" /></span>
+        </div>
+      </div>
+    </Link>
+  </article>;
 }
 
 export default function Blog() {
@@ -61,14 +75,14 @@ export default function Blog() {
             <div className="flex flex-col justify-center p-7 md:p-10"><TopicFor post={featured} /><h3 className="mt-3 max-w-[24ch] font-display text-h2 font-bold leading-tight text-ink group-hover:text-brand">{featured.title}</h3><p className="mt-4 max-w-[54ch] text-body leading-relaxed text-grey-dark">{featured.excerpt}</p><span className="mt-6 inline-flex items-center gap-2 text-small font-semibold text-brand">Read the guide <ArrowRight size={17} aria-hidden="true" /></span></div>
           </Link>
         </section>}
-        {TOPICS.map((topic) => {
+        {TOPICS.map((topic, topicIndex) => {
           const matches = remaining.filter((post) => TOPIC_BY_SLUG[post.slug] === topic.id);
           return <section id={topic.id} key={topic.id} aria-labelledby={`${topic.id}-heading`} className="scroll-mt-24 pt-14 md:pt-20">
             <div className="flex flex-col justify-between gap-3 border-t border-line-brand pt-8 md:flex-row md:items-end"><div><h2 id={`${topic.id}-heading`} className="font-display text-h2 font-bold text-ink">{topic.label}</h2><p className="mt-2 max-w-[60ch] text-body text-grey-dark">{topic.description}</p></div><span className="text-caption font-semibold text-grey-muted">{matches.length} {matches.length === 1 ? "article" : "articles"}</span></div>
-            {matches.length ? <div className="mt-7 grid gap-6 md:grid-cols-2 lg:grid-cols-3">{matches.map((post) => <PostCard key={post.slug} post={post} />)}</div> : <p className="mt-6 text-small text-grey-dark">More guides are on the way.</p>}
+            {matches.length ? <div className="mt-7 space-y-7 md:space-y-9">{matches.map((post, postIndex) => <EditorialPostRow key={post.slug} post={post} imageRight={(topicIndex + postIndex) % 2 === 1} />)}</div> : <p className="mt-6 text-small text-grey-dark">More guides are on the way.</p>}
           </section>;
         })}
-        {uncategorized.length > 0 && <section aria-labelledby="more-heading" className="pt-16"><h2 id="more-heading" className="font-display text-h2 font-bold text-ink">More articles</h2><div className="mt-7 grid gap-6 md:grid-cols-2 lg:grid-cols-3">{uncategorized.map((post) => <PostCard key={post.slug} post={post} />)}</div></section>}
+        {uncategorized.length > 0 && <section aria-labelledby="more-heading" className="pt-16"><h2 id="more-heading" className="font-display text-h2 font-bold text-ink">More articles</h2><div className="mt-7 space-y-7 md:space-y-9">{uncategorized.map((post, postIndex) => <EditorialPostRow key={post.slug} post={post} imageRight={postIndex % 2 === 1} />)}</div></section>}
       </>}
     </Container>
 

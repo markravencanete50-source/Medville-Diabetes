@@ -38,5 +38,6 @@ test("influencer input creates stable, URL-safe slugs", () => {
     name: "T1D Girlie", handle: "@t1d1girlie", platform: "Instagram", slug: "t1d1girlie",
   });
   assert.equal(validateInfluencerInput({ name: "Test", handle: "../../owner", platform: "Instagram" }), null);
+  assert.equal(validateInfluencerInput({ name: "Meta campaign", handle: "fall-cgm", platform: "Meta Ads" }).platform, "Meta Ads");
   assert.equal(validReferralCode("t1d1girlie"), true);
 });

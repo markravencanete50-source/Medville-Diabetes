@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createAdminHandler } from "../functions/admin/handler.js";
 import { normalizeRole, roleChangeError } from "../functions/admin/roles.js";
+import { passwordEmailMessage, sendAdminPasswordEmail } from "../functions/admin/password-email.js";
 const origin = "https://www.medvillediabetes.com";
 async function request({ role = "owner", body = { action: "leads.get" }, failAudit = false, failRun = false, requestOrigin = origin, method = "POST" } = {}) {
   let reads = 0; let audits = 0;
@@ -47,4 +48,45 @@ test("marketing cannot grant, remove or alter Owner access", () => {
 test("administrators cannot change their own access", () => {
   assert.match(roleChangeError({ actorRole: "marketing", targetRole: "marketing", nextRole: "sales", isSelf: true }), /own access/);
   assert.equal(roleChangeError({ actorRole: "owner", targetRole: "owner", nextRole: "owner", isSelf: true }), "");
+});
+
+test("password email uses clear Medville copy and a secure action link", () => {
+  const actionLink = "https://example.invalid/reset?mode=resetPassword&oobCode=safe-code";
+  const message = passwordEmailMessage({ actionLink, purpose: "reset" });
+  assert.match(message.subject, /Reset your Medville Diabetes dashboard password/);
+  assert.match(message.html, /MEDVILLE DIABETES/);
+  assert.match(message.html, /Reset password/);
+  assert.match(message.html, /28863 Industry Dr/);
+  assert.match(message.html, /oobCode=safe-code/);
+  assert.doesNotMatch(`${message.subject}${message.text}${message.html}`, /[\u2014*]/);
+});
+
+test("password email is sent from the configured Medville address", async () => {
+  const previousKey = process.env.RESEND_API_KEY;
+  const previousFrom = process.env.NOTIFICATION_FROM;
+  process.env.RESEND_API_KEY = "synthetic-test-key";
+  process.env.NOTIFICATION_FROM = "info@medvillediabetes.com";
+  try {
+    let request;
+    await sendAdminPasswordEmail({
+      email: "person@example.com",
+      uid: "admin-1",
+      actionLink: "https://example.invalid/reset?oobCode=one-time-code",
+      purpose: "invite",
+    }, async (url, options) => {
+      request = { url, options };
+      return { ok: true };
+    });
+    const body = JSON.parse(request.options.body);
+    assert.equal(request.url, "https://api.resend.com/emails");
+    assert.equal(body.from, "Medville Diabetes <info@medvillediabetes.com>");
+    assert.deepEqual(body.to, ["person@example.com"]);
+    assert.match(body.subject, /Set up your Medville Diabetes dashboard password/);
+    assert.match(request.options.headers["Idempotency-Key"], /^admin-password-admin-1-/);
+  } finally {
+    if (previousKey === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = previousKey;
+    if (previousFrom === undefined) delete process.env.NOTIFICATION_FROM;
+    else process.env.NOTIFICATION_FROM = previousFrom;
+  }
 });

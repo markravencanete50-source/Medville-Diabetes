@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { sendPasswordResetEmail } from "firebase/auth";
 import { Mail, Send } from "lucide-react";
 import { adminApi, AdminApiError, type AdminUser } from "../api";
-import { adminAuth, useAdminAuth } from "../auth";
+import { useAdminAuth } from "../auth";
 import { Badge, Banner, Card, Empty, Field, PageHeader, Spinner, formatDateTime, useToast } from "../ui";
 
 /*
@@ -15,13 +14,12 @@ import { Badge, Banner, Card, Empty, Field, PageHeader, Spinner, formatDateTime,
   An owner or marketing administrator invites somebody by email. The function creates the account and
   gives it a role but sets no password, so the invitation is not a credential:
   the person can only get in by following the link emailed to them and
-  choosing their own password. An intercepted invitation grants nothing.
+  choosing their own password. The one-time email link is a credential and is
+  sent only to that person's individual mailbox.
 
-  The email is sent by Identity Platform itself rather than through a mail
-  service. That keeps the stack inside the products covered by the BAA, adds
-  no monthly cost, and means there is no third party holding a list of who can
-  reach patient records. The wording of the email is edited in the Google
-  Cloud console under Identity Platform, Templates.
+  The server creates the Identity Platform password link, then sends a branded
+  message from the verified Medville domain. The browser never receives the
+  reset link or the mail service key.
 
   Changing a role revokes that person's current session, so a removal takes
   effect on their next request rather than whenever their token happens to
@@ -82,16 +80,15 @@ export default function Team() {
     setInviting(true);
     try {
       const result = await adminApi.inviteAdmin(getToken, email, inviteRole);
-      try {
-        await sendPasswordResetEmail(adminAuth(), email);
+      if (result.emailSent) {
         toast(
           result.created
             ? "Invitation sent. They will receive an email to choose a password."
             : "That account already existed. Its access was updated and an email was sent.",
         );
-      } catch {
+      } else {
         toast(
-          "The account was created but the email did not send. Use Resend invitation.",
+          "The account access was saved, but the email did not send. Use Send again in the list below.",
           "danger",
         );
       }
@@ -108,10 +105,10 @@ export default function Team() {
     if (!user.email) return;
     setBusyUid(user.uid);
     try {
-      await sendPasswordResetEmail(adminAuth(), user.email);
+      await adminApi.sendPasswordEmail(getToken, user.uid);
       toast("Email sent. The link lets them set a new password.");
-    } catch {
-      toast("The email did not send.", "danger");
+    } catch (problem) {
+      toast(problem instanceof AdminApiError ? problem.message : "The email did not send.", "danger");
     } finally {
       setBusyUid("");
     }
@@ -255,7 +252,7 @@ export default function Team() {
                               disabled={busyUid === user.uid || !user.email}
                               onClick={() => void resend(user)}
                             >
-                              <Mail size={14} /> Resend
+                              <Mail size={14} /> Send again
                             </button>
                           </span>
                         )}

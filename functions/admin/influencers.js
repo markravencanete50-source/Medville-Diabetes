@@ -1,7 +1,7 @@
 const HANDLE = /^@?[a-zA-Z0-9][a-zA-Z0-9._-]{0,49}$/;
 const NAME = /^[^\u0000-\u001f\u007f]{1,100}$/;
 
-export const INFLUENCER_PLATFORMS = ["Instagram", "TikTok", "Facebook", "YouTube", "Other"];
+export const INFLUENCER_PLATFORMS = ["Instagram", "TikTok", "Facebook", "Meta Ads", "YouTube", "Other"];
 
 export function slugFromHandle(value) {
   if (typeof value !== "string") return "";

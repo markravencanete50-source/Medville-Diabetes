@@ -36,6 +36,7 @@ import { Firestore, FieldValue } from "@google-cloud/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { initializeApp, applicationDefault } from "firebase-admin/app";
 import { sendNotification } from "./notification.js";
+import { sendAdminPasswordEmail } from "./password-email.js";
 import { createAdminHandler } from "./handler.js";
 import { ADMIN_ROLES, normalizeRole, roleChangeError } from "./roles.js";
 import { validateInfluencerInput } from "./influencers.js";
@@ -45,6 +46,7 @@ initializeApp({ credential: applicationDefault() });
 const db = new Firestore();
 const auth = getAuth();
 const resendApiKey = defineSecret("RESEND_API_KEY");
+const PUBLIC_SITE_URL = (process.env.PUBLIC_SITE_URL || "https://www.medvillediabetes.com").replace(/\/$/, "");
 
 /*
   Allowed origins.
@@ -125,6 +127,8 @@ function leadToJson(doc) {
     productInterest: d.productInterest ?? "",
     productName: d.productName ?? "",
     referralCode: d.referralCode ?? "",
+    source: d.source ?? "qualify",
+    message: d.message ?? "",
     notificationStatus: d.notificationStatus ?? "not-configured",
     status: d.status ?? "new",
     note: d.note ?? "",
@@ -332,10 +336,9 @@ async function listAdmins() {
   - Owners and Marketing may call this. Marketing cannot grant or alter Owner access.
   - It is written to the audit log before anything is returned, so an account
     can never appear without a record of who created it and when.
-  - No password is set. The account exists but cannot be signed in to until
-    the person proves control of the mailbox by following the link Firebase
-    emails them and choosing their own password. An invitation is not a
-    credential, so an intercepted invite grants nothing on its own.
+   - No password is set. The account exists but cannot be signed in to until
+     the person follows the one-time link and chooses a password. The link is
+     treated as a credential and is sent only to the person's own mailbox.
 */
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -413,7 +416,55 @@ async function inviteAdmin(actor, body) {
   /* The email address is not recorded: the uid identifies the account, and an
      audit entry should carry no more than it needs to. */
   await audit(actor, "admins.invite", { targetUid: user.uid, role, created });
-  return { ok: true, uid: user.uid, created };
+  let emailSent = true;
+  try {
+    const actionLink = await auth.generatePasswordResetLink(user.email, {
+      url: `${PUBLIC_SITE_URL}/admin`,
+      handleCodeInApp: false,
+    });
+    await sendAdminPasswordEmail({
+      email: user.email,
+      uid: user.uid,
+      actionLink,
+      purpose: "invite",
+    });
+    await audit(actor, "admins.passwordEmail.sent", { targetUid: user.uid, purpose: "invite" });
+  } catch {
+    emailSent = false;
+    await audit(actor, "admins.passwordEmail.failed", { targetUid: user.uid, purpose: "invite" });
+  }
+  return { ok: true, uid: user.uid, created, emailSent };
+}
+
+async function resendAdminPasswordEmail(actor, body) {
+  if (typeof body.uid !== "string" || !body.uid) return { error: "Unknown administrator." };
+  let user;
+  try {
+    user = await auth.getUser(body.uid);
+  } catch {
+    return { error: "Unknown administrator." };
+  }
+  if (!user.email || !normalizeRole(user.customClaims?.role)) {
+    return { error: "Unknown administrator." };
+  }
+  await audit(actor, "admins.passwordEmail.requested", { targetUid: user.uid, purpose: "reset" });
+  try {
+    const actionLink = await auth.generatePasswordResetLink(user.email, {
+      url: `${PUBLIC_SITE_URL}/admin`,
+      handleCodeInApp: false,
+    });
+    await sendAdminPasswordEmail({
+      email: user.email,
+      uid: user.uid,
+      actionLink,
+      purpose: "reset",
+    });
+    await audit(actor, "admins.passwordEmail.sent", { targetUid: user.uid, purpose: "reset" });
+    return { ok: true };
+  } catch {
+    await audit(actor, "admins.passwordEmail.failed", { targetUid: user.uid, purpose: "reset" });
+    return { error: "The email could not be sent. Please try again." };
+  }
 }
 
 async function setAdminRole(actor, body) {
@@ -467,6 +518,7 @@ const ROUTES = {
   "admins.list": { roles: ["owner", "marketing"], run: listAdmins },
   "admins.setRole": { roles: ["owner", "marketing"], run: setAdminRole },
   "admins.invite": { roles: ["owner", "marketing"], run: inviteAdmin },
+  "admins.sendPasswordEmail": { roles: ["owner", "marketing"], run: resendAdminPasswordEmail },
   "leads.notify": { roles: ["owner", "marketing", "sales"], run: async (actor, body) => {
     if (!validId(body.id)) return { error: "Not found." };
     const ref = db.collection("leads").doc(body.id);
@@ -474,7 +526,7 @@ const ROUTES = {
     if (!lead) return { error: "Not found." };
     if (lead.notificationStatus === "sent") return { ok: true };
     await audit(actor, "leads.notify", { leadId: body.id });
-    await sendNotification({ id: body.id, productName: lead.productName });
+    await sendNotification({ id: body.id, productName: lead.productName, kind: lead.source === "contact" ? "contact" : "eligibility" });
     await ref.update({ notificationStatus: "sent", notifiedAt: FieldValue.serverTimestamp() });
     return { ok: true };
   } },

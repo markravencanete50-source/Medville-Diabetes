@@ -1,13 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Copy, Link2, Plus, RefreshCw } from "lucide-react";
+import { BarChart3, Copy, Link2, Plus, RefreshCw, ShieldCheck } from "lucide-react";
 import { adminApi, AdminApiError, type Influencer } from "../api";
 import { useAdminAuth } from "../auth";
 import { Badge, Banner, Card, Empty, Field, PageHeader, Spinner, useToast } from "../ui";
 
-const PLATFORMS = ["Instagram", "TikTok", "Facebook", "YouTube", "Other"];
+const PLATFORMS = ["Instagram", "TikTok", "Facebook", "Meta Ads", "YouTube", "Other"];
 
-function referralUrl(slug: string) {
-  return `${window.location.origin}/qualify?ref=${encodeURIComponent(slug)}`;
+function referralUrl(item: Influencer) {
+  const url = new URL("/qualify", window.location.origin);
+  url.searchParams.set("ref", item.slug);
+  if (item.platform === "Meta Ads") {
+    url.searchParams.set("utm_source", "meta");
+    url.searchParams.set("utm_medium", "paid_social");
+    url.searchParams.set("utm_campaign", item.slug);
+  }
+  return url.toString();
 }
 
 export default function Influencers() {
@@ -66,7 +73,7 @@ export default function Influencers() {
 
   const copy = async (item: Influencer) => {
     try {
-      await navigator.clipboard.writeText(referralUrl(item.slug));
+      await navigator.clipboard.writeText(referralUrl(item));
       toast("Referral link copied.");
     } catch { toast("The link could not be copied. Select it from the table instead.", "danger"); }
   };
@@ -77,7 +84,7 @@ export default function Influencers() {
     <>
       <PageHeader
         title="Influencers"
-        lede="Create a unique eligibility link for each partner and see how many visits become enquiries."
+        lede="Create partner and paid social links, then compare unique visits, enquiries, and conversion rate."
         actions={<button type="button" className="admin-btn admin-btn-quiet" onClick={() => void load()}><RefreshCw size={16} /> Refresh</button>}
       />
 
@@ -89,6 +96,21 @@ export default function Influencers() {
         <Card><div className="admin-stat"><b>{totals.leads}</b><span>Enquiries</span></div></Card>
         <Card><div className="admin-stat"><b>{conversion}</b><span>Conversion</span></div></Card>
       </div>
+
+      <Card className="mb-4">
+        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg" style={{ background: "var(--a-brand-soft)", color: "var(--a-brand-text)" }}><BarChart3 size={19} /></span>
+            <div><p className="admin-label m-0">Meta Ads measurement</p><p className="admin-help mt-1 max-w-[720px]">Choose Meta Ads when you create a link. The URL includes a campaign name and Medville records unique visits, enquiries, and conversion rate without sending form answers or contact details to Meta.</p></div>
+          </div>
+          <Badge tone="warn">Pixel connection required</Badge>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="rounded-lg p-4" style={{ background: "var(--a-brand-soft)" }}><div className="flex items-center gap-2"><ShieldCheck size={16} style={{ color: "var(--a-brand-text)" }} /><p className="admin-label m-0">Available now</p></div><p className="admin-help mt-2">Campaign link, unique visits, enquiries, and on-site conversion rate.</p></div>
+          <div className="rounded-lg border p-4" style={{ borderColor: "var(--a-border)" }}><p className="admin-label m-0">Needs a Meta ad account connection</p><p className="admin-help mt-2">Impressions, spend, CTR, CPC, CPM, reach, and frequency. These figures come from the Meta Marketing API, not from the Pixel alone.</p></div>
+        </div>
+        <p className="admin-help mt-4">A browser Pixel is not active yet. This diabetes website must not send health information, form fields, or health-related page activity to Meta. Add the approved Pixel ID and ad account only after privacy and legal review.</p>
+      </Card>
 
       <Card className="mb-4">
         <form onSubmit={create}>
@@ -124,7 +146,7 @@ export default function Influencers() {
                 const rate = item.clicks ? `${((item.leads / item.clicks) * 100).toFixed(1)}%` : "0%";
                 return <tr key={item.slug}>
                   <td data-label="Influencer"><span className="font-semibold">{item.name}</span><span className="block text-xs" style={{ color: "var(--a-text-faint)" }}>{item.platform} · {item.handle}</span></td>
-                  <td data-label="Referral link"><input className="admin-input min-w-[260px]" readOnly value={referralUrl(item.slug)} aria-label={`Referral link for ${item.name}`} /></td>
+                  <td data-label="Referral link"><input className="admin-input min-w-[260px]" readOnly value={referralUrl(item)} aria-label={`Referral link for ${item.name}`} /></td>
                   <td data-label="Visits">{item.clicks}</td><td data-label="Enquiries">{item.leads}</td><td data-label="Conversion">{rate}</td>
                   <td data-label="Status"><Badge tone={item.active ? "ok" : "quiet"}>{item.active ? "Active" : "Paused"}</Badge></td>
                   <td><button type="button" className="admin-btn admin-btn-quiet admin-btn-sm" onClick={() => void copy(item)}><Copy size={14} /> Copy</button><button type="button" className="admin-btn admin-btn-quiet admin-btn-sm ml-2" disabled={busySlug === item.slug} onClick={() => void setActive(item)}>{item.active ? "Pause" : "Reactivate"}</button></td>

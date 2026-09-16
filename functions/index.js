@@ -4,6 +4,7 @@ import { Firestore, FieldValue } from "@google-cloud/firestore";
 import { createHash, createHmac } from "node:crypto";
 import { createIntakeHandler } from "./intake.js";
 import { createAttributionHandler } from "./attribution.js";
+import { createContactHandler } from "./contact.js";
 import { sendNotification } from "./notification.js";
 import { readFileSync } from "node:fs";
 
@@ -70,6 +71,58 @@ export const qualifyIntake = onRequest({
   region: "us-central1", cors: false, maxInstances: 2,
   memory: "256MiB", timeoutSeconds: 30, secrets: [resendApiKey],
 }, handler);
+
+const contactHandler = createContactHandler({
+  enabled: () => Boolean(referralRateLimitSecret.value()),
+  origins: (process.env.ALLOWED_ORIGIN || DEFAULT_ORIGINS).split(",").map((s) => s.trim()).filter(Boolean),
+  save: async (data, ip) => {
+    const reference = db.collection("leads").doc(data.submissionId);
+    const now = Date.now();
+    const bucket = Math.floor(now / 3600000);
+    const rateKey = createHmac("sha256", referralRateLimitSecret.value())
+      .update(`contact:${bucket}:${ip}`).digest("hex");
+    const rate = db.collection("contactLimits").doc(rateKey);
+    return db.runTransaction(async (tx) => {
+      const [existing, rateSnapshot] = await Promise.all([tx.get(reference), tx.get(rate)]);
+      if (existing.exists) return { duplicate: true };
+      const count = rateSnapshot.data()?.count || 0;
+      if (count >= 5) return { limited: true };
+      const { submissionId, privacyAccepted, message, ...contact } = data;
+      tx.set(rate, { count: count + 1, expiresAt: new Date(now + 7200000) });
+      tx.create(reference, {
+        ...contact,
+        injectsInsulinDaily: "",
+        productInterest: "",
+        productName: "General question",
+        referralCode: "",
+        source: "contact",
+        status: "new",
+        message,
+        note: "",
+        contactPrivacyAccepted: privacyAccepted,
+        createdAt: FieldValue.serverTimestamp(),
+        notificationStatus: "pending",
+      });
+      return { duplicate: false };
+    });
+  },
+  notify: async (id) => {
+    const ref = db.collection("leads").doc(id);
+    const lead = (await ref.get()).data();
+    if (!lead || lead.notificationStatus === "sent") return;
+    try {
+      await sendNotification({ productName: "General question", id, kind: "contact" });
+      await ref.update({ notificationStatus: "sent", notifiedAt: FieldValue.serverTimestamp() });
+    } catch {
+      await ref.update({ notificationStatus: "failed" });
+    }
+  },
+});
+
+export const contactEnquiry = onRequest({
+  region: "us-central1", cors: false, maxInstances: 2,
+  memory: "256MiB", timeoutSeconds: 30, secrets: [referralRateLimitSecret, resendApiKey],
+}, contactHandler);
 
 const attributionHandler = createAttributionHandler({
   enabled: () => Boolean(referralRateLimitSecret.value()),

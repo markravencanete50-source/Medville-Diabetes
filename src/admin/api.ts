@@ -33,6 +33,8 @@ export interface Lead {
   productInterest: string;
   productName: string;
   referralCode: string;
+  source: string;
+  message: string;
   notificationStatus: string;
   status: LeadStatus;
   note: string;
@@ -181,10 +183,13 @@ export const adminApi = {
      successfully means the person can be emailed, not that they can sign in
      yet. */
   inviteAdmin: (getToken: GetToken, email: string, role: string) =>
-    call<{ ok: true; uid: string; created: boolean }>(getToken, "admins.invite", {
+    call<{ ok: true; uid: string; created: boolean; emailSent: boolean }>(getToken, "admins.invite", {
       email,
       role,
     }),
+
+  sendPasswordEmail: (getToken: GetToken, uid: string) =>
+    call<{ ok: true }>(getToken, "admins.sendPasswordEmail", { uid }),
 };
 
 /* Turns a lead into the one line a table row shows. Kept here so no component

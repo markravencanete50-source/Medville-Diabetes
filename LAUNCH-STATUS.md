@@ -34,14 +34,10 @@ conversion. Referral URLs contain only a campaign code, never patient details.
    upgrade or this code review is not a HIPAA certificate. See
    [Google's HIPAA guidance](https://cloud.google.com/security/compliance/hipaa)
    and [Identity Platform guidance](https://cloud.google.com/security/compliance/hipaa/identity-platform).
-2. **Email sender:** Recipient is fixed server-side as `info@medvillediabetes.com`.
-   The inspected Resend account only had an unrelated client's domain verified.
-   Obtain approval for the Medville sending account/domain, verify its DNS, and
-   configure a restricted sending key. Do not use the other client's domain/key.
-   Eligibility notifications now include a compact branded HTML layout and use the
-   display name `Medville Diabetes` when `NOTIFICATION_FROM` is configured. Identity
-   Platform password-reset and invitation templates remain console-managed and must
-   be inspected and approved separately before their sender presentation is changed.
+2. **Email sender:** The Medville domain is verified in Resend and the restricted
+   sending key is stored in Secret Manager. Eligibility and contact notifications
+   contain no submitted personal details. Administrator invitation and password
+   emails use the same verified sender and a server-generated Identity Platform link.
 
 Billing is active on Blaze. All three backend functions are deployed and their
 verified production addresses are connected to the website build. Public intake
@@ -68,7 +64,7 @@ Then run `npm ci` separately in `functions` and `functions/admin`.
 module into the independently deployed admin source directory.
 
 Use Node.js 22 Cloud Run functions, source `functions` / `functions/admin`,
-entry points `qualifyIntake` / `trackReferralClick` / `adminApi`, region `us-central1`.
+entry points `qualifyIntake` / `contactEnquiry` / `trackReferralClick` / `adminApi`, region `us-central1`.
 Keep minimum instances at zero and set a reviewed maximum instance limit (for
 example, two). This limits scaling, not total charges. Use dedicated runtime
 service accounts with only required database, auth-management and secret access.
@@ -82,7 +78,7 @@ Configure these **server-side** values, never `VITE_` variables:
 | `RATE_LIMIT_SECRET` | Random secret in Secret Manager | Not used |
 | `RESEND_API_KEY` | Approved restricted key in Secret Manager | Same approved key |
 | `NOTIFICATION_FROM` | Verified Medville sender address | Same |
-| `REFERRAL_RATE_LIMIT_SECRET` | Secret Manager binding on `trackReferralClick` only | Not used |
+| `REFERRAL_RATE_LIMIT_SECRET` | Secret Manager binding on `trackReferralClick` and `contactEnquiry` | Not used |
 
 Production origins: `https://www.medvillediabetes.com`,
 `https://medvillediabetes.com`, `https://medville-diabetes.web.app`.

@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # The dashboard and the qualify form call two Cloud Run functions. Their
+      # The dashboard and public forms call Cloud Run functions. Their
       # addresses are read at build time, so a build with these unset ships a
       # bundle with nowhere to send anything, and the dashboard's Enquiries
       # screen fails with no way to tell why. They are addresses, not secrets,
@@ -25,6 +25,7 @@ jobs:
       # Repository settings -> Secrets and variables -> Actions:
       #   VITE_ADMIN_API         the adminApi function URL
       #   VITE_QUALIFY_ENDPOINT  the qualifyIntake function URL
+      #   VITE_CONTACT_ENDPOINT  the contactEnquiry function URL
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -34,6 +35,7 @@ jobs:
           VITE_ADMIN_API: ${{ secrets.VITE_ADMIN_API }}
           VITE_QUALIFY_ENDPOINT: ${{ secrets.VITE_QUALIFY_ENDPOINT }}
           VITE_ATTRIBUTION_ENDPOINT: ${{ secrets.VITE_ATTRIBUTION_ENDPOINT }}
+          VITE_CONTACT_ENDPOINT: ${{ secrets.VITE_CONTACT_ENDPOINT }}
           VITE_INTAKE_ENABLED: 'false'
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
