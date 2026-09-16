@@ -50,10 +50,11 @@ service cloud.firestore {
     }
 
     function hasFeature(feature) {
-      let features = signedIn() ? request.auth.token.get('features', null) : null;
+      let hasCustomFeatures = signedIn() && request.auth.token.keys().hasAny(['features']);
+      let features = hasCustomFeatures ? request.auth.token.features : [];
       return isOwner()
         || (features is list && feature in features)
-        || (!(features is list) && (
+        || (!hasCustomFeatures && (
           (isMarketing() && feature in ['overview', 'leads', 'influencers', 'products', 'content', 'blog', 'appearance', 'faqs', 'testimonials'])
           || (isSales() && feature in ['leads', 'products'])
         ));
