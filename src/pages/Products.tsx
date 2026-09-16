@@ -13,7 +13,7 @@ import {
   type ProductLine,
 } from "../data/products";
 import { PRODUCT_DISCLAIMER } from "../data/company";
-import { useLineProducts } from "../lib/useSiteData";
+import { useLineProducts, useSectionVisible } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 import { useReveal } from "../lib/useReveal";
@@ -76,6 +76,8 @@ export default function Products({ line }: { line: ProductLine }) {
     filter === "All Products" ? catalogue : catalogue.filter((p) => p.brand === filter);
   /* Brand pills only earn their place when there is more than one brand. */
   const showFilter = line === "cgm";
+  const showHero = useSectionVisible("products", "hero");
+  const showCatalog = useSectionVisible("products", "catalog");
 
   /* The grid arrives in a rotation of three shapes rather than one repeated
      slide, so a long listing keeps some variety as it scrolls past. */
@@ -84,7 +86,7 @@ export default function Products({ line }: { line: ProductLine }) {
   return (
     <div ref={revealRef} key={line}>
       {/* gradient hero */}
-      <section className="bg-wash relative overflow-hidden">
+      {showHero && <section className="bg-wash relative overflow-hidden">
         <Blob tone="brand" strength={0.18} blur={40} size={420} duration="20s" className="-left-[120px] -top-[140px]" />
         <Grain opacity={0.05} />
         <Container wide className="relative py-12 md:py-20">
@@ -116,9 +118,9 @@ export default function Products({ line }: { line: ProductLine }) {
             </p>
           ))}
         </Container>
-      </section>
+      </section>}
 
-      <section className="pb-16 pt-10 md:pb-24 md:pt-14">
+      {showCatalog && <section className="pb-16 pt-10 md:pb-24 md:pt-14">
         <Container wide>
           {showFilter && (
             <div
@@ -194,7 +196,7 @@ export default function Products({ line }: { line: ProductLine }) {
             {PRODUCT_DISCLAIMER}
           </p>
         </Container>
-      </section>
+      </section>}
 
       <QuickView
         product={quickView ? getProduct(quickView) ?? null : null}

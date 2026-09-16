@@ -17,6 +17,7 @@ import { Blob, Eyebrow, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 import { useParallax, useReveal } from "../lib/useReveal";
+import { useSectionVisible } from "../lib/useSiteData";
 
 /*
   About Us.
@@ -101,12 +102,17 @@ export default function About() {
   usePageMeta(metaFor("/about"));
   const revealRef = useReveal<HTMLDivElement>();
   const parallaxRef = useParallax<HTMLDivElement>();
+  const showHero = useSectionVisible("about", "hero");
+  const showMissionVision = useSectionVisible("about", "missionVision");
+  const showStory = useSectionVisible("about", "story");
+  const showPromises = useSectionVisible("about", "promises");
+  const showClosing = useSectionVisible("about", "closing");
 
   return (
     <div ref={revealRef}>
       <div ref={parallaxRef}>
         {/* hero: copy on the left, photograph bleeding off the right */}
-        <section className="bg-wash relative overflow-hidden">
+        {showHero && <section className="bg-wash relative overflow-hidden">
           <Blob tone="brand" strength={0.14} blur={44} size={420} duration="22s" className="-left-[160px] -top-[150px]" />
           <Grain opacity={0.05} />
 
@@ -200,10 +206,10 @@ export default function About() {
               ))}
             </ul>
           </Container>
-        </section>
+        </section>}
 
         {/* mission and vision, each over its own photograph */}
-        <section className="py-16 md:py-24">
+        {showMissionVision && <section className="py-16 md:py-24">
           <Container wide>
             <div data-reveal={0} className="max-w-[600px]">
               <Eyebrow>Why we are here</Eyebrow>
@@ -252,10 +258,10 @@ export default function About() {
               ))}
             </div>
           </Container>
-        </section>
+        </section>}
 
         {/* the company story */}
-        <section className="bg-why-band py-16 md:py-24">
+        {showStory && <section className="bg-why-band py-16 md:py-24">
           <Container>
             <div data-reveal={0}>
               <Eyebrow>Backed by Medville</Eyebrow>
@@ -281,10 +287,10 @@ export default function About() {
               Reliable supplies. Dedicated support. More time for life.
             </p>
           </Container>
-        </section>
+        </section>}
 
         {/* three promises */}
-        <section className="bg-grey-light py-14 md:py-20">
+        {showPromises && <section className="bg-grey-light py-14 md:py-20">
           <Container>
             <div data-reveal={0} className="mb-10 max-w-[560px]">
               <Eyebrow>Three promises</Eyebrow>
@@ -319,10 +325,10 @@ export default function About() {
               ))}
             </div>
           </Container>
-        </section>
+        </section>}
 
         {/* closing call to action */}
-        <section className="bg-cta-band relative overflow-hidden py-16">
+        {showClosing && <section className="bg-cta-band relative overflow-hidden py-16">
           <Grain opacity={0.07} />
           <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-32 opacity-25">
             <GlucoseWave variant="onDark" className="h-full" />
@@ -348,7 +354,7 @@ export default function About() {
               </Button>
             </div>
           </Container>
-        </section>
+        </section>}
       </div>
     </div>
   );

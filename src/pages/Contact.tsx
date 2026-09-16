@@ -5,6 +5,7 @@ import { Blob, Eyebrow, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 import { useReveal } from "../lib/useReveal";
+import { usePageText, useSectionVisible } from "../lib/useSiteData";
 import {
   ADDRESS_LINE_1,
   ADDRESS_LINE_2,
@@ -32,37 +33,39 @@ import {
 export default function Contact() {
   usePageMeta(metaFor("/contact"));
   const revealRef = useReveal<HTMLDivElement>();
+  const { text } = usePageText("contact");
+  const showHero = useSectionVisible("contact", "hero");
+  const showDetails = useSectionVisible("contact", "details");
+  const showEligibility = useSectionVisible("contact", "eligibility");
 
   return (
     <div ref={revealRef}>
-      <section className="bg-wash relative overflow-hidden">
+      {showHero && <section className="bg-wash relative overflow-hidden">
         <Blob tone="brand" strength={0.28} blur={42} size={420} duration="20s" className="-left-[130px] -top-[120px]" />
         <Grain opacity={0.06} />
         <Container className="relative max-w-3xl pb-24 pt-14 md:pb-28 md:pt-20">
           <p className="rise-in m-0">
-            <Eyebrow onDark>Contact us</Eyebrow>
+            <Eyebrow onDark>{text("hero.eyebrow")}</Eyebrow>
           </p>
           <h1
             className="rise-in mt-3 font-display text-h1 font-bold text-on-dark"
             style={{ "--rise-delay": "150ms" } as React.CSSProperties}
           >
-            Need Help? Start Here.
+            {text("hero.heading")}
           </h1>
           <p
             className="rise-in mt-4 max-w-[62ch] text-body-lg leading-relaxed text-on-dark-brand"
             style={{ "--rise-delay": "320ms" } as React.CSSProperties}
           >
-            Have a question about a product, your eligibility submission, supplies, or
-            next steps? Reach out to the Medville Diabetes team and we will help point
-            you in the right direction.
+            {text("hero.body")}
           </p>
         </Container>
-      </section>
+      </section>}
 
       {/* relative, so the cards paint over the hero they hang from */}
-      <section className="relative pb-16 md:pb-24">
+      {(showDetails || showEligibility) && <section className="relative pb-16 md:pb-24">
         <Container className="max-w-3xl">
-          <div className="-mt-14 grid gap-4 sm:grid-cols-2 md:-mt-16">
+          {showDetails && <div className={`${showHero ? "-mt-14 md:-mt-16" : "mt-10"} grid gap-4 sm:grid-cols-2`}>
             <ContactCard delay={0} motion="reveal-left" icon={<Phone size={19} />} label="Phone">
               <a href={PHONE_TEL} className="inline-block py-1 font-semibold text-ink transition-colors hover:text-brand">
                 {PHONE_DISPLAY}
@@ -86,10 +89,10 @@ export default function Contact() {
               <p className="m-0 font-semibold text-ink">{ADDRESS_LINE_1}</p>
               <p className="m-0 text-small text-grey-dark">{ADDRESS_LINE_2}</p>
             </ContactCard>
-          </div>
+          </div>}
 
           {/* navy eligibility panel */}
-          <div
+          {showEligibility && <div
             data-reveal={0}
             className="bg-cta-band reveal-blur reveal-glacial relative mt-10 overflow-hidden rounded-[24px] p-7 sm:p-9"
           >
@@ -107,9 +110,9 @@ export default function Contact() {
                 <ArrowRight size={16} strokeWidth={2.2} />
               </Button>
             </div>
-          </div>
+          </div>}
         </Container>
-      </section>
+      </section>}
     </div>
   );
 }

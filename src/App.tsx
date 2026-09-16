@@ -16,7 +16,8 @@ import BlogPost from "./pages/BlogPost";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
-import { SiteDataProvider } from "./lib/useSiteData";
+import { SiteDataProvider, usePageVisible } from "./lib/useSiteData";
+import type { PageId } from "./content/schema";
 
 /*
   The dashboard is one lazy chunk, so a marketing visitor never downloads
@@ -58,18 +59,18 @@ function PublicSite() {
       <Header />
       <main id="main">
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/products" element={<ProductsLanding />} />
-          <Route path="/products/cgm" element={<Products line="cgm" />} />
-          <Route path="/products/insulin-pumps" element={<Products line="insulin-pump" />} />
-          <Route path="/products/:slug" element={<ProductDetail />} />
-          <Route path="/services" element={<Services />} />
-          <Route path="/refer-a-patient" element={<ReferPatient />} />
-          <Route path="/blog" element={<Blog />} />
-          <Route path="/blog/:slug" element={<BlogPost />} />
-          <Route path="/qualify" element={<Qualify />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
+          <Route path="/" element={<PageGuard page="home"><Home /></PageGuard>} />
+          <Route path="/products" element={<PageGuard page="products"><ProductsLanding /></PageGuard>} />
+          <Route path="/products/cgm" element={<PageGuard page="products"><Products line="cgm" /></PageGuard>} />
+          <Route path="/products/insulin-pumps" element={<PageGuard page="products"><Products line="insulin-pump" /></PageGuard>} />
+          <Route path="/products/:slug" element={<PageGuard page="products"><ProductDetail /></PageGuard>} />
+          <Route path="/services" element={<PageGuard page="services"><Services /></PageGuard>} />
+          <Route path="/refer-a-patient" element={<PageGuard page="refer"><ReferPatient /></PageGuard>} />
+          <Route path="/blog" element={<PageGuard page="blog"><Blog /></PageGuard>} />
+          <Route path="/blog/:slug" element={<PageGuard page="blog"><BlogPost /></PageGuard>} />
+          <Route path="/qualify" element={<PageGuard page="qualify"><Qualify /></PageGuard>} />
+          <Route path="/about" element={<PageGuard page="about"><About /></PageGuard>} />
+          <Route path="/contact" element={<PageGuard page="contact"><Contact /></PageGuard>} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="*" element={<NotFound />} />
@@ -78,6 +79,10 @@ function PublicSite() {
       <Footer />
     </SiteDataProvider>
   );
+}
+
+function PageGuard({ page, children }: { page: PageId; children: React.ReactNode }) {
+  return usePageVisible(page) ? children : <NotFound />;
 }
 
 /*

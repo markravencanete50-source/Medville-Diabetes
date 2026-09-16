@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink } from "lucide-react";
-import { PAGES, type PageId, type PageValues, fieldPath } from "../../content/schema";
+import { Eye, EyeOff, ExternalLink } from "lucide-react";
+import {
+  PAGE_VISIBILITY_KEY,
+  PAGES,
+  fieldPath,
+  pageIsVisible,
+  sectionIsVisible,
+  sectionVisibilityKey,
+  type PageId,
+  type PageValues,
+} from "../../content/schema";
 import {
   isImageAddress,
   loadPage,
@@ -67,8 +76,8 @@ export default function Content() {
   return (
     <>
       <PageHeader
-        title="Page text"
-        lede="Change the words on any page. Leave a box empty to keep the wording the site was built with."
+        title="Edit pages"
+        lede="Edit page text and choose which pages and sections visitors can see."
         actions={
           <>
             <a
@@ -117,11 +126,29 @@ export default function Content() {
         </Card>
       ) : (
         <div className="flex flex-col gap-4">
+          <Card>
+            <VisibilityControl
+              label={`${page.label} page`}
+              help="Hidden pages are removed from the website navigation and cannot be opened by visitors."
+              visible={pageIsVisible(values)}
+              onChange={(visible) => set(PAGE_VISIBILITY_KEY, visible ? "" : "hidden")}
+            />
+          </Card>
           {page.blocks.map((block) => (
             <Card key={block.id}>
-              <h2 className="mb-3 font-display text-[15px] font-semibold tracking-[-0.01em]">
-                {block.label}
-              </h2>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em]">
+                  {block.label}
+                </h2>
+                {block.hideable !== false && (
+                  <VisibilityControl
+                    compact
+                    label={block.label}
+                    visible={sectionIsVisible(values, block.id)}
+                    onChange={(visible) => set(sectionVisibilityKey(block.id), visible ? "" : "hidden")}
+                  />
+                )}
+              </div>
               <div className="flex flex-col gap-3.5">
                 {block.fields.map((field) => {
                   const key = fieldPath(block.id, field.key);
@@ -176,6 +203,42 @@ export default function Content() {
         </div>
       )}
     </>
+  );
+}
+
+function VisibilityControl({
+  label,
+  help,
+  visible,
+  compact = false,
+  onChange,
+}: {
+  label: string;
+  help?: string;
+  visible: boolean;
+  compact?: boolean;
+  onChange: (visible: boolean) => void;
+}) {
+  const Icon = visible ? Eye : EyeOff;
+  return (
+    <div className={compact ? "" : "flex flex-wrap items-center justify-between gap-3"}>
+      {!compact && (
+        <div>
+          <p className="font-display text-[15px] font-semibold">{label}</p>
+          {help && <p className="admin-help">{help}</p>}
+        </div>
+      )}
+      <button
+        type="button"
+        className={`admin-btn admin-btn-sm ${visible ? "admin-btn-quiet" : "admin-btn-primary"}`}
+        aria-pressed={visible}
+        aria-label={`${visible ? "Hide" : "Show"} ${label}`}
+        onClick={() => onChange(!visible)}
+      >
+        <Icon size={15} aria-hidden="true" />
+        {visible ? "Visible" : "Hidden"}
+      </button>
+    </div>
   );
 }
 

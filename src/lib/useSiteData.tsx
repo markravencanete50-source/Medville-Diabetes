@@ -9,7 +9,12 @@ import {
   type SiteData,
   type ThemeOverrides,
 } from "./siteContent";
-import { defaultsFor, type PageId } from "../content/schema";
+import {
+  defaultsFor,
+  pageIsVisible,
+  sectionIsVisible,
+  type PageId,
+} from "../content/schema";
 import type { ProductLine } from "../data/products";
 
 /*
@@ -118,6 +123,16 @@ export function usePageText(pageId: PageId) {
 
     return { text, parts };
   }, [content, pageId]);
+}
+
+export function usePageVisible(pageId: PageId) {
+  const { content } = useSiteData();
+  return pageIsVisible(content[pageId]);
+}
+
+export function useSectionVisible(pageId: PageId, blockId: string) {
+  const { content } = useSiteData();
+  return sectionIsVisible(content[pageId], blockId);
 }
 
 /* Products, faqs and testimonials for the public pages. */

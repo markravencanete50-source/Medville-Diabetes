@@ -5,7 +5,7 @@ import { createIntakeHandler, validateSubmission } from "../functions/intake.js"
 import { notificationMessage, sendNotification } from "../functions/notification.js";
 
 const origin = "https://www.medvillediabetes.com";
-const sample = () => ({ firstName: "Test", lastName: "Example", email: "test@example.invalid", phone: "2025550147", city: "Example City", state: "California", injectsInsulinDaily: "no", productInterest: "dexcom-g7", submissionId: randomUUID() });
+const sample = () => ({ firstName: "Test", lastName: "Example", email: "test@example.invalid", phone: "2025550147", city: "Example City", state: "California", injectsInsulinDaily: "no", productInterest: "dexcom-g7", consentAccepted: true, submissionId: randomUUID() });
 const response = () => ({ code: 200, headers: {}, set(k, v) { this.headers[k] = v; return this; }, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; }, send(body) { this.body = body; return this; } });
 function harness(options = {}) {
   const saved = new Map();
@@ -44,7 +44,7 @@ test("allows preflight without writing", async () => {
   const h = harness(); assert.equal((await h.call({}, { method: "OPTIONS" })).code, 204); assert.equal(h.saved.size, 0);
 });
 test("rejects invalid and malicious form values without echoing them", async () => {
-  for (const patch of [{ phone: "-------" }, { state: "Not a state" }, { email: "not-an-email" }, { firstName: "\nprivate" }, { productInterest: "../../secrets" }, { injectsInsulinDaily: "maybe" }, { website: "spam" }, { submissionId: "../record" }]) {
+  for (const patch of [{ phone: "-------" }, { state: "Not a state" }, { email: "not-an-email" }, { firstName: "\nprivate" }, { productInterest: "" }, { productInterest: "../../secrets" }, { consentAccepted: false }, { injectsInsulinDaily: "maybe" }, { website: "spam" }, { submissionId: "../record" }]) {
     const h = harness(); const result = await h.call({ ...sample(), ...patch });
     assert.equal(result.code, 400); assert.equal(h.saved.size, 0);
     assert.equal(JSON.stringify(result.body).includes("test@example.invalid"), false);
@@ -71,8 +71,9 @@ test("storage failure never reports success", async () => {
 test("notification includes selected product and protected dashboard, no patient fields", async () => {
   const data = sample(); const message = notificationMessage("Dexcom G7");
   assert.match(message.text, /Product selected: Dexcom G7/); assert.match(message.text, /\/admin#leads/);
+  assert.match(message.html, /Medville <span[^>]*>Diabetes/); assert.match(message.html, /Dexcom G7/);
   for (const key of ["firstName", "lastName", "email", "phone", "city"]) assert.equal(message.text.includes(data[key]), false);
-  assert.equal(Object.keys(message).length, 2);
+  assert.equal(Object.keys(message).length, 3);
 });
 test("notification delivery uses server-only sender, fixed recipient and idempotency", async () => {
   const oldKey = process.env.RESEND_API_KEY; const oldFrom = process.env.NOTIFICATION_FROM;
@@ -80,7 +81,9 @@ test("notification delivery uses server-only sender, fixed recipient and idempot
   try {
     await sendNotification({ productName: "Dexcom G7", id: "test-uuid" }, async (url, options) => {
       assert.equal(url, "https://api.resend.com/emails");
-      assert.deepEqual(JSON.parse(options.body).to, ["info@medvillediabetes.com"]);
+      const body = JSON.parse(options.body);
+      assert.deepEqual(body.to, ["info@medvillediabetes.com"]);
+      assert.equal(body.from, "Medville Diabetes <test@example.invalid>");
       assert.equal(options.headers["Idempotency-Key"], "eligibility-test-uuid");
       return { ok: true };
     });

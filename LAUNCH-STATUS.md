@@ -2,10 +2,12 @@
 
 ## Release scope
 
-The original eligibility questions and client consent copy are preserved. The
-questions are visible even before activation, but no patient information can be
-entered or submitted while the launch flag is off. The homepage Front/Back badge
-is removed; keyboard activation and vertical touch scrolling are supported.
+The original eligibility questions are preserved. Visitors can review and interact
+with the fields before activation, but the submit button and server intake remain
+disabled while the launch flag is off, so no patient information is transmitted or
+saved. Every visible field is required, including product selection and the explicit
+consent checkbox requested by the client. Selecting a product shows its image and a
+short educational note without adding or removing form questions.
 
 Dashboard fixes include token-refresh loop prevention, stable session expiry,
 audited record opening and CSV export, pagination, refresh, notification status
@@ -13,6 +15,11 @@ and retry, and keyboard focus handling. Server authorization checks revoked
 tokens and role claims; audit failures do not disclose records. Draft blog posts
 and testimonials are no longer readable by anonymous visitors. Direct browser
 access to enquiries, audit logs, and role writes remains denied.
+
+The dashboard Edit Pages screen can hide or show complete public pages and named
+page sections. Hidden pages are removed from public navigation and resolve to the
+site's not-found screen. The homepage blog section now explains that its articles
+support practical health and lifestyle learning.
 
 The dashboard also creates a unique `/qualify?ref=...` link for each influencer,
 counts anonymous visits once per browser tab session, attributes completed
@@ -31,6 +38,10 @@ conversion. Referral URLs contain only a campaign code, never patient details.
    The inspected Resend account only had an unrelated client's domain verified.
    Obtain approval for the Medville sending account/domain, verify its DNS, and
    configure a restricted sending key. Do not use the other client's domain/key.
+   Eligibility notifications now include a compact branded HTML layout and use the
+   display name `Medville Diabetes` when `NOTIFICATION_FROM` is configured. Identity
+   Platform password-reset and invitation templates remain console-managed and must
+   be inspected and approved separately before their sender presentation is changed.
 
 Billing is active on Blaze. All three backend functions are deployed and their
 verified production addresses are connected to the website build. Public intake
@@ -103,7 +114,7 @@ for development. Remove synthetic production records through an approved process
 
 ## Verification and remaining review
 
-- `npm test`: 31 passing HTTP-boundary, role-boundary, referral and notification tests, using fake services.
+- `npm test`: 33 passing HTTP-boundary, role-boundary, referral and notification tests, using fake services.
 - Firestore emulator: 5 passing suites covering publication filtering, role-based
   marketing edits, private collections and roster restrictions.
 - TypeScript and production build pass. Large 3D/admin bundles remain a performance

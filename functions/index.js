@@ -17,7 +17,6 @@ const handler = createIntakeHandler({
     && Boolean(process.env.RESEND_API_KEY) && Boolean(process.env.NOTIFICATION_FROM),
   origins: (process.env.ALLOWED_ORIGIN || DEFAULT_ORIGINS).split(",").map((s) => s.trim()).filter(Boolean),
   resolveProduct: async (slug) => {
-    if (!slug) return { slug: "", name: "Not sure yet" };
     const saved = await db.collection("products").doc(slug).get();
     const product = { ...catalog[slug], ...(saved.exists ? saved.data() : {}) };
     if (product.deleted || (product.status && product.status !== "available") || typeof product.name !== "string") return null;

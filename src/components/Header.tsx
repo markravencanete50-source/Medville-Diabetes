@@ -6,20 +6,25 @@ import Logo from "./Logo";
 import Button from "./Button";
 
 import { PHONE_DISPLAY, PHONE_TEL } from "../data/company";
+import { pageIsVisible, type PageId } from "../content/schema";
+import { useSiteData } from "../lib/useSiteData";
 
 const links = [
-  { to: "/", label: "Home" },
-  { to: "/products", label: "Our Products" },
-  { to: "/services", label: "How It Works" },
-  { to: "/blog", label: "Blog" },
-  { to: "/refer-a-patient", label: "Refer a Patient" },
-  { to: "/about", label: "About Us" },
-  { to: "/contact", label: "Contact" },
-];
+  { to: "/", label: "Home", page: "home" },
+  { to: "/products", label: "Our Products", page: "products" },
+  { to: "/services", label: "How It Works", page: "services" },
+  { to: "/blog", label: "Blog", page: "blog" },
+  { to: "/refer-a-patient", label: "Refer a Patient", page: "refer" },
+  { to: "/about", label: "About Us", page: "about" },
+  { to: "/contact", label: "Contact", page: "contact" },
+] satisfies { to: string; label: string; page: PageId }[];
 
 export default function Header() {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const { content } = useSiteData();
+  const visibleLinks = links.filter((link) => pageIsVisible(content[link.page]));
+  const eligibilityVisible = pageIsVisible(content.qualify);
 
   /* Close the drawer with the Escape key and lock body scroll while open. */
   useEffect(() => {
@@ -43,7 +48,7 @@ export default function Header() {
           </Link>
 
           <nav className="hidden items-center gap-6 xl:flex" aria-label="Main navigation">
-            {links.map((l) => (
+            {visibleLinks.map((l) => (
               <NavLink
                 key={l.to}
                 to={l.to}
@@ -68,12 +73,12 @@ export default function Header() {
             ))}
           </nav>
 
-          <div className="hidden xl:block">
+          {eligibilityVisible && <div className="hidden xl:block">
             <Button to="/qualify" variant="cta" className="px-6 text-[0.875rem]">
               Check Eligibility
               <ArrowRight size={15} strokeWidth={2.2} />
             </Button>
-          </div>
+          </div>}
 
           <button
             type="button"
@@ -114,7 +119,7 @@ export default function Header() {
               </button>
             </div>
             <nav className="flex flex-col gap-1 p-4" aria-label="Mobile navigation">
-              {links.map((l) => (
+              {visibleLinks.map((l) => (
                 <NavLink
                   key={l.to}
                   to={l.to}
@@ -131,9 +136,11 @@ export default function Header() {
               ))}
             </nav>
             <div className="mt-auto space-y-3 border-t border-line-brand p-5">
-              <Button to="/qualify" variant="cta" className="w-full">
-                Check Eligibility
-              </Button>
+              {eligibilityVisible && (
+                <Button to="/qualify" variant="cta" className="w-full">
+                  Check Eligibility
+                </Button>
+              )}
               <a
                 href={PHONE_TEL}
                 className="flex items-center justify-center gap-2 py-2 text-small font-medium text-grey-muted"

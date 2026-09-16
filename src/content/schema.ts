@@ -31,6 +31,7 @@ export interface BlockDef {
   id: string;
   label: string;
   fields: FieldDef[];
+  hideable?: boolean;
 }
 
 export interface PageDef {
@@ -40,11 +41,33 @@ export interface PageDef {
   blocks: BlockDef[];
 }
 
-export type PageId = "home" | "products" | "services" | "about" | "contact";
+export type PageId =
+  | "home"
+  | "products"
+  | "services"
+  | "blog"
+  | "qualify"
+  | "refer"
+  | "about"
+  | "contact";
 
 /* A saved page document is a flat map of "blockId.fieldKey" to the value. */
 export type PageValues = Record<string, string>;
 export type SiteContent = Partial<Record<PageId, PageValues>>;
+
+export const PAGE_VISIBILITY_KEY = "__visibility.page";
+
+export function sectionVisibilityKey(blockId: string) {
+  return `__visibility.section.${blockId}`;
+}
+
+export function pageIsVisible(values: PageValues | undefined) {
+  return values?.[PAGE_VISIBILITY_KEY] !== "hidden";
+}
+
+export function sectionIsVisible(values: PageValues | undefined, blockId: string) {
+  return values?.[sectionVisibilityKey(blockId)] !== "hidden";
+}
 
 export const PAGES: PageDef[] = [
   {
@@ -55,6 +78,7 @@ export const PAGES: PageDef[] = [
       {
         id: "meta",
         label: "Search engine listing",
+        hideable: false,
         fields: [
           {
             key: "title",
@@ -124,6 +148,41 @@ export const PAGES: PageDef[] = [
           },
         ],
       },
+      { id: "stats", label: "Experience numbers", fields: [] },
+      { id: "process", label: "How it works", fields: [] },
+      { id: "products", label: "Featured products", fields: [] },
+      { id: "whyCgm", label: "Why continuous monitoring", fields: [] },
+      { id: "testimonials", label: "Customer experiences", fields: [] },
+      { id: "cta", label: "Eligibility banner", fields: [] },
+      {
+        id: "blog",
+        label: "Health and lifestyle articles",
+        fields: [
+          {
+            key: "eyebrow",
+            label: "Small label above the heading",
+            kind: "text",
+            max: 40,
+            fallback: "Learn for daily life",
+          },
+          {
+            key: "heading",
+            label: "Heading",
+            kind: "text",
+            max: 90,
+            fallback: "Practical Guides for Your Health and Lifestyle",
+          },
+          {
+            key: "body",
+            label: "Paragraph",
+            kind: "longText",
+            max: 360,
+            fallback:
+              "Explore clear articles about nutrition, activity, sleep, glucose patterns, and diabetes technology. Use them to build questions for your healthcare team and make informed choices in daily life.",
+          },
+        ],
+      },
+      { id: "faqs", label: "Common questions", fields: [] },
     ],
   },
 
@@ -135,6 +194,7 @@ export const PAGES: PageDef[] = [
       {
         id: "meta",
         label: "Search engine listing",
+        hideable: false,
         fields: [
           {
             key: "title",
@@ -181,6 +241,7 @@ export const PAGES: PageDef[] = [
           },
         ],
       },
+      { id: "catalog", label: "Product categories and catalog", fields: [] },
     ],
   },
 
@@ -192,6 +253,7 @@ export const PAGES: PageDef[] = [
       {
         id: "meta",
         label: "Search engine listing",
+        hideable: false,
         fields: [
           {
             key: "title",
@@ -349,6 +411,7 @@ export const PAGES: PageDef[] = [
       {
         id: "meta",
         label: "Search engine listing",
+        hideable: false,
         fields: [
           {
             key: "title",
@@ -401,6 +464,10 @@ export const PAGES: PageDef[] = [
           },
         ],
       },
+      { id: "missionVision", label: "Mission and vision", fields: [] },
+      { id: "story", label: "Company story", fields: [] },
+      { id: "promises", label: "What you can expect", fields: [] },
+      { id: "closing", label: "Closing banner", fields: [] },
     ],
   },
 
@@ -412,6 +479,7 @@ export const PAGES: PageDef[] = [
       {
         id: "meta",
         label: "Search engine listing",
+        hideable: false,
         fields: [
           {
             key: "title",
@@ -486,7 +554,26 @@ export const PAGES: PageDef[] = [
           },
         ],
       },
+      { id: "eligibility", label: "Eligibility banner", fields: [] },
     ],
+  },
+  {
+    id: "blog",
+    label: "Blog",
+    path: "/blog",
+    blocks: [],
+  },
+  {
+    id: "qualify",
+    label: "Eligibility Form",
+    path: "/qualify",
+    blocks: [{ id: "form", label: "Eligibility form", fields: [] }],
+  },
+  {
+    id: "refer",
+    label: "Refer a Patient",
+    path: "/refer-a-patient",
+    blocks: [],
   },
 ];
 

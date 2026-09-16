@@ -10,6 +10,8 @@ import {
   PHONE_DISPLAY,
   PHONE_TEL,
 } from "../data/company";
+import { pageIsVisible, sectionIsVisible, type PageId } from "../content/schema";
+import { useSiteData } from "../lib/useSiteData";
 
 /*
   Global footer, laid out as the four columns the client's copy document
@@ -30,27 +32,40 @@ const headingClass =
   "m-0 font-display text-caption font-semibold uppercase tracking-[0.16em] text-on-dark-accent";
 
 const EXPLORE = [
-  { to: "/", label: "Home" },
-  { to: "/about", label: "About Us" },
-  { to: "/contact", label: "Contact" },
-  { to: "/qualify", label: "Check Eligibility" },
-  { to: "/refer-a-patient", label: "Refer a Patient" },
-];
+  { to: "/", label: "Home", page: "home" },
+  { to: "/about", label: "About Us", page: "about" },
+  { to: "/contact", label: "Contact", page: "contact" },
+  { to: "/qualify", label: "Check Eligibility", page: "qualify" },
+  { to: "/refer-a-patient", label: "Refer a Patient", page: "refer" },
+] satisfies { to: string; label: string; page: PageId }[];
 
 const PRODUCTS = [
-  { to: "/products/cgm", label: "Continuous Glucose Monitors" },
-  { to: "/products/insulin-pumps", label: "Insulin Pumps" },
-  { to: "/products", label: "All Products" },
-];
+  { to: "/products/cgm", label: "Continuous Glucose Monitors", page: "products" },
+  { to: "/products/insulin-pumps", label: "Insulin Pumps", page: "products" },
+  { to: "/products", label: "All Products", page: "products" },
+] satisfies { to: string; label: string; page: PageId }[];
 
-const RESOURCES = [
-  { to: "/blog", label: "Blog" },
-  { to: "/#faqs", label: "FAQs" },
+type ResourceLink = {
+  to: string;
+  label: string;
+  page?: PageId;
+  section?: string;
+};
+
+const RESOURCES: ResourceLink[] = [
+  { to: "/blog", label: "Blog", page: "blog" },
+  { to: "/#faqs", label: "FAQs", page: "home", section: "faqs" },
   { to: "/privacy-policy", label: "Privacy Policy" },
   { to: "/terms-of-service", label: "Terms of Service" },
 ];
 
 export default function Footer() {
+  const { content } = useSiteData();
+  const pageVisible = (page: PageId | undefined) => !page || pageIsVisible(content[page]);
+  const resourceVisible = (item: ResourceLink) =>
+    pageVisible(item.page)
+    && (!item.section || sectionIsVisible(content.home, item.section));
+
   return (
     <footer className="relative">
       {/*
@@ -88,7 +103,7 @@ export default function Footer() {
           <nav aria-label="Explore">
             <h3 className={headingClass}>Explore</h3>
             <ul className="mt-3 flex list-none flex-col gap-0.5 p-0">
-              {EXPLORE.map((item) => (
+              {EXPLORE.filter((item) => pageVisible(item.page)).map((item) => (
                 <li key={item.to}>
                   <Link to={item.to} className={linkClass}>
                     {item.label}
@@ -101,7 +116,7 @@ export default function Footer() {
           <nav aria-label="Products">
             <h3 className={headingClass}>Products</h3>
             <ul className="mt-3 flex list-none flex-col gap-0.5 p-0">
-              {PRODUCTS.map((item) => (
+              {PRODUCTS.filter((item) => pageVisible(item.page)).map((item) => (
                 <li key={item.to}>
                   <Link to={item.to} className={linkClass}>
                     {item.label}
@@ -114,7 +129,7 @@ export default function Footer() {
           <nav aria-label="Resources">
             <h3 className={headingClass}>Resources</h3>
             <ul className="mt-3 flex list-none flex-col gap-0.5 p-0">
-              {RESOURCES.map((item) => (
+              {RESOURCES.filter(resourceVisible).map((item) => (
                 <li key={item.to}>
                   <Link to={item.to} className={linkClass}>
                     {item.label}

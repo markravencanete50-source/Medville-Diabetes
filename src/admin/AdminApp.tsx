@@ -97,7 +97,7 @@ const NAV: { id: Section; label: string; icon: typeof BarChart3; group: string }
   { id: "leads", label: "Enquiries", icon: ClipboardList, group: "Enquiries" },
   { id: "influencers", label: "Influencers", icon: Megaphone, group: "Enquiries" },
   { id: "products", label: "Products", icon: Package, group: "Website" },
-  { id: "content", label: "Page text", icon: FileText, group: "Website" },
+  { id: "content", label: "Edit pages", icon: FileText, group: "Website" },
   { id: "blog", label: "Blog", icon: PenSquare, group: "Website" },
   { id: "appearance", label: "Colours", icon: Palette, group: "Website" },
   { id: "faqs", label: "Questions", icon: MessageSquareQuote, group: "Website" },

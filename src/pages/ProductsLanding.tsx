@@ -4,7 +4,7 @@ import Container from "../components/Container";
 import { Blob, Eyebrow, Grain } from "../components/Decor";
 import type { ProductLine } from "../data/products";
 import { PRODUCT_DISCLAIMER } from "../data/company";
-import { useProducts } from "../lib/useSiteData";
+import { usePageText, useProducts, useSectionVisible } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 import { useParallax, useReveal } from "../lib/useReveal";
@@ -50,36 +50,37 @@ export default function ProductsLanding() {
   const revealRef = useReveal<HTMLDivElement>();
   const parallaxRef = useParallax<HTMLDivElement>();
   const catalogue = useProducts();
+  const { text } = usePageText("products");
+  const showHero = useSectionVisible("products", "hero");
+  const showCatalog = useSectionVisible("products", "catalog");
 
   return (
     <div ref={revealRef}>
       <div ref={parallaxRef}>
         {/* gradient hero */}
-        <section className="bg-wash relative overflow-hidden">
+        {showHero && <section className="bg-wash relative overflow-hidden">
           <Blob tone="brand" strength={0.18} blur={40} size={420} duration="20s" className="-left-[120px] -top-[140px]" />
           <Grain opacity={0.05} />
           <Container wide className="relative py-12 md:py-20">
             <p className="rise-in m-0">
-              <Eyebrow onDark>Our Products</Eyebrow>
+              <Eyebrow onDark>{text("hero.eyebrow")}</Eyebrow>
             </p>
             <h1
               className="rise-in mt-3 max-w-[20ch] font-display text-h1 font-bold text-on-dark"
               style={{ "--rise-delay": "140ms" } as React.CSSProperties}
             >
-              Diabetes Technology That Fits Into Real Life
+              {text("hero.heading")}
             </h1>
             <p
               className="rise-in mt-4 max-w-[62ch] text-body-lg leading-relaxed text-on-dark-brand"
               style={{ "--rise-delay": "300ms" } as React.CSSProperties}
             >
-              Explore continuous glucose monitors, sensors, supplies, and insulin
-              delivery technology from leading diabetes brands, backed by support to
-              help make getting what you need easier.
+              {text("hero.body")}
             </p>
           </Container>
-        </section>
+        </section>}
 
-        <section className="pb-16 pt-10 md:pb-24 md:pt-14">
+        {showCatalog && <section className="pb-16 pt-10 md:pb-24 md:pt-14">
           <Container wide>
             <div className="grid gap-6 md:grid-cols-2">
               {LINES.map((entry, index) => {
@@ -148,7 +149,7 @@ export default function ProductsLanding() {
               {PRODUCT_DISCLAIMER}
             </p>
           </Container>
-        </section>
+        </section>}
       </div>
     </div>
   );

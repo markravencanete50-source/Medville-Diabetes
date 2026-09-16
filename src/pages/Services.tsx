@@ -12,6 +12,7 @@ import { Blob, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 import { prefersReducedMotion } from "../lib/useReveal";
+import { usePageText, useSectionVisible } from "../lib/useSiteData";
 
 /*
   Our Services: the customer journey told as one scroll.
@@ -149,6 +150,11 @@ function CycleFallback() {
 
 export default function Services() {
   usePageMeta(metaFor("/services"));
+  const { text, parts } = usePageText("services");
+  const showHero = useSectionVisible("services", "hero");
+  const showCycle = useSectionVisible("services", "cycle");
+  const showStages = useSectionVisible("services", "stages");
+  const showClosing = useSectionVisible("services", "closing");
 
   const [revealed, setRevealed] = useState<Set<number>>(() => new Set<number>());
   const [motion, setMotion] = useState(false);
@@ -197,20 +203,19 @@ export default function Services() {
 
   return (
     <div className={`journey ${motion ? "journey-motion" : ""}`}>
-      <section className="journey-hero bg-wash">
+      {showHero && <section className="journey-hero bg-wash">
         <Blob tone="brand" strength={0.28} blur={48} size={500} className="-left-[205px] -top-[210px]" />
         <Blob tone="brand" strength={0.2} blur={48} size={520} className="-bottom-[250px] -right-[220px]" />
         <Grain />
         <Container wide className="journey-hero-grid">
           <div className="journey-hero-copy">
-            <p className="journey-eyebrow">How the process works</p>
+            <p className="journey-eyebrow">{text("hero.eyebrow")}</p>
             <h1>
-              From your first call to <em>every supply delivery.</em>
+              {parts("hero.heading").map((part, index) =>
+                part.accent ? <em key={index}>{part.value}</em> : part.value
+              )}
             </h1>
-            <p className="journey-hero-lede">
-              Medville handles the coordination with your doctor and insurance
-              provider, making the process simple from start to finish.
-            </p>
+            <p className="journey-hero-lede">{text("hero.body")}</p>
             <div className="journey-hero-actions">
               <Button variant="ghost-dark" onClick={() => goToStage(0)}>
                 See the journey
@@ -222,8 +227,8 @@ export default function Services() {
 
           <div className="journey-hero-photo">
             <img
-              src={IMAGES.hero}
-              alt="A woman at home checks her phone while wearing a continuous glucose monitor."
+              src={text("hero.image") || IMAGES.hero}
+              alt={text("hero.imageAlt")}
               width={1600}
               height={900}
             />
@@ -234,23 +239,22 @@ export default function Services() {
             </div>
           </div>
         </Container>
-      </section>
+      </section>}
 
-      <Suspense fallback={<CycleFallback />}>
+      {showCycle && <Suspense fallback={<CycleFallback />}>
         <CareCycle3D />
-      </Suspense>
+      </Suspense>}
 
-      <section className="journey-stages" aria-label="The three steps of the Medville care process">
+      {showStages && <section className="journey-stages" aria-label="The three steps of the Medville care process">
         <Container wide>
           <div className="journey-stages-intro">
-            <p className="journey-eyebrow">The detailed process</p>
+            <p className="journey-eyebrow">{text("stages.eyebrow")}</p>
             <h2>
-              Three clear steps. <em>The whole process, explained.</em>
+              {parts("stages.heading").map((part, index) =>
+                part.accent ? <em key={index}>{part.value}</em> : part.value
+              )}
             </h2>
-            <p className="journey-stages-lede">
-              Each step outlines the work our team completes to keep your CGM
-              supplies moving forward.
-            </p>
+            <p className="journey-stages-lede">{text("stages.body")}</p>
           </div>
         </Container>
 
@@ -311,25 +315,24 @@ export default function Services() {
             );
           })}
         </div>
-      </section>
+      </section>}
 
-      <section className="journey-closing bg-why-band">
+      {showClosing && <section className="journey-closing bg-why-band">
         <Grain />
         <Container className="journey-closing-content">
           <p className="journey-eyebrow">The full care path</p>
           <h2>
-            We handle the process. <em>You focus on your health.</em>
+            {parts("closing.heading").map((part, index) =>
+              part.accent ? <em key={index}>{part.value}</em> : part.value
+            )}
           </h2>
-          <p className="journey-closing-lede">
-            Medville stays with your order from the first conversation through
-            recurring deliveries.
-          </p>
+          <p className="journey-closing-lede">{text("closing.body")}</p>
           <Button to="/qualify" variant="cta" className="min-h-[52px] px-8">
-            Check My Eligibility
+            {text("closing.cta")}
             <ArrowRight size={16} strokeWidth={2.2} />
           </Button>
         </Container>
-      </section>
+      </section>}
     </div>
   );
 }

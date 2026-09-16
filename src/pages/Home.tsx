@@ -25,7 +25,15 @@ import Faq from "../components/Faq";
 import { FALLBACK_FAQS, type FaqItem } from "../data/faqs";
 import { Blob, Eyebrow, Grain } from "../components/Decor";
 import HeroViewer from "../components/HeroViewer";
-import { useFaqs, usePosts, useProduct, useProducts, useTestimonials } from "../lib/useSiteData";
+import {
+  useFaqs,
+  usePageText,
+  usePosts,
+  useProduct,
+  useProducts,
+  useSectionVisible,
+  useTestimonials,
+} from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 import { useParallax, useReveal } from "../lib/useReveal";
@@ -136,6 +144,16 @@ export default function Home() {
     providers: 6000,
   });
   const [quickView, setQuickView] = useState<string | null>(null);
+  const { text } = usePageText("home");
+  const showHero = useSectionVisible("home", "hero");
+  const showStats = useSectionVisible("home", "stats");
+  const showProcess = useSectionVisible("home", "process");
+  const showProducts = useSectionVisible("home", "products");
+  const showWhyCgm = useSectionVisible("home", "whyCgm");
+  const showTestimonials = useSectionVisible("home", "testimonials");
+  const showCta = useSectionVisible("home", "cta");
+  const showBlog = useSectionVisible("home", "blog");
+  const showFaqs = useSectionVisible("home", "faqs");
 
   const products = useProducts();
   const hero = useProduct("freestyle-libre-3");
@@ -159,7 +177,7 @@ export default function Home() {
       <div ref={parallaxRef}>
         {/* HERO: navy, like every page's opening, with the product card lit
             from behind in the brand cyan */}
-        <section className="bg-wash relative overflow-hidden">
+        {showHero && <section className="bg-wash relative overflow-hidden">
           <Blob tone="brand" strength={0.3} blur={40} size={460} duration="18s" className="-left-[120px] -top-[140px]" />
           <Blob tone="brand" strength={0.22} blur={46} size={520} duration="24s" reverse className="-bottom-[160px] -right-[100px]" />
           <Grain opacity={0.06} />
@@ -170,39 +188,39 @@ export default function Home() {
           <Container wide className="relative grid items-center gap-10 py-14 md:py-24 lg:grid-cols-2 lg:gap-16">
             <div>
               <p className="rise-in m-0 inline-flex items-center rounded-full border border-on-dark-accent/40 bg-navy-raised/70 px-4 py-1.5 text-caption font-semibold uppercase tracking-[0.08em] text-on-dark-accent">
-                Diabetes Supplies Made Simpler
+                {text("hero.eyebrow")}
               </p>
               <h1
                 className="rise-in mt-5 max-w-[15ch] font-display text-display font-bold leading-[1.05] text-on-dark"
                 style={{ "--rise-delay": "140ms" } as React.CSSProperties}
               >
-                Manage Less. <span className="text-brand-bright">Live More.</span>
+                {text("hero.heading").split(/\*([^*]+)\*/g).map((part, index) =>
+                  index % 2 ? <span key={index} className="text-brand-bright">{part}</span> : part
+                )}
               </h1>
               <p
                 className="rise-in mt-5 max-w-[52ch] text-body-lg leading-relaxed text-on-dark-brand"
                 style={{ "--rise-delay": "300ms" } as React.CSSProperties}
               >
-                Getting the diabetes supplies you rely on should not add more to your
-                day. Medville Diabetes helps make access to CGMs and diabetes supplies
-                simpler, with dependable support along the way.
+                {text("hero.body")}
               </p>
               <div
                 className="rise-in mt-8 flex flex-wrap items-center gap-3.5"
                 style={{ "--rise-delay": "460ms" } as React.CSSProperties}
               >
                 <Button to="/qualify" variant="cta" className="min-h-[50px] px-8">
-                  Check My Eligibility
+                  {text("hero.primaryCta")}
                   <ArrowRight size={16} strokeWidth={2.2} />
                 </Button>
                 <Button to="/products" variant="ghost-dark" className="min-h-[50px]">
-                  Explore Products
+                  {text("hero.secondaryCta")}
                 </Button>
               </div>
               <p
                 className="rise-in mt-4.5 text-caption text-on-dark-muted"
                 style={{ "--rise-delay": "620ms" } as React.CSSProperties}
               >
-                Quick to get started. No obligation. Coverage and eligibility vary by plan.
+                {text("hero.note")}
               </p>
             </div>
 
@@ -215,11 +233,11 @@ export default function Home() {
               </div>
             )}
           </Container>
-        </section>
+        </section>}
 
         {/* NUMBERS BAND: a deeper navy shelf under the hero, separated from
             it by a cyan hairline so the two dark grounds read as two */}
-        <section
+        {showStats && <section
           ref={statsRef as React.RefObject<HTMLElement>}
           className="bg-dark-band relative overflow-hidden border-t border-brand-bright/30"
         >
@@ -250,10 +268,10 @@ export default function Home() {
               </div>
             ))}
           </Container>
-        </section>
+        </section>}
 
         {/* HOW IT WORKS */}
-        <section className="bg-grey-light py-16 md:py-24">
+        {showProcess && <section className="bg-grey-light py-16 md:py-24">
           <Container wide>
             <div data-reveal={0} className="max-w-[660px]">
               <Eyebrow>Getting started</Eyebrow>
@@ -304,10 +322,10 @@ export default function Home() {
               ))}
             </div>
           </Container>
-        </section>
+        </section>}
 
         {/* FEATURED PRODUCTS */}
-        <section className="py-16 md:py-24">
+        {showProducts && <section className="py-16 md:py-24">
           <Container wide>
             <div data-reveal={0} className="flex flex-wrap items-end justify-between gap-4">
               <div>
@@ -338,10 +356,10 @@ export default function Home() {
               ))}
             </div>
           </Container>
-        </section>
+        </section>}
 
         {/* WHY CONTINUOUS MONITORING */}
-        <section className="bg-why-band relative overflow-hidden py-16 md:py-24">
+        {showWhyCgm && <section className="bg-why-band relative overflow-hidden py-16 md:py-24">
           <Blob tone="cyan" strength={0.14} blur={40} size={420} className="-right-[140px] -top-[120px]" />
           <Container className="relative grid items-center gap-12 lg:grid-cols-2">
             <div>
@@ -408,10 +426,10 @@ export default function Home() {
               ))}
             </div>
           </Container>
-        </section>
+        </section>}
 
         {/* TESTIMONIALS */}
-        {testimonials.length > 0 && (
+        {showTestimonials && testimonials.length > 0 && (
           <section className="py-16 md:py-24">
             <Container wide>
               <div data-reveal={0} className="mx-auto max-w-[640px] text-center">
@@ -449,7 +467,7 @@ export default function Home() {
         )}
 
         {/* CALL TO ACTION BAND */}
-        <section className="bg-cta-band relative overflow-hidden">
+        {showCta && <section className="bg-cta-band relative overflow-hidden">
           <Grain opacity={0.07} />
           <div aria-hidden="true" className="pointer-events-none absolute bottom-0 left-0 right-0 h-[120px] opacity-25">
             <GlucoseWave variant="onDark" animate={false} className="h-full" />
@@ -490,18 +508,21 @@ export default function Home() {
               </p>
             </div>
           </Container>
-        </section>
+        </section>}
 
         {/* BLOG */}
-        {posts.length > 0 && (
+        {showBlog && posts.length > 0 && (
           <section id="blog" className="bg-grey-light scroll-mt-24 py-16 md:py-24">
             <Container wide>
               <div data-reveal={0} className="flex flex-wrap items-end justify-between gap-4">
                 <div className="max-w-[620px]">
-                  <Eyebrow>Learn</Eyebrow>
+                  <Eyebrow>{text("blog.eyebrow")}</Eyebrow>
                   <h2 className="mt-3 font-display text-h2 font-bold text-ink">
-                    Simple Answers for Everyday Diabetes Questions
+                    {text("blog.heading")}
                   </h2>
+                  <p className="mt-3 max-w-[62ch] text-body leading-relaxed text-grey-dark">
+                    {text("blog.body")}
+                  </p>
                 </div>
                 <Link to="/blog" className="group inline-flex items-center gap-1.5 text-small font-semibold text-brand">
                   Read our blog
@@ -555,7 +576,7 @@ export default function Home() {
         )}
 
         {/* FAQ */}
-        <section id="faqs" className="scroll-mt-24 py-16 md:py-24">
+        {showFaqs && <section id="faqs" className="scroll-mt-24 py-16 md:py-24">
           <Container className="max-w-[860px]">
             <div data-reveal={0} className="text-center">
               <Eyebrow>Common questions</Eyebrow>
@@ -572,7 +593,7 @@ export default function Home() {
               <Faq items={faqs} />
             </div>
           </Container>
-        </section>
+        </section>}
       </div>
 
       <QuickView

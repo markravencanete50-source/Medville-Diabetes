@@ -52,9 +52,12 @@ const schema = z.object({
   city: z.string().trim().min(1, "Please enter your city.").max(80),
   state: z.string().min(1, "Please select your state."),
   injectsInsulinDaily: z.enum(["yes", "no"], { message: "Please select an answer." }),
-  /* Which product prompted the enquiry. Optional, and a slug rather than
-     free text, so nothing unexpected reaches the record. */
-  productInterest: z.string().max(60).optional(),
+  /* The selected product is a slug rather than free text, so nothing
+     unexpected reaches the record. */
+  productInterest: z.string().min(1, "Please select a product.").max(60),
+  consentAccepted: z.boolean().refine((accepted) => accepted, {
+    message: "Please tick the box to confirm your consent.",
+  }),
   website: z.string().max(0).optional(),
 });
 
@@ -66,7 +69,7 @@ const STEPS = [
   {
     icon: ClipboardList,
     title: "Submit Your Details",
-    body: "Complete the short form below.",
+    body: "Fill out the form with your basic information.",
   },
   {
     icon: Headset,
@@ -95,12 +98,14 @@ export default function Qualify() {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
+    defaultValues: { consentAccepted: false, productInterest: "" },
   });
 
   const location = useLocation();
   const referralCode = new URLSearchParams(location.search).get("ref")?.trim().toLowerCase() ?? "";
   const validReferralCode = /^[a-z0-9][a-z0-9-]{0,39}$/.test(referralCode) ? referralCode : "";
   const insulinAnswer = watch("injectsInsulinDaily");
+  const selectedProductSlug = watch("productInterest");
 
   /*
     The product a visitor was reading before they clicked through. It
@@ -112,6 +117,7 @@ export default function Qualify() {
   const arrivedFrom = (location.state as { product?: string } | null)?.product ?? "";
   const products = useProducts();
   const enquirable = products.filter(isEnquirable);
+  const selectedProduct = enquirable.find((product) => product.slug === selectedProductSlug);
 
   useEffect(() => {
     if (products.some((product) => product.slug === arrivedFrom && isEnquirable(product))) {
@@ -237,9 +243,7 @@ export default function Qualify() {
                     {step.title}
                   </h2>
                   <p className="mt-1 text-small leading-relaxed text-on-dark-brand">
-                    {!intakeEnabled && index === 0
-                      ? "Call or email us with your basic information."
-                      : step.body}
+                    {step.body}
                   </p>
                 </div>
               </li>
@@ -272,32 +276,32 @@ export default function Qualify() {
         >
           <form onSubmit={handleSubmit(onSubmit)} noValidate aria-label="Eligibility form" aria-busy={status === "submitting"} className="space-y-5">
             <h2 className="font-display text-h3 font-bold text-ink">Check your eligibility</h2>
-            <p className="text-small text-grey-dark">All fields are required except product preference.</p>
-            <fieldset disabled={!intakeEnabled || status === "submitting"} className="min-w-0 space-y-5 disabled:opacity-70">
+            <p className="text-small text-grey-dark">All fields are required.</p>
+            <fieldset disabled={status === "submitting"} className="min-w-0 space-y-5 disabled:opacity-70">
             <legend className="sr-only">Your contact details and eligibility questions</legend>
             <div hidden aria-hidden="true">
               <label>Leave this blank<input {...register("website")} tabIndex={-1} autoComplete="off" /></label>
             </div>
             <div className="grid gap-5 sm:grid-cols-2">
               <Field label="First Name" error={errors.firstName?.message}>
-                <input {...register("firstName")} autoComplete="given-name" className={inputClass(!!errors.firstName)} />
+                <input {...register("firstName")} required autoComplete="given-name" className={inputClass(!!errors.firstName)} />
               </Field>
               <Field label="Last Name" error={errors.lastName?.message}>
-                <input {...register("lastName")} autoComplete="family-name" className={inputClass(!!errors.lastName)} />
+                <input {...register("lastName")} required autoComplete="family-name" className={inputClass(!!errors.lastName)} />
               </Field>
             </div>
             <Field label="Email Address" error={errors.email?.message}>
-              <input {...register("email")} type="email" autoComplete="email" inputMode="email" className={inputClass(!!errors.email)} />
+              <input {...register("email")} required type="email" autoComplete="email" inputMode="email" className={inputClass(!!errors.email)} />
             </Field>
             <Field label="Phone Number" error={errors.phone?.message}>
-              <input {...register("phone")} type="tel" autoComplete="tel" inputMode="tel" className={inputClass(!!errors.phone)} />
+              <input {...register("phone")} required type="tel" autoComplete="tel" inputMode="tel" className={inputClass(!!errors.phone)} />
             </Field>
             <div className="grid gap-5 sm:grid-cols-2">
               <Field label="City" error={errors.city?.message}>
-                <input {...register("city")} autoComplete="address-level2" className={inputClass(!!errors.city)} />
+                <input {...register("city")} required autoComplete="address-level2" className={inputClass(!!errors.city)} />
               </Field>
               <Field label="State" error={errors.state?.message}>
-                <select {...register("state")} autoComplete="address-level1" defaultValue="" className={inputClass(!!errors.state)}>
+                <select {...register("state")} required autoComplete="address-level1" defaultValue="" className={inputClass(!!errors.state)}>
                   <option value="" disabled>Select your state</option>
                   {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
@@ -311,10 +315,11 @@ export default function Qualify() {
             >
               <select
                 {...register("productInterest")}
+                required
                 defaultValue={arrivedFrom}
                 className={inputClass(!!errors.productInterest)}
               >
-                <option value="">I am not sure yet</option>
+                <option value="" disabled>Select a product</option>
                 {enquirable.map((product) => (
                   <option key={product.slug} value={product.slug}>
                     {product.name}
@@ -322,6 +327,25 @@ export default function Qualify() {
                 ))}
               </select>
             </Field>
+
+            {selectedProduct && (
+              <aside className="grid gap-4 rounded-lg border border-line-brand bg-grey-light p-4 sm:grid-cols-[112px_1fr] sm:items-center">
+                <div className="flex h-28 items-center justify-center overflow-hidden rounded-md bg-surface-raised">
+                  <img
+                    src={selectedProduct.imageFront}
+                    alt={`${selectedProduct.name} product`}
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+                <div>
+                  <p className="text-caption font-bold uppercase tracking-[0.12em] text-brand">Your selection</p>
+                  <h3 className="mt-1 font-display text-body font-semibold text-ink">{selectedProduct.name}</h3>
+                  <p className="mt-1.5 text-small leading-relaxed text-grey-dark">
+                    {productLifestyleCopy(selectedProduct.line, selectedProduct.category)}
+                  </p>
+                </div>
+              </aside>
+            )}
 
             <fieldset aria-describedby={errors.injectsInsulinDaily ? "insulin-error" : undefined}>
               <legend className="mb-1.5 text-small font-semibold text-ink">Do you inject insulin daily?</legend>
@@ -337,7 +361,7 @@ export default function Qualify() {
                           : "border-line-input bg-surface-raised text-ink hover:border-ink"
                       }`}
                     >
-                      <input type="radio" value={value} {...register("injectsInsulinDaily")} aria-invalid={!!errors.injectsInsulinDaily} />
+                      <input type="radio" value={value} required {...register("injectsInsulinDaily")} aria-invalid={!!errors.injectsInsulinDaily} />
                       {value === "yes" ? "Yes" : "No"}
                     </label>
                   );
@@ -359,24 +383,23 @@ export default function Qualify() {
               </div>
             )}
 
-            <Button type="submit" variant="cta" disabled={!intakeEnabled || status === "submitting"} className="w-full">
-              {status === "submitting" ? "Sending your information…" : "Check My Eligibility"}
-            </Button>
-            {!intakeEnabled && (
-              <p role="status" className="text-center text-caption text-grey-muted">
-                Submission will be enabled after the client completes the required compliance approval.
-              </p>
-            )}
-            </fieldset>
-
             {/*
               Consent language delivered by the client on 2026-08-26
-              (Medville_Diabetes__Consent_Language.docx), reproduced verbatim.
+              (Medville_Diabetes__Consent_Language.docx), updated on the
+              client's instruction to use an explicit mandatory checkbox.
               The policy references are linked to the site's legal pages.
-              Changes to this text must come from the client's reviewer.
             */}
-            <p className="rounded-md bg-grey-light p-4 text-caption leading-relaxed text-grey-muted">
-              By pressing the submit button, I certify that I personally entered my
+            <label className="flex cursor-pointer items-start gap-3 rounded-md bg-grey-light p-4 text-caption leading-relaxed text-grey-muted">
+              <input
+                type="checkbox"
+                required
+                {...register("consentAccepted")}
+                aria-invalid={!!errors.consentAccepted}
+                aria-describedby={errors.consentAccepted ? "consent-error" : undefined}
+                className="mt-0.5 h-5 w-5 flex-none accent-ink"
+              />
+              <span>
+              By ticking this box, I certify that I personally entered my
               own information, and I give express consent authorizing Medville
               Diabetes (MD), and its marketing partners to contact me at the email
               address and/or phone number provided (mobile phone as applicable)
@@ -389,7 +412,7 @@ export default function Qualify() {
               number. MD may, with your verbal consent, transfer your call to a
               third party for the purpose of offering other products and/or
               services. MD may be compensated for the call transfer. Consent is not
-              a condition of purchase. By pressing the submit button you also
+              a condition of purchase. By ticking this box, I also
               consent to{" "}
               <Link to="/privacy-policy" className="font-semibold text-brand underline underline-offset-2">
                 MD Privacy Policy
@@ -399,7 +422,23 @@ export default function Qualify() {
                 MD Terms and Conditions
               </Link>
               .
-            </p>
+              </span>
+            </label>
+            {errors.consentAccepted && (
+              <p id="consent-error" className="flex items-center gap-1 text-caption font-medium text-danger">
+                <AlertCircle size={13} aria-hidden="true" /> {errors.consentAccepted.message}
+              </p>
+            )}
+
+            <Button type="submit" variant="cta" disabled={!intakeEnabled || status === "submitting"} className="w-full">
+              {status === "submitting" ? "Sending your information…" : "Check My Eligibility"}
+            </Button>
+            {!intakeEnabled && (
+              <p role="status" className="text-center text-caption text-grey-muted">
+                You can review the form now. Submission will be enabled after the required compliance approval.
+              </p>
+            )}
+            </fieldset>
           </form>
         </div>
       </Container>
@@ -430,4 +469,17 @@ function inputClass(hasError: boolean) {
   return `w-full min-h-[46px] rounded-md border-[1.5px] bg-surface-raised px-4 py-2.5 text-body text-ink placeholder:text-grey-muted transition-colors duration-(--duration-micro) focus:border-brand focus:outline-none ${
     hasError ? "border-danger" : "border-line-input"
   }`;
+}
+
+function productLifestyleCopy(line: "cgm" | "insulin-pump", category: "System" | "Sensor" | "Accessory") {
+  if (line === "insulin-pump") {
+    return "This pump supports continuous insulin delivery through the day. Training and guidance from a qualified healthcare professional are required.";
+  }
+  if (category === "Sensor") {
+    return "This sensor supports a compatible CGM system so you can continue seeing glucose readings and trends during daily activities.";
+  }
+  if (category === "Accessory") {
+    return "This accessory supports a compatible CGM system so glucose information can remain available during daily routines.";
+  }
+  return "This CGM can help you see glucose readings and trends throughout the day. The information can support conversations about food, activity, sleep, and medication with your healthcare professional.";
 }
