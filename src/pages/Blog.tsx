@@ -71,7 +71,7 @@ export default function Blog() {
         {featured && <section aria-labelledby="start-heading" className="pt-10 md:pt-14">
           <p className="text-caption font-semibold uppercase tracking-[0.16em] text-brand">Start here</p><h2 id="start-heading" className="mt-2 font-display text-h2 font-bold text-ink">A Guide to Glucose Monitoring</h2>
           <Link to={`/blog/${featured.slug}`} className="group mt-6 grid overflow-hidden rounded-[20px] border border-line-brand bg-surface-raised shadow-soft focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-brand lg:grid-cols-[1.05fr_1fr]">
-            {featured.image && <div className="aspect-[16/10] overflow-hidden bg-grey-light lg:aspect-auto"><img src={featured.image} alt={featured.imageAlt} fetchPriority="high" className="h-full w-full object-cover" /></div>}
+            {featured.image && <div className="aspect-[16/10] overflow-hidden bg-grey-light lg:aspect-auto"><img src={featured.image} alt={featured.imageAlt} {...{ fetchpriority: "high" }} className="h-full w-full object-cover" /></div>}
             <div className="flex flex-col justify-center p-7 md:p-10"><TopicFor post={featured} /><h3 className="mt-3 max-w-[24ch] font-display text-h2 font-bold leading-tight text-ink group-hover:text-brand">{featured.title}</h3><p className="mt-4 max-w-[54ch] text-body leading-relaxed text-grey-dark">{featured.excerpt}</p><span className="mt-6 inline-flex items-center gap-2 text-small font-semibold text-brand">Read the guide <ArrowRight size={17} aria-hidden="true" /></span></div>
           </Link>
         </section>}

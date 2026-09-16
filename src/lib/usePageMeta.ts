@@ -26,9 +26,8 @@ export interface PageMeta {
   image?: string;
   /* "article" for a published post. Everything else on this site is a page. */
   type?: "website" | "article";
-  /* The unknown-address page. Firebase rewrites every path to the app, so a
-     mistyped address answers 200 and would otherwise be indexed as another
-     copy of the home page. */
+  /* The unknown-address page. This also covers stale URLs reached through
+     client-side navigation, where there is no new HTTP 404 response. */
   noindex?: boolean;
   /* The address this page should be indexed under, when it is not the one in
      the bar. Rarely needed; a product page is its own canonical. */

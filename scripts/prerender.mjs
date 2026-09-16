@@ -3,21 +3,20 @@
 
   The problem this solves
   -----------------------
-  This is a single-page app. Firebase rewrites every address to index.html and
-  React sets the title once it has run. A crawler that does not execute
-  JavaScript therefore sees the home page's title and description on all
-  sixteen pages, and there is no way for it to tell them apart. Google does
-  render JavaScript, but it renders late and not always; the crawlers behind
-  link previews on WhatsApp, Slack, LinkedIn and iMessage do not render at all.
+  This is a single-page app. Its original Firebase catch-all served index.html
+  for every address and React supplied the page only after JavaScript ran. A
+  crawler that did not render JavaScript therefore saw the home page shell on
+  every route. Google does render JavaScript, but in a separate queued step;
+  the crawlers behind many link previews do not render it at all.
 
   How it works
   ------------
   After Vite builds, this copies dist/index.html to dist/<path>/index.html for
-  each address, with the title, description, canonical link, Open Graph and
-  Twitter tags of that page swapped in, plus its JSON-LD. Firebase Hosting
-  serves a matching static file before it applies the catch-all rewrite, so
-  those files are what a crawler receives. The app itself is untouched: React
-  boots from the same bundle and takes over.
+  each address, swaps in that page's metadata and JSON-LD, and server-renders
+  the public React route into #root. Firebase Hosting serves that complete
+  static document, so a crawler receives the page content and internal links
+  without waiting for a second JavaScript-rendering pass. React still boots
+  from the same bundle and takes over for visitors.
 
   Where the wording comes from
   ----------------------------
@@ -30,8 +29,8 @@
   still succeeds and the bundled articles keep their own tags and sitemap entries.
 
   An article published after a deploy has no file of its own until the next
-  one. It still works: the rewrite serves index.html and React renders the
-  article. Only the crawler-visible tags wait for the next build.
+  build. Deploy after publishing so its complete HTML and sitemap entry go
+  live together.
 
   The sitemap
   -----------
@@ -66,6 +65,23 @@ async function loadModule(entry) {
   return import(`file://${out}`);
 }
 
+/* React's Node renderer contains CommonJS modules that call Node built-ins.
+   A CJS bundle lets those requires stay native while keeping the temporary
+   server entry self-contained. */
+async function loadServerModule(entry) {
+  const out = join(tmpdir(), `${randomUUID()}.cjs`);
+  await build({
+    entryPoints: [entry],
+    bundle: true,
+    platform: "node",
+    format: "cjs",
+    outfile: out,
+    logLevel: "error",
+    define: { "import.meta.env": "{}" },
+  });
+  return import(`file://${out}`);
+}
+
 const escape = (value) =>
   String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -81,7 +97,7 @@ function clamp(text, limit = 158) {
   return `${value.slice(0, value.lastIndexOf(" ", limit - 1))}…`;
 }
 
-function pageHtml(template, { path, title, description, image, jsonLd, origin, type, noindex, extraMeta }) {
+function pageHtml(template, { path, title, description, image, jsonLd, origin, type, noindex, extraMeta, body }) {
   const url = `${origin}${path}`;
   const picture = image ? (image.startsWith("http") ? image : `${origin}${image}`) : `${origin}/og-image.jpg`;
   const desc = clamp(description);
@@ -141,9 +157,8 @@ function pageHtml(template, { path, title, description, image, jsonLd, origin, t
       `<meta property="og:image:alt" content="${escape(title)}" />`,
     );
   }
-  /* Firebase rewrites an unrecognised address to the app, so it answers 200
-     rather than 404. Saying so here is the only way to keep a mistyped link
-     out of the index; follow keeps the links on the page worth crawling. */
+  /* The generated 404 and private admin page are explicit noindex documents.
+     Follow keeps useful navigation on the custom 404 crawlable. */
   if (noindex) {
     html = html.replace("</head>", `  <meta name="robots" content="noindex, follow" />\n  </head>`);
   }
@@ -161,6 +176,10 @@ function pageHtml(template, { path, title, description, image, jsonLd, origin, t
     const payload = JSON.stringify(block).replace(/<\//g, "<\\/");
     html = html.replace("</head>", `  <script type="application/ld+json">${payload}</script>\n  </head>`);
   }
+  html = html.replace(
+    '<div id="root"></div>',
+    `<div id="root"><!--ssr-start-->${body ?? ""}<!--ssr-end--></div>`,
+  );
   return html;
 }
 
@@ -297,12 +316,25 @@ function articleSchema(post, origin) {
 const template = (await readFile(join(DIST, "index.html"), "utf-8"))
   .replace(/\s*<script type="application\/ld\+json">[\s\S]*?<\/script>/g, "")
   .replace(/\s*<meta name="robots" content="[^"]*" \/>/g, "")
-  .replace(/\s*<meta property="article:[^"]*" content="[^"]*" \/>/g, "");
+  .replace(/\s*<meta property="article:[^"]*" content="[^"]*" \/>/g, "")
+  .replace(/<div id="root">[\s\S]*?<!--ssr-end--><\/div>/, '<div id="root"></div>');
 const meta = await loadModule("src/data/pageMeta.ts");
 const catalog = await loadModule("src/data/products.ts");
 const company = await loadModule("src/data/company.ts");
 const faqs = await loadModule("src/data/faqs.ts");
+const siteContent = await loadModule("src/lib/siteContent.ts");
+const server = await loadServerModule("src/entry-server.tsx");
 const origin = meta.SITE_ORIGIN;
+
+let siteData = siteContent.EMPTY_SITE_DATA;
+try {
+  siteData = await siteContent.loadSiteData(AbortSignal.timeout(20000));
+} catch (problem) {
+  console.log(`  live content unavailable (${problem?.message ?? problem}); using built-in content`);
+}
+const products = siteData.products.length ? siteData.products : catalog.products;
+const posts = siteData.posts;
+console.log(`  public content: ${products.length} products, ${posts.length} articles`);
 
 /* Every address this build produced, so the sitemap is a record of what was
    written rather than a second list kept by hand. The 404 is emitted but
@@ -329,6 +361,7 @@ for (const [path, entry] of Object.entries(meta.PAGE_META)) {
       description: entry.description,
       origin,
       noindex,
+      body: server.renderPage(path, siteData),
       /* The company card belongs on the home page and the contact page, the
          two a search engine treats as the business itself. The breadcrumb
          belongs on everything below the home page. */
@@ -348,13 +381,14 @@ const LINE_TRAIL = {
   "insulin-pump": { name: "Insulin Pumps", path: "/products/insulin-pumps" },
 };
 
-for (const product of catalog.products) {
+for (const product of products) {
   const path = `/products/${product.slug}`;
   await emit(path, pageHtml(template, {
     path,
     title: `${product.name} | Medville Diabetes`,
     description: product.shortDescription,
     image: product.imageFront,
+    body: server.renderPage(path, siteData),
     jsonLd: [
       productSchema(product, origin),
       breadcrumbs(
@@ -372,73 +406,29 @@ for (const product of catalog.products) {
   sitemap.push({ loc: `${origin}${path}` });
 }
 
-/* The launch articles are bundled, so their crawler-visible pages and sitemap
-   entries are present even if the public Firestore query fails. */
-const editorial = await loadModule("src/data/editorialPosts.ts");
-const bundledPosts = editorial.EDITORIAL_POSTS.map((post) => ({
-  ...post,
-  updatedAt: post.publishedAt,
-}));
-let livePosts = [];
-try {
-  const { firebaseConfig } = await loadModule("src/lib/firebaseConfig.ts");
-  const url =
-    `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}` +
-    `/databases/(default)/documents:runQuery?key=${firebaseConfig.apiKey}`;
-  const res = await fetch(url, {
-    method: "POST", signal: AbortSignal.timeout(15000), headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ structuredQuery: { from: [{ collectionId: "posts" }], where: { fieldFilter: { field: { fieldPath: "published" }, op: "EQUAL", value: { booleanValue: true } } }, limit: 300 } }),
-  });
-  if (!res.ok) throw new Error(String(res.status));
-  const body = await res.json();
-
-  const read = (fields, key) => fields?.[key]?.stringValue ?? "";
-  livePosts = body.flatMap((row) => row.document ? [row.document] : [])
-    .map((doc) => ({
-      slug: (doc.name ?? "").split("/").pop(),
-      title: read(doc.fields, "title"),
-      excerpt: read(doc.fields, "excerpt"),
-      image: read(doc.fields, "image"),
-      author: read(doc.fields, "author"),
-      publishedAt: read(doc.fields, "publishedAt"),
-      /* Firestore stamps this on every write. It is the honest answer to
-         "when did this last change", which is what lastmod asks. */
-      updatedAt: (doc.updateTime ?? "").slice(0, 10),
-      published: doc.fields?.published?.booleanValue === true,
-    }))
-    .filter((post) => post.published && post.slug && post.title);
-
-  console.log(`  live articles: ${livePosts.length}`);
-} catch (problem) {
-  console.log(`  live articles skipped (${problem?.message ?? problem}); bundled articles remain`);
-}
-
-const bySlug = new Map(bundledPosts.map((post) => [post.slug, post]));
-for (const post of livePosts) bySlug.set(post.slug, post);
-const posts = [...bySlug.values()].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
-
 for (const post of posts) {
-    const path = `/blog/${post.slug}`;
-    await emit(path, pageHtml(template, {
-      path,
-      title: `${post.title} | Medville Diabetes`,
-      description: post.excerpt || post.title,
-      image: post.image,
-      type: "article",
-      extraMeta: {
-        ...(post.publishedAt ? { "article:published_time": post.publishedAt } : {}),
-        ...(post.updatedAt ? { "article:modified_time": post.updatedAt } : {}),
-      },
-      jsonLd: [
-        articleSchema(post, origin),
-        breadcrumbs(
-          [HOME, { name: "Blog", path: "/blog" }, { name: post.title, path }],
-          origin,
-        ),
-      ],
-      origin,
-    }));
-    sitemap.push({ loc: `${origin}${path}`, lastmod: post.updatedAt || post.publishedAt });
+  const path = `/blog/${post.slug}`;
+  await emit(path, pageHtml(template, {
+    path,
+    title: `${post.title} | Medville Diabetes`,
+    description: post.excerpt || post.title,
+    image: post.image,
+    type: "article",
+    body: server.renderPage(path, siteData),
+    extraMeta: {
+      ...(post.publishedAt ? { "article:published_time": post.publishedAt } : {}),
+      ...(post.updatedAt ? { "article:modified_time": post.updatedAt } : {}),
+    },
+    jsonLd: [
+      articleSchema(post, origin),
+      breadcrumbs(
+        [HOME, { name: "Blog", path: "/blog" }, { name: post.title, path }],
+        origin,
+      ),
+    ],
+    origin,
+  }));
+  sitemap.push({ loc: `${origin}${path}`, lastmod: post.updatedAt || post.publishedAt });
 }
 console.log(`  articles: ${posts.length}`);
 
@@ -451,12 +441,24 @@ if (posts.length) {
     title: entry.title,
     description: entry.description,
     origin,
+    body: server.renderPage("/blog", siteData),
     jsonLd: [
       blogIndexSchema(posts, origin),
       breadcrumbs([HOME, { name: "Blog", path: "/blog" }], origin),
     ],
   }));
 }
+
+/* The admin application needs a real file now that unknown paths are allowed
+   to reach Firebase Hosting's 404 response. It stays empty and noindex; the
+   client bundle renders the authenticated dashboard. */
+await emit("/admin", pageHtml(template, {
+  path: "/admin",
+  title: "Medville Diabetes Admin",
+  description: "Administrative dashboard for Medville Diabetes.",
+  origin,
+  noindex: true,
+}));
 
 /*
   The sitemap.

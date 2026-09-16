@@ -4,11 +4,9 @@ import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 
 /*
-  Firebase rewrites every address it does not recognise to the app, so a
-  mistyped or stale link answers 200 rather than 404. Without the directive
-  below a search engine would index each of those addresses as another copy
-  of the home page. noindex keeps them out; follow keeps the links here worth
-  crawling.
+  The build writes this page to 404.html, which Firebase serves with a real
+  404 status for an unknown direct request. The directive also protects the
+  client-rendered branch used after an in-app navigation to a stale address.
 */
 export default function NotFound() {
   usePageMeta({ ...metaFor("/404"), noindex: true });

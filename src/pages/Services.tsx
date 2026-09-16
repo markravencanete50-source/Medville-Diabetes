@@ -14,6 +14,8 @@ import { metaFor } from "../data/pageMeta";
 import { prefersReducedMotion } from "../lib/useReveal";
 import { usePageText, useSectionVisible } from "../lib/useSiteData";
 
+const useBrowserLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 /*
   Our Services: the customer journey told as one scroll.
 
@@ -168,7 +170,7 @@ export default function Services() {
     This runs before the browser paints, so the hero is never shown in full
     and then snapped back to the start of its own animation.
   */
-  useLayoutEffect(() => {
+  useBrowserLayoutEffect(() => {
     if (!prefersReducedMotion()) setMotion(true);
   }, []);
 

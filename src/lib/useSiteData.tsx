@@ -55,8 +55,15 @@ function applyTheme(theme: ThemeOverrides) {
   }
 }
 
-export function SiteDataProvider({ children }: { children: React.ReactNode }) {
+export function SiteDataProvider({
+  children,
+  initialData,
+}: {
+  children: React.ReactNode;
+  initialData?: SiteData;
+}) {
   const [data, setData] = useState<SiteData>(() => {
+    if (initialData) return initialData;
     const cached = readCache();
     if (!cached) return EMPTY_SITE_DATA;
     const bySlug = new Map(EMPTY_SITE_DATA.posts.map((post) => [post.slug, post]));

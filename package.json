@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
+    "test:seo": "node scripts/audit-seo.mjs",
     "test:rules": "node --test tests/emulator/rules.mjs",
     "build:intake": "node scripts/build-intake-catalog.mjs",
     "dev": "vite",
-    "build": "npm run build:intake && tsc -b && vite build && node scripts/prerender.mjs",
+    "build": "npm run build:intake && tsc -b && vite build && node scripts/prerender.mjs && npm run test:seo",
     "preview": "vite preview",
     "optimize:images": "node scripts/optimize-product-photos.mjs",
     "optimize:services": "node scripts/optimize-services-photos.mjs",

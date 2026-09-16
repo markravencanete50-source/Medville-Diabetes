@@ -108,6 +108,7 @@ function decodeFields(fields: Record<string, RestValue> | undefined): Record<str
 interface RestDocument {
   name?: string;
   fields?: Record<string, RestValue>;
+  updateTime?: string;
 }
 
 function documentId(doc: RestDocument) {
@@ -251,6 +252,7 @@ function readPosts(docs: RestDocument[]): Post[] {
         imageAlt: typeof f.imageAlt === "string" ? f.imageAlt : "",
         author: typeof f.author === "string" ? f.author : "",
         publishedAt: typeof f.publishedAt === "string" ? f.publishedAt : "",
+        updatedAt: (doc.updateTime ?? "").slice(0, 10) || undefined,
         published: f.published === true,
         template: isPostTemplate(f.template) ? f.template : undefined,
       };

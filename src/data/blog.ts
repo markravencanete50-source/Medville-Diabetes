@@ -322,6 +322,9 @@ export interface Post {
   author: string;
   /* ISO date. Sorting and the visible date both read this. */
   publishedAt: string;
+  /* Firestore's document update date, used by the generated sitemap and
+     article metadata when it is available. */
+  updatedAt?: string;
   published: boolean;
   template?: PostTemplate;
 }

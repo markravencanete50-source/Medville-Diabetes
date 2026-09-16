@@ -18,6 +18,7 @@ import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
 import { SiteDataProvider, usePageVisible } from "./lib/useSiteData";
 import type { PageId } from "./content/schema";
+import type { SiteData } from "./lib/siteContent";
 
 /*
   The dashboard is one lazy chunk, so a marketing visitor never downloads
@@ -46,9 +47,9 @@ export default function App() {
 
 /* Everything a visitor sees: the site chrome, the routes, and the client
    content layer that feeds them. */
-function PublicSite() {
+export function PublicSite({ initialData }: { initialData?: SiteData } = {}) {
   return (
-    <SiteDataProvider>
+    <SiteDataProvider initialData={initialData}>
       <ScrollToHash />
       <a
         href="#main"
