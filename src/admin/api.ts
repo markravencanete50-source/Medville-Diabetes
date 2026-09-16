@@ -82,6 +82,7 @@ export interface AdminUser {
   uid: string;
   email: string;
   role: string;
+  features: string[];
   disabled: boolean;
   lastSignIn: string | null;
 }
@@ -175,17 +176,21 @@ export const adminApi = {
 
   listAdmins: (getToken: GetToken) => call<{ admins: AdminUser[] }>(getToken, "admins.list"),
 
-  setAdminRole: (getToken: GetToken, uid: string, role: string) =>
-    call<{ ok: true }>(getToken, "admins.setRole", { uid, role }),
+  setAdminRole: (getToken: GetToken, uid: string, role: string, features?: string[]) =>
+    call<{ ok: true }>(getToken, "admins.setRole", { uid, role, ...(features ? { features } : {}) }),
+
+  deleteAdmin: (getToken: GetToken, uid: string) =>
+    call<{ ok: true }>(getToken, "admins.delete", { uid }),
 
   /* Creates the account if it does not exist and gives it a role. It does not
      set a password: the invitation email does that, so this returning
      successfully means the person can be emailed, not that they can sign in
      yet. */
-  inviteAdmin: (getToken: GetToken, email: string, role: string) =>
+  inviteAdmin: (getToken: GetToken, email: string, role: string, features?: string[]) =>
     call<{ ok: true; uid: string; created: boolean; emailSent: boolean }>(getToken, "admins.invite", {
       email,
       role,
+      ...(features ? { features } : {}),
     }),
 
   sendPasswordEmail: (getToken: GetToken, uid: string) =>

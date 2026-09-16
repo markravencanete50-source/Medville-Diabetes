@@ -27,6 +27,7 @@ import { Blob, Eyebrow, Grain } from "../components/Decor";
 import HeroViewer from "../components/HeroViewer";
 import {
   useFaqs,
+  useElementVisible,
   usePageText,
   usePosts,
   useProduct,
@@ -154,6 +155,32 @@ export default function Home() {
   const showCta = useSectionVisible("home", "cta");
   const showBlog = useSectionVisible("home", "blog");
   const showFaqs = useSectionVisible("home", "faqs");
+  const showHeroCopy = useElementVisible("home", "hero", "copy");
+  const showHeroActions = useElementVisible("home", "hero", "actions");
+  const showHeroNote = useElementVisible("home", "hero", "note");
+  const showHeroPicture = useElementVisible("home", "hero", "picture");
+  const showStatsNumbers = useElementVisible("home", "stats", "numbers");
+  const showProcessIntro = useElementVisible("home", "process", "intro");
+  const showProcessCards = useElementVisible("home", "process", "cards");
+  const showProcessPictures = useElementVisible("home", "process", "pictures");
+  const showProductsIntro = useElementVisible("home", "products", "intro");
+  const showProductCards = useElementVisible("home", "products", "cards");
+  const showProductsLink = useElementVisible("home", "products", "viewAll");
+  const showWhyBenefits = useElementVisible("home", "whyCgm", "benefits");
+  const showWhyPicture = useElementVisible("home", "whyCgm", "picture");
+  const showWhyCaptions = useElementVisible("home", "whyCgm", "captions");
+  const showTestimonialHeading = useElementVisible("home", "testimonials", "heading");
+  const showTestimonialCards = useElementVisible("home", "testimonials", "cards");
+  const showTestimonialDisclaimer = useElementVisible("home", "testimonials", "disclaimer");
+  const showCtaCopy = useElementVisible("home", "cta", "copy");
+  const showCtaButton = useElementVisible("home", "cta", "button");
+  const showCtaPrivacy = useElementVisible("home", "cta", "privacy");
+  const showBlogIntro = useElementVisible("home", "blog", "intro");
+  const showBlogCards = useElementVisible("home", "blog", "cards");
+  const showBlogPictures = useElementVisible("home", "blog", "pictures");
+  const showBlogLink = useElementVisible("home", "blog", "readAll");
+  const showFaqHeading = useElementVisible("home", "faqs", "heading");
+  const showFaqQuestions = useElementVisible("home", "faqs", "questions");
 
   const products = useProducts();
   const hero = useProduct("freestyle-libre-3");
@@ -170,7 +197,11 @@ export default function Home() {
   /* The three newest published articles. The band is left out entirely when
      there are none: invented cards that look like articles but lead nowhere
      are worse than no section at all. */
-  const posts = usePosts().slice(0, 3);
+  const allPosts = usePosts();
+  const posts = [
+    ...allPosts.filter((post) => post.homeFeatured),
+    ...allPosts.filter((post) => !post.homeFeatured),
+  ].slice(0, 3);
 
   return (
     <div ref={revealRef}>
@@ -187,6 +218,7 @@ export default function Home() {
 
           <Container wide className="relative grid items-center gap-10 py-14 md:py-24 lg:grid-cols-2 lg:gap-16">
             <div>
+              {showHeroCopy && <>
               <p className="rise-in m-0 inline-flex items-center rounded-full border border-on-dark-accent/40 bg-navy-raised/70 px-4 py-1.5 text-caption font-semibold uppercase tracking-[0.08em] text-on-dark-accent">
                 {text("hero.eyebrow")}
               </p>
@@ -204,6 +236,8 @@ export default function Home() {
               >
                 {text("hero.body")}
               </p>
+              </>}
+              {showHeroActions && (
               <div
                 className="rise-in mt-8 flex flex-wrap items-center gap-3.5"
                 style={{ "--rise-delay": "460ms" } as React.CSSProperties}
@@ -216,15 +250,18 @@ export default function Home() {
                   {text("hero.secondaryCta")}
                 </Button>
               </div>
+              )}
+              {showHeroNote && (
               <p
                 className="rise-in mt-4.5 text-caption text-on-dark-muted"
                 style={{ "--rise-delay": "620ms" } as React.CSSProperties}
               >
                 {text("hero.note")}
               </p>
+              )}
             </div>
 
-            {hero && (
+            {showHeroPicture && hero && (
               <div
                 className="rise-in relative"
                 style={{ "--rise-delay": "380ms", "--rise-duration": "1400ms" } as React.CSSProperties}
@@ -242,7 +279,7 @@ export default function Home() {
           className="bg-dark-band relative overflow-hidden border-t border-brand-bright/30"
         >
           <Grain opacity={0.06} />
-          <Container
+          {showStatsNumbers && <Container
             wide
             className="relative grid gap-8 py-12 [grid-template-columns:repeat(auto-fit,minmax(210px,1fr))]"
           >
@@ -267,13 +304,13 @@ export default function Home() {
                 </p>
               </div>
             ))}
-          </Container>
+          </Container>}
         </section>}
 
         {/* HOW IT WORKS */}
         {showProcess && <section className="bg-grey-light py-16 md:py-24">
           <Container wide>
-            <div data-reveal={0} className="max-w-[660px]">
+            {showProcessIntro && <div data-reveal={0} className="max-w-[660px]">
               <Eyebrow>Getting started</Eyebrow>
               <h2 className="mt-3 font-display text-h2 font-bold text-ink">
                 A Simpler Way to Check Your CGM Options
@@ -282,8 +319,8 @@ export default function Home() {
                 Not sure what your insurance may cover or what comes next? Start with a
                 few basic details and we will help you navigate the process.
               </p>
-            </div>
-            <div className="mt-11 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
+            </div>}
+            {showProcessCards && <div className="mt-11 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
               {STEPS.map((step, index) => (
                 <div
                   key={step.title}
@@ -304,7 +341,7 @@ export default function Home() {
                     {step.title}
                   </h3>
                   <p className="mt-2 text-[0.9rem] leading-relaxed text-grey-dark">{step.body}</p>
-                  <div className="mt-6 overflow-hidden rounded-md bg-grey-light">
+                  {showProcessPictures && <div className="mt-6 overflow-hidden rounded-md bg-grey-light">
                     <img
                       src={step.image}
                       alt={step.alt}
@@ -317,10 +354,10 @@ export default function Home() {
                       data-parallax="0.5"
                       className="aspect-[5/4] w-full object-cover"
                     />
-                  </div>
+                  </div>}
                 </div>
               ))}
-            </div>
+            </div>}
           </Container>
         </section>}
 
@@ -328,6 +365,7 @@ export default function Home() {
         {showProducts && <section className="py-16 md:py-24">
           <Container wide>
             <div data-reveal={0} className="flex flex-wrap items-end justify-between gap-4">
+              {showProductsIntro && (
               <div>
                 <Eyebrow>Explore diabetes technology</Eyebrow>
                 <h2 className="mt-3 font-display text-h2 font-bold text-ink">
@@ -339,11 +377,15 @@ export default function Home() {
                   everyday life.
                 </p>
               </div>
+              )}
+              {showProductsLink && (
               <Link to="/products" className="group inline-flex items-center gap-1.5 py-1 text-small font-semibold text-brand">
                 View All Products
                 <ArrowRight size={15} strokeWidth={2.2} className="transition-transform duration-(--duration-micro) group-hover:translate-x-0.5" />
               </Link>
+              )}
             </div>
+            {showProductCards && (
             <div className="mt-9 grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
               {featured.map((product, index) => (
                 <ProductCard
@@ -355,6 +397,7 @@ export default function Home() {
                 />
               ))}
             </div>
+            )}
           </Container>
         </section>}
 
@@ -362,7 +405,7 @@ export default function Home() {
         {showWhyCgm && <section className="bg-why-band relative overflow-hidden py-16 md:py-24">
           <Blob tone="cyan" strength={0.14} blur={40} size={420} className="-right-[140px] -top-[120px]" />
           <Container className="relative grid items-center gap-12 lg:grid-cols-2">
-            <div>
+            {showWhyBenefits && <div>
               <div data-reveal={0}>
                 <Eyebrow>Why CGM?</Eyebrow>
                 <h2 className="mt-3 font-display text-h2 font-bold text-ink">
@@ -390,10 +433,10 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </div>}
             {/* The frame clips and the inner wrapper slides up through it.
                 The photograph itself is left free for the parallax drift. */}
-            <div
+            {showWhyPicture && <div
               data-reveal={160}
               className="reveal-curtain reveal-glacial rounded-[24px] shadow-soft"
             >
@@ -408,9 +451,9 @@ export default function Home() {
                   className="h-auto w-full"
                 />
               </div>
-            </div>
+            </div>}
           </Container>
-          <Container className="relative">
+          {showWhyCaptions && <Container className="relative">
             <div className="mt-12 grid gap-6 border-t border-line-brand pt-9 sm:grid-cols-3">
               {CAPTIONS.map((item, index) => (
                 <div
@@ -425,20 +468,20 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          </Container>
+          </Container>}
         </section>}
 
         {/* TESTIMONIALS */}
         {showTestimonials && testimonials.length > 0 && (
           <section className="py-16 md:py-24">
             <Container wide>
-              <div data-reveal={0} className="mx-auto max-w-[640px] text-center">
+              {showTestimonialHeading && <div data-reveal={0} className="mx-auto max-w-[640px] text-center">
                 <Eyebrow>Real life experiences</Eyebrow>
                 <h2 className="mt-3 font-display text-h2 font-bold text-ink">
                   Do not take our word for it. Take theirs.
                 </h2>
-              </div>
-              <div className="mt-10 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
+              </div>}
+              {showTestimonialCards && <div className="mt-10 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
                 {testimonials.map((item, index) => (
                   <figure
                     key={item.id}
@@ -457,11 +500,11 @@ export default function Home() {
                     </figcaption>
                   </figure>
                 ))}
-              </div>
-              <p data-reveal={140} className="reveal-swift mx-auto mt-6 max-w-[70ch] text-center text-[0.78rem] leading-relaxed text-grey-faint">
+              </div>}
+              {showTestimonialDisclaimer && <p data-reveal={140} className="reveal-swift mx-auto mt-6 max-w-[70ch] text-center text-[0.78rem] leading-relaxed text-grey-faint">
                 Individual experiences vary. Testimonials do not guarantee eligibility,
                 insurance coverage, product availability, or results.
-              </p>
+              </p>}
             </Container>
           </section>
         )}
@@ -473,7 +516,7 @@ export default function Home() {
             <GlucoseWave variant="onDark" animate={false} className="h-full" />
           </div>
           <Container className="relative grid items-center gap-8 py-14 md:py-[88px] lg:grid-cols-2">
-            <div data-reveal={0} className="reveal-blur reveal-glacial">
+            {showCtaCopy && <div data-reveal={0} className="reveal-blur reveal-glacial">
               <h2 className="m-0 max-w-[24ch] font-display text-h2 font-bold text-on-dark">
                 Wondering If Your Insurance May Help Cover a CGM?
               </h2>
@@ -482,18 +525,20 @@ export default function Home() {
                 our team can review your potential eligibility and help you understand
                 what comes next.
               </p>
-            </div>
+            </div>}
             <div data-reveal={320} className="reveal-push flex flex-col gap-3 lg:justify-self-start">
+              {showCtaButton && (
               <Button to="/qualify" variant="on-band" className="min-h-[54px] px-9 text-body">
                 Check My Eligibility
                 <ArrowRight size={17} strokeWidth={2.2} />
               </Button>
+              )}
               {/*
                 Not a flex container. Text around an inline link would each
                 become its own flex item, which breaks the sentence into
                 columns instead of wrapping it.
               */}
-              <p className="m-0 text-caption leading-relaxed text-on-dark-muted">
+              {showCtaPrivacy && <p className="m-0 text-caption leading-relaxed text-on-dark-muted">
                 <Lock
                   size={14}
                   strokeWidth={2}
@@ -505,7 +550,7 @@ export default function Home() {
                   Privacy Policy
                 </Link>{" "}
                 and applicable privacy requirements.
-              </p>
+              </p>}
             </div>
           </Container>
         </section>}
@@ -515,6 +560,7 @@ export default function Home() {
           <section id="blog" className="bg-grey-light scroll-mt-24 py-16 md:py-24">
             <Container wide>
               <div data-reveal={0} className="flex flex-wrap items-end justify-between gap-4">
+                {showBlogIntro && (
                 <div className="max-w-[620px]">
                   <Eyebrow>{text("blog.eyebrow")}</Eyebrow>
                   <h2 className="mt-3 font-display text-h2 font-bold text-ink">
@@ -524,11 +570,15 @@ export default function Home() {
                     {text("blog.body")}
                   </p>
                 </div>
+                )}
+                {showBlogLink && (
                 <Link to="/blog" className="group inline-flex items-center gap-1.5 text-small font-semibold text-brand">
                   Read our blog
                   <ArrowRight size={15} strokeWidth={2.2} className="transition-transform duration-(--duration-micro) group-hover:translate-x-0.5" />
                 </Link>
+                )}
               </div>
+              {showBlogCards && (
               <div className="mt-9 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
                 {posts.map((post, index) => (
                   <Link
@@ -539,7 +589,7 @@ export default function Home() {
                       index === 0 ? "reveal-swing-left" : index === 2 ? "reveal-swing-right" : "reveal-zoom"
                     } reveal-slow group flex flex-col overflow-hidden rounded-lg bg-surface-raised shadow-soft transition-all duration-(--duration-base) ease-(--ease-out-quart) hover:-translate-y-1 hover:shadow-soft-hover`}
                   >
-                    {post.image && (
+                    {showBlogPictures && post.image && (
                       <div className="aspect-[3/2] overflow-hidden bg-grey-light">
                         <img
                           src={post.image}
@@ -571,6 +621,7 @@ export default function Home() {
                   </Link>
                 ))}
               </div>
+              )}
             </Container>
           </section>
         )}
@@ -578,20 +629,20 @@ export default function Home() {
         {/* FAQ */}
         {showFaqs && <section id="faqs" className="scroll-mt-24 py-16 md:py-24">
           <Container className="max-w-[860px]">
-            <div data-reveal={0} className="text-center">
+            {showFaqHeading && <div data-reveal={0} className="text-center">
               <Eyebrow>Common questions</Eyebrow>
               <h2 className="mt-3 font-display text-h2 font-bold text-ink">
                 Questions? Start Here.
               </h2>
-            </div>
+            </div>}
             <div
               data-reveal={140}
               aria-hidden="true"
               className="reveal-expand mx-auto mt-7 h-px w-40 bg-line-strong"
             />
-            <div data-reveal={220} className="reveal-settle reveal-slow">
+            {showFaqQuestions && <div data-reveal={220} className="reveal-settle reveal-slow">
               <Faq items={faqs} />
-            </div>
+            </div>}
           </Container>
         </section>}
       </div>

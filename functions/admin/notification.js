@@ -18,6 +18,7 @@ export async function sendNotification({ productName, id, kind = "eligibility" }
     method: "POST", signal: AbortSignal.timeout(10000),
     headers: {
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json",
+      "User-Agent": "medville-diabetes-intake/1.0",
       "Idempotency-Key": `${kind === "contact" ? "contact" : "eligibility"}-${id}`,
     },
     body: JSON.stringify({

@@ -29,10 +29,25 @@ async function requestForRoles(role, roles) {
 test("unauthenticated callers cannot read records", async () => { const r = await request({ role: null }); assert.equal(r.code, 401); assert.equal(r.reads, 0); });
 test("unknown roles cannot read records and denial is audited", async () => { const r = await request({ role: "unknown" }); assert.equal(r.code, 403); assert.equal(r.audits, 1); assert.equal(r.reads, 0); });
 test("owner, marketing and sales can use enquiry routes", async () => { for (const role of ["owner", "marketing", "sales"]) { const r = await request({ role }); assert.equal(r.code, 200); assert.equal(r.reads, 1); assert.equal(r.headers["Cache-Control"], "no-store"); } });
-test("marketing can manage staff but cannot read the owner-only access log", async () => {
-  assert.equal(await requestForRoles("marketing", ["owner", "marketing"]), 200);
+test("only an owner can manage administrator accounts and read the access log", async () => {
+  assert.equal(await requestForRoles("owner", ["owner"]), 200);
   assert.equal(await requestForRoles("marketing", ["owner"]), 403);
-  assert.equal(await requestForRoles("sales", ["owner", "marketing"]), 403);
+  assert.equal(await requestForRoles("sales", ["owner"]), 403);
+});
+test("custom feature access is enforced before a route runs", async () => {
+  let runs = 0;
+  let audits = 0;
+  const handler = createAdminHandler({
+    origins: [origin],
+    authenticate: async () => ({ uid: "test", role: "marketing", features: ["blog"] }),
+    audit: async () => { audits += 1; },
+    routes: { test: { roles: ["owner", "marketing"], feature: "products", run: async () => { runs += 1; return { ok: true }; } } },
+  });
+  const res = { headers: {}, set(k, v) { this.headers[k] = v; }, status(s) { this.code = s; return this; }, json(b) { this.body = b; }, send(b) { this.body = b; } };
+  await handler({ method: "POST", body: { action: "test" }, get: (k) => ({ Origin: origin, "Content-Type": "application/json" })[k] }, res);
+  assert.equal(res.code, 403);
+  assert.equal(runs, 0);
+  assert.equal(audits, 1);
 });
 test("inherited object properties cannot become actions", async () => { for (const action of ["constructor", "__proto__", "toString"]) { const r = await request({ body: { action } }); assert.equal(r.code, 400); assert.equal(r.reads, 0); } });
 test("malformed payloads cannot reach routes", async () => { for (const body of [null, [], "text", 42, { action: {} }]) assert.equal((await request({ body })).code, 400); });
@@ -83,6 +98,7 @@ test("password email is sent from the configured Medville address", async () => 
     assert.deepEqual(body.to, ["person@example.com"]);
     assert.match(body.subject, /Set up your Medville Diabetes dashboard password/);
     assert.match(request.options.headers["Idempotency-Key"], /^admin-password-admin-1-/);
+    assert.equal(request.options.headers["User-Agent"], "medville-diabetes-admin/1.0");
   } finally {
     if (previousKey === undefined) delete process.env.RESEND_API_KEY;
     else process.env.RESEND_API_KEY = previousKey;

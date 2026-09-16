@@ -906,6 +906,73 @@
   width: min(360px, calc(100vw - 32px));
 }
 
+/* Every completed dashboard action receives one clear result card. */
+.admin-action-notices {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  pointer-events: none;
+}
+
+.admin-action-notice {
+  display: flex;
+  width: min(100%, 520px);
+  align-items: flex-start;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--a-line);
+  border-radius: 16px;
+  background: var(--a-surface);
+  box-shadow: var(--a-shadow-lg, 0 24px 70px rgb(0 17 26 / 0.34));
+  color: var(--a-text);
+  pointer-events: auto;
+  animation: admin-notice-in 180ms ease-out both;
+}
+
+.admin-action-notice-icon {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--a-ok-soft);
+  color: var(--a-ok);
+}
+
+.admin-action-notice-danger .admin-action-notice-icon {
+  background: var(--a-danger-soft);
+  color: var(--a-danger);
+}
+
+.admin-action-notice-title {
+  margin: 1px 0 3px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.admin-action-notice-message {
+  margin: 0;
+  color: var(--a-text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+@keyframes admin-notice-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-action-notice { animation: none; }
+}
+
 .admin-scrim {
   position: fixed;
   inset: 0;

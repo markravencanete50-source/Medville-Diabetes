@@ -49,45 +49,51 @@ service cloud.firestore {
       return role() == 'sales' || role() == 'agent';
     }
 
-    function canEditContent() {
-      return isOwner() || isMarketing();
+    function hasFeature(feature) {
+      let features = signedIn() ? request.auth.token.get('features', null) : null;
+      return isOwner()
+        || (features is list && feature in features)
+        || (!(features is list) && (
+          (isMarketing() && feature in ['overview', 'leads', 'influencers', 'products', 'content', 'blog', 'appearance', 'faqs', 'testimonials'])
+          || (isSales() && feature in ['leads', 'products'])
+        ));
     }
 
-    function canEditProducts() {
-      return canEditContent() || isSales();
+    function canEditContent(feature) {
+      return hasFeature(feature);
     }
 
     /* ---- public marketing content ---- */
 
     match /siteContent/{page} {
       allow read: if true;
-      allow write: if canEditContent();
+      allow write: if canEditContent('content');
     }
 
     match /siteTheme/{doc} {
       allow read: if true;
-      allow write: if canEditContent();
+      allow write: if canEditContent('appearance');
     }
 
     match /products/{slug} {
       allow read: if true;
-      allow write: if canEditProducts();
+      allow write: if hasFeature('products');
     }
 
     match /faqs/{id} {
       allow read: if true;
-      allow write: if canEditContent();
+      allow write: if canEditContent('faqs');
     }
 
     match /testimonials/{id} {
-      allow read: if canEditContent() || resource.data.published == true;
-      allow write: if canEditContent();
+      allow read: if canEditContent('testimonials') || resource.data.published == true;
+      allow write: if canEditContent('testimonials');
     }
 
     /* Drafts are private. Filtering only in the browser exposes unpublished copy. */
     match /posts/{slug} {
-      allow read: if canEditContent() || resource.data.published == true;
-      allow write: if canEditContent();
+      allow read: if canEditContent('blog') || resource.data.published == true;
+      allow write: if canEditContent('blog');
     }
 
     /* ---- Protected Health Information ---- */
@@ -118,13 +124,23 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    /* Blog subscriptions contain email addresses and are handled only by
+       trusted functions. They are never public marketing content. */
+    match /newsletterSubscriptions/{id} {
+      allow read, write: if false;
+    }
+
+    match /newsletterLimits/{id} {
+      allow read, write: if false;
+    }
+
     /* ---- administrator roster ----
        A display mirror only, so the dashboard can list colleagues without a
        function round trip. The claim is what actually grants access, and the
        function is the only thing that can set it. */
 
     match /adminUsers/{uid} {
-      allow read: if isOwner() || isMarketing();
+      allow read: if hasFeature('team');
       allow write: if false;
     }
 

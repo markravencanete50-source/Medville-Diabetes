@@ -12,7 +12,7 @@ import { Blob, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 import { prefersReducedMotion } from "../lib/useReveal";
-import { usePageText, useSectionVisible } from "../lib/useSiteData";
+import { useElementVisible, usePageText, useSectionVisible } from "../lib/useSiteData";
 
 const useBrowserLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
@@ -157,6 +157,15 @@ export default function Services() {
   const showCycle = useSectionVisible("services", "cycle");
   const showStages = useSectionVisible("services", "stages");
   const showClosing = useSectionVisible("services", "closing");
+  const showHeroCopy = useElementVisible("services", "hero", "copy");
+  const showHeroPicture = useElementVisible("services", "hero", "picture");
+  const showCycleCopy = useElementVisible("services", "cycle", "copy");
+  const showCycleGraphic = useElementVisible("services", "cycle", "graphic");
+  const showStagesIntro = useElementVisible("services", "stages", "intro");
+  const showStageCards = useElementVisible("services", "stages", "cards");
+  const showStagePictures = useElementVisible("services", "stages", "pictures");
+  const showClosingCopy = useElementVisible("services", "closing", "copy");
+  const showClosingButton = useElementVisible("services", "closing", "button");
 
   const [revealed, setRevealed] = useState<Set<number>>(() => new Set<number>());
   const [motion, setMotion] = useState(false);
@@ -210,7 +219,7 @@ export default function Services() {
         <Blob tone="brand" strength={0.2} blur={48} size={520} className="-bottom-[250px] -right-[220px]" />
         <Grain />
         <Container wide className="journey-hero-grid">
-          <div className="journey-hero-copy">
+          {showHeroCopy && <div className="journey-hero-copy">
             <p className="journey-eyebrow">{text("hero.eyebrow")}</p>
             <h1>
               {parts("hero.heading").map((part, index) =>
@@ -225,9 +234,9 @@ export default function Services() {
               </Button>
             </div>
             <p className="journey-hero-note">The whole process, made clear in three steps.</p>
-          </div>
+          </div>}
 
-          <div className="journey-hero-photo">
+          {showHeroPicture && <div className="journey-hero-photo">
             <img
               src={text("hero.image") || IMAGES.hero}
               alt={text("hero.imageAlt")}
@@ -239,17 +248,17 @@ export default function Services() {
               <strong>We make the next step easier to see.</strong>
               <p>From call to resupply</p>
             </div>
-          </div>
+          </div>}
         </Container>
       </section>}
 
       {showCycle && <Suspense fallback={<CycleFallback />}>
-        <CareCycle3D />
+        <CareCycle3D showCopy={showCycleCopy} showGraphic={showCycleGraphic} />
       </Suspense>}
 
       {showStages && <section className="journey-stages" aria-label="The three steps of the Medville care process">
         <Container wide>
-          <div className="journey-stages-intro">
+          {showStagesIntro && <div className="journey-stages-intro">
             <p className="journey-eyebrow">{text("stages.eyebrow")}</p>
             <h2>
               {parts("stages.heading").map((part, index) =>
@@ -257,10 +266,10 @@ export default function Services() {
               )}
             </h2>
             <p className="journey-stages-lede">{text("stages.body")}</p>
-          </div>
+          </div>}
         </Container>
 
-        <div className="journey-sequence">
+        {showStageCards && <div className="journey-sequence">
           {STAGES.map((stage, index) => {
             const Icon = stage.icon;
             return (
@@ -274,7 +283,7 @@ export default function Services() {
                 className={`journey-stage ${revealed.has(index) ? "is-revealed" : ""}`}
               >
                 <Container wide className="journey-stage-grid">
-                  <figure className="journey-stage-visual">
+                  {showStagePictures && <figure className="journey-stage-visual">
                     <div className="journey-stage-mask" aria-hidden="true" />
                     <img
                       src={stage.image}
@@ -288,7 +297,7 @@ export default function Services() {
                       <span>Step {stage.number}</span>
                       <strong>{stage.label}</strong>
                     </figcaption>
-                  </figure>
+                  </figure>}
 
                   <div className="journey-stage-copy">
                     <p className="journey-stage-kicker">
@@ -316,12 +325,13 @@ export default function Services() {
               </article>
             );
           })}
-        </div>
+        </div>}
       </section>}
 
       {showClosing && <section className="journey-closing bg-why-band">
         <Grain />
         <Container className="journey-closing-content">
+          {showClosingCopy && <>
           <p className="journey-eyebrow">The full care path</p>
           <h2>
             {parts("closing.heading").map((part, index) =>
@@ -329,10 +339,13 @@ export default function Services() {
             )}
           </h2>
           <p className="journey-closing-lede">{text("closing.body")}</p>
+          </>}
+          {showClosingButton && (
           <Button to="/qualify" variant="cta" className="min-h-[52px] px-8">
             {text("closing.cta")}
             <ArrowRight size={16} strokeWidth={2.2} />
           </Button>
+          )}
         </Container>
       </section>}
     </div>

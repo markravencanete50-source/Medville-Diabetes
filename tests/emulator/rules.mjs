@@ -6,7 +6,7 @@ let env;
 before(async () => {
   env = await initializeTestEnvironment({ projectId: "demo-medville-test", firestore: { host: "127.0.0.1", port: 8086, rules: await readFile("firestore.rules", "utf8") } });
   await env.withSecurityRulesDisabled(async (ctx) => {
-    for (const path of ["posts/draft", "testimonials/draft", "leads/synthetic", "auditLog/test", "adminUsers/test", "influencers/synthetic", "attributionVisits/test", "attributionLimits/test"]) await setDoc(doc(ctx.firestore(), path), { published: false });
+    for (const path of ["posts/draft", "testimonials/draft", "leads/synthetic", "auditLog/test", "adminUsers/test", "influencers/synthetic", "attributionVisits/test", "attributionLimits/test", "newsletterSubscriptions/test", "newsletterLimits/test"]) await setDoc(doc(ctx.firestore(), path), { published: false });
     for (const path of ["posts/published", "testimonials/published"]) await setDoc(doc(ctx.firestore(), path), { published: true });
   });
 });
@@ -23,7 +23,7 @@ test("public visitors can only read published articles and testimonials", async 
 test("patient data and audit logs cannot be accessed directly by any browser role", async () => {
   for (const role of [undefined, "owner", "marketing", "sales"]) {
     const db = role ? env.authenticatedContext(`test-${role}`, { role }).firestore() : env.unauthenticatedContext().firestore();
-    for (const path of ["leads/synthetic", "auditLog/test", "intakeLimits/test", "influencers/synthetic", "attributionVisits/test", "attributionLimits/test"]) {
+    for (const path of ["leads/synthetic", "auditLog/test", "intakeLimits/test", "influencers/synthetic", "attributionVisits/test", "attributionLimits/test", "newsletterSubscriptions/test", "newsletterLimits/test"]) {
       await assertFails(getDoc(doc(db, path))); await assertFails(setDoc(doc(db, path), { name: "Synthetic" }));
     }
   }
@@ -39,10 +39,16 @@ test("sales can edit products but no other website content", async () => {
   const db = env.authenticatedContext("test-sales-products", { role: "sales" }).firestore();
   await assertSucceeds(setDoc(doc(db, "products/synthetic"), { name: "Synthetic test" }));
 });
-test("roster is available to owner and marketing and no browser can write roles", async () => {
+test("the administrator roster is owner-only and no browser can write roles", async () => {
   for (const role of ["owner", "marketing", "sales"]) {
     const db = env.authenticatedContext(`test-${role}`, { role }).firestore();
-    await (role === "sales" ? assertFails(getDoc(doc(db, "adminUsers/test"))) : assertSucceeds(getDoc(doc(db, "adminUsers/test"))));
+    await (role === "owner" ? assertSucceeds(getDoc(doc(db, "adminUsers/test"))) : assertFails(getDoc(doc(db, "adminUsers/test"))));
     await assertFails(setDoc(doc(db, "adminUsers/test"), { role: "owner" }));
   }
+});
+test("a custom feature claim grants only its matching content area", async () => {
+  const db = env.authenticatedContext("test-custom-blog", { role: "marketing", features: ["blog"] }).firestore();
+  await assertSucceeds(setDoc(doc(db, "posts/custom-feature"), { title: "Allowed", published: false }));
+  await assertFails(setDoc(doc(db, "products/custom-feature"), { name: "Denied" }));
+  await assertFails(setDoc(doc(db, "siteContent/home"), { title: "Denied" }));
 });

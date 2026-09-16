@@ -11,6 +11,7 @@ import {
 } from "./siteContent";
 import {
   defaultsFor,
+  elementIsVisible,
   pageIsVisible,
   sectionIsVisible,
   type PageId,
@@ -140,6 +141,11 @@ export function usePageVisible(pageId: PageId) {
 export function useSectionVisible(pageId: PageId, blockId: string) {
   const { content } = useSiteData();
   return sectionIsVisible(content[pageId], blockId);
+}
+
+export function useElementVisible(pageId: PageId, blockId: string, elementId: string) {
+  const { content } = useSiteData();
+  return elementIsVisible(content[pageId], blockId, elementId);
 }
 
 /* Products, faqs and testimonials for the public pages. */

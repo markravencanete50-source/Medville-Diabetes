@@ -4,7 +4,7 @@ import Container from "../components/Container";
 import { Blob, Eyebrow, Grain } from "../components/Decor";
 import type { ProductLine } from "../data/products";
 import { PRODUCT_DISCLAIMER } from "../data/company";
-import { usePageText, useProducts, useSectionVisible } from "../lib/useSiteData";
+import { useElementVisible, usePageText, useProducts, useSectionVisible } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 import { useParallax, useReveal } from "../lib/useReveal";
@@ -53,6 +53,10 @@ export default function ProductsLanding() {
   const { text } = usePageText("products");
   const showHero = useSectionVisible("products", "hero");
   const showCatalog = useSectionVisible("products", "catalog");
+  const showHeroCopy = useElementVisible("products", "hero", "copy");
+  const showCatalogPictures = useElementVisible("products", "catalog", "pictures");
+  const showCatalogCards = useElementVisible("products", "catalog", "cards");
+  const showCatalogDisclaimer = useElementVisible("products", "catalog", "disclaimer");
 
   return (
     <div ref={revealRef}>
@@ -61,6 +65,7 @@ export default function ProductsLanding() {
         {showHero && <section className="bg-wash relative overflow-hidden">
           <Blob tone="brand" strength={0.18} blur={40} size={420} duration="20s" className="-left-[120px] -top-[140px]" />
           <Grain opacity={0.05} />
+          {showHeroCopy && (
           <Container wide className="relative py-12 md:py-20">
             <p className="rise-in m-0">
               <Eyebrow onDark>{text("hero.eyebrow")}</Eyebrow>
@@ -78,11 +83,12 @@ export default function ProductsLanding() {
               {text("hero.body")}
             </p>
           </Container>
+          )}
         </section>}
 
         {showCatalog && <section className="pb-16 pt-10 md:pb-24 md:pt-14">
           <Container wide>
-            <div className="grid gap-6 md:grid-cols-2">
+            {showCatalogCards && <div className="grid gap-6 md:grid-cols-2">
               {LINES.map((entry, index) => {
                 const count = catalogue.filter((p) => p.line === entry.line).length;
                 return (
@@ -100,7 +106,7 @@ export default function ProductsLanding() {
                       left a band of dead space above the copy. Matching the frame
                       to the source ratio lets the product fill the card.
                     */}
-                    <div className="aspect-[4/3] overflow-hidden bg-surface-raised">
+                    {showCatalogPictures && <div className="aspect-[4/3] overflow-hidden bg-surface-raised">
                       <img
                         src={entry.image}
                         alt={entry.alt}
@@ -112,7 +118,7 @@ export default function ProductsLanding() {
                         data-parallax="0.4"
                         className="h-full w-full object-cover"
                       />
-                    </div>
+                    </div>}
                     <div className="flex flex-1 flex-col p-8">
                       <p className="m-0 text-caption font-bold uppercase tracking-[0.14em] text-brand-bright">
                         {count} {count === 1 ? "product" : "products"}
@@ -140,14 +146,14 @@ export default function ProductsLanding() {
                   </Link>
                 );
               })}
-            </div>
+            </div>}
 
-            <p
+            {showCatalogDisclaimer && <p
               data-reveal={200}
               className="reveal-settle mx-auto mt-12 max-w-[78ch] text-center text-caption leading-relaxed text-grey-faint"
             >
               {PRODUCT_DISCLAIMER}
-            </p>
+            </p>}
           </Container>
         </section>}
       </div>

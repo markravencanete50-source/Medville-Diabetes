@@ -32,6 +32,16 @@ export interface BlockDef {
   label: string;
   fields: FieldDef[];
   hideable?: boolean;
+  elements?: ElementDef[];
+}
+
+export type ElementKind = "copy" | "picture" | "action" | "content";
+
+export interface ElementDef {
+  id: string;
+  label: string;
+  kind: ElementKind;
+  help?: string;
 }
 
 export interface PageDef {
@@ -61,12 +71,24 @@ export function sectionVisibilityKey(blockId: string) {
   return `__visibility.section.${blockId}`;
 }
 
+export function elementVisibilityKey(blockId: string, elementId: string) {
+  return `__visibility.element.${blockId}.${elementId}`;
+}
+
 export function pageIsVisible(values: PageValues | undefined) {
   return values?.[PAGE_VISIBILITY_KEY] !== "hidden";
 }
 
 export function sectionIsVisible(values: PageValues | undefined, blockId: string) {
   return values?.[sectionVisibilityKey(blockId)] !== "hidden";
+}
+
+export function elementIsVisible(
+  values: PageValues | undefined,
+  blockId: string,
+  elementId: string,
+) {
+  return values?.[elementVisibilityKey(blockId, elementId)] !== "hidden";
 }
 
 export const PAGES: PageDef[] = [
@@ -101,6 +123,12 @@ export const PAGES: PageDef[] = [
       {
         id: "hero",
         label: "Opening banner",
+        elements: [
+          { id: "copy", label: "Heading and introduction", kind: "copy" },
+          { id: "actions", label: "Eligibility and products buttons", kind: "action" },
+          { id: "note", label: "Note below the buttons", kind: "copy" },
+          { id: "picture", label: "Interactive product picture", kind: "picture" },
+        ],
         fields: [
           {
             key: "eyebrow",
@@ -148,15 +176,43 @@ export const PAGES: PageDef[] = [
           },
         ],
       },
-      { id: "stats", label: "Experience numbers", fields: [] },
-      { id: "process", label: "How it works", fields: [] },
-      { id: "products", label: "Featured products", fields: [] },
-      { id: "whyCgm", label: "Why continuous monitoring", fields: [] },
-      { id: "testimonials", label: "Customer experiences", fields: [] },
-      { id: "cta", label: "Eligibility banner", fields: [] },
+      { id: "stats", label: "Experience numbers", fields: [], elements: [
+        { id: "numbers", label: "All experience numbers", kind: "content" },
+      ] },
+      { id: "process", label: "How it works", fields: [], elements: [
+        { id: "intro", label: "Section heading and introduction", kind: "copy" },
+        { id: "cards", label: "Three process cards", kind: "content" },
+        { id: "pictures", label: "Pictures inside the process cards", kind: "picture" },
+      ] },
+      { id: "products", label: "Featured products", fields: [], elements: [
+        { id: "intro", label: "Section heading and introduction", kind: "copy" },
+        { id: "cards", label: "Featured product cards", kind: "content" },
+        { id: "viewAll", label: "View all products link", kind: "action" },
+      ] },
+      { id: "whyCgm", label: "Why continuous monitoring", fields: [], elements: [
+        { id: "benefits", label: "Heading and benefit list", kind: "copy" },
+        { id: "picture", label: "Continuous monitoring picture", kind: "picture" },
+        { id: "captions", label: "Three supporting points", kind: "content" },
+      ] },
+      { id: "testimonials", label: "Customer experiences", fields: [], elements: [
+        { id: "heading", label: "Section heading", kind: "copy" },
+        { id: "cards", label: "Published customer reviews", kind: "content" },
+        { id: "disclaimer", label: "Results disclaimer", kind: "copy" },
+      ] },
+      { id: "cta", label: "Eligibility banner", fields: [], elements: [
+        { id: "copy", label: "Heading and introduction", kind: "copy" },
+        { id: "button", label: "Eligibility button", kind: "action" },
+        { id: "privacy", label: "Privacy note", kind: "copy" },
+      ] },
       {
         id: "blog",
         label: "Health and lifestyle articles",
+        elements: [
+          { id: "intro", label: "Section heading and introduction", kind: "copy" },
+          { id: "cards", label: "Article cards", kind: "content" },
+          { id: "pictures", label: "Article pictures", kind: "picture" },
+          { id: "readAll", label: "Read our blog link", kind: "action" },
+        ],
         fields: [
           {
             key: "eyebrow",
@@ -182,7 +238,10 @@ export const PAGES: PageDef[] = [
           },
         ],
       },
-      { id: "faqs", label: "Common questions", fields: [] },
+      { id: "faqs", label: "Common questions", fields: [], elements: [
+        { id: "heading", label: "Section heading", kind: "copy" },
+        { id: "questions", label: "Question list", kind: "content" },
+      ] },
     ],
   },
 
@@ -216,6 +275,9 @@ export const PAGES: PageDef[] = [
       {
         id: "hero",
         label: "Opening banner",
+        elements: [
+          { id: "copy", label: "Heading and introduction", kind: "copy" },
+        ],
         fields: [
           {
             key: "eyebrow",
@@ -241,7 +303,11 @@ export const PAGES: PageDef[] = [
           },
         ],
       },
-      { id: "catalog", label: "Product categories and catalog", fields: [] },
+      { id: "catalog", label: "Product categories and catalog", fields: [], elements: [
+        { id: "pictures", label: "Product category pictures", kind: "picture" },
+        { id: "cards", label: "Product category cards", kind: "content" },
+        { id: "disclaimer", label: "Product disclaimer", kind: "copy" },
+      ] },
     ],
   },
 
@@ -275,6 +341,10 @@ export const PAGES: PageDef[] = [
       {
         id: "hero",
         label: "Opening banner",
+        elements: [
+          { id: "copy", label: "Heading and introduction", kind: "copy" },
+          { id: "picture", label: "Opening banner photograph", kind: "picture" },
+        ],
         fields: [
           {
             key: "eyebrow",
@@ -319,6 +389,10 @@ export const PAGES: PageDef[] = [
       {
         id: "cycle",
         label: "The process at a glance",
+        elements: [
+          { id: "copy", label: "Heading and introduction", kind: "copy" },
+          { id: "graphic", label: "Interactive process graphic", kind: "picture" },
+        ],
         fields: [
           {
             key: "eyebrow",
@@ -347,6 +421,11 @@ export const PAGES: PageDef[] = [
       {
         id: "stages",
         label: "The detailed process",
+        elements: [
+          { id: "intro", label: "Section heading and introduction", kind: "copy" },
+          { id: "cards", label: "Process stage cards", kind: "content" },
+          { id: "pictures", label: "Process stage pictures", kind: "picture" },
+        ],
         fields: [
           {
             key: "eyebrow",
@@ -375,6 +454,10 @@ export const PAGES: PageDef[] = [
       {
         id: "closing",
         label: "Closing banner",
+        elements: [
+          { id: "copy", label: "Heading and introduction", kind: "copy" },
+          { id: "button", label: "Eligibility button", kind: "action" },
+        ],
         fields: [
           {
             key: "heading",
@@ -433,6 +516,11 @@ export const PAGES: PageDef[] = [
       {
         id: "hero",
         label: "Opening banner",
+        elements: [
+          { id: "copy", label: "Heading and introduction", kind: "copy" },
+          { id: "picture", label: "Opening banner photograph", kind: "picture" },
+          { id: "promises", label: "Four service promises", kind: "content" },
+        ],
         fields: [
           {
             key: "eyebrow",
@@ -464,10 +552,25 @@ export const PAGES: PageDef[] = [
           },
         ],
       },
-      { id: "missionVision", label: "Mission and vision", fields: [] },
-      { id: "story", label: "Company story", fields: [] },
-      { id: "promises", label: "What you can expect", fields: [] },
-      { id: "closing", label: "Closing banner", fields: [] },
+      { id: "missionVision", label: "Mission and vision", fields: [], elements: [
+        { id: "heading", label: "Section heading", kind: "copy" },
+        { id: "cards", label: "Mission and vision cards", kind: "content" },
+        { id: "pictures", label: "Mission and vision photographs", kind: "picture" },
+      ] },
+      { id: "story", label: "Company story", fields: [], elements: [
+        { id: "heading", label: "Section heading", kind: "copy" },
+        { id: "paragraphs", label: "Company story paragraphs", kind: "copy" },
+        { id: "statement", label: "Highlighted closing statement", kind: "copy" },
+      ] },
+      { id: "promises", label: "What you can expect", fields: [], elements: [
+        { id: "heading", label: "Section heading", kind: "copy" },
+        { id: "cards", label: "Three promise cards", kind: "content" },
+        { id: "pictures", label: "Pictures inside promise cards", kind: "picture" },
+      ] },
+      { id: "closing", label: "Closing banner", fields: [], elements: [
+        { id: "copy", label: "Heading and introduction", kind: "copy" },
+        { id: "button", label: "Eligibility button", kind: "action" },
+      ] },
     ],
   },
 
@@ -501,6 +604,11 @@ export const PAGES: PageDef[] = [
       {
         id: "hero",
         label: "Opening banner",
+        elements: [
+          { id: "intro", label: "Heading and introduction", kind: "copy" },
+          { id: "privacy", label: "Privacy reminder card", kind: "content" },
+          { id: "phone", label: "Phone contact card", kind: "content" },
+        ],
         fields: [
           {
             key: "eyebrow",
@@ -554,26 +662,79 @@ export const PAGES: PageDef[] = [
           },
         ],
       },
-      { id: "eligibility", label: "Eligibility banner", fields: [] },
+      { id: "form", label: "General enquiry form", fields: [], elements: [
+        { id: "heading", label: "Form heading and required note", kind: "copy" },
+        { id: "fields", label: "Contact information fields", kind: "content" },
+        { id: "message", label: "Question field", kind: "content" },
+        { id: "consent", label: "Privacy confirmation", kind: "content" },
+        { id: "button", label: "Send message button", kind: "action" },
+      ] },
     ],
   },
   {
     id: "blog",
     label: "Blog",
     path: "/blog",
-    blocks: [],
+    blocks: [
+      { id: "hero", label: "Opening banner", fields: [], elements: [
+        { id: "copy", label: "Heading and introduction", kind: "copy" },
+      ] },
+      { id: "articles", label: "Article library", fields: [], elements: [
+        { id: "topics", label: "Topic navigation", kind: "action" },
+        { id: "featured", label: "Featured article", kind: "content" },
+        { id: "lists", label: "Topic article lists", kind: "content" },
+        { id: "pictures", label: "All article pictures", kind: "picture" },
+      ] },
+      { id: "closing", label: "Help with supplies banner", fields: [], elements: [
+        { id: "copy", label: "Heading and introduction", kind: "copy" },
+        { id: "buttons", label: "Products and services buttons", kind: "action" },
+      ] },
+    ],
   },
   {
     id: "qualify",
     label: "Eligibility Form",
     path: "/qualify",
-    blocks: [{ id: "form", label: "Eligibility form", fields: [] }],
+    blocks: [{ id: "form", label: "Eligibility form", fields: [], elements: [
+      { id: "intro", label: "Heading and introduction", kind: "copy" },
+      { id: "steps", label: "Three form steps", kind: "content" },
+      { id: "privacy", label: "Privacy notice", kind: "content" },
+      { id: "fields", label: "Contact and eligibility fields", kind: "content" },
+      { id: "product", label: "Selected product picture and education", kind: "picture" },
+      { id: "consent", label: "Consent checkbox and terms", kind: "content" },
+      { id: "button", label: "Submission button", kind: "action" },
+    ] }],
   },
   {
     id: "refer",
     label: "Refer a Patient",
     path: "/refer-a-patient",
-    blocks: [],
+    blocks: [
+      { id: "hero", label: "Opening banner", fields: [], elements: [
+        { id: "copy", label: "Heading and introduction", kind: "copy" },
+        { id: "buttons", label: "Download and contact buttons", kind: "action" },
+        { id: "note", label: "Referral note", kind: "copy" },
+        { id: "picture", label: "Provider photograph", kind: "picture" },
+      ] },
+      { id: "steps", label: "How referrals work", fields: [], elements: [
+        { id: "heading", label: "Section heading", kind: "copy" },
+        { id: "cards", label: "Three referral steps", kind: "content" },
+        { id: "button", label: "Download button", kind: "action" },
+      ] },
+      { id: "video", label: "Referral video", fields: [], elements: [
+        { id: "copy", label: "Heading and introduction", kind: "copy" },
+        { id: "player", label: "Video or placeholder", kind: "picture" },
+      ] },
+      { id: "download", label: "Referral download panel", fields: [], elements: [
+        { id: "copy", label: "Heading and introduction", kind: "copy" },
+        { id: "button", label: "Download button", kind: "action" },
+        { id: "contact", label: "Email and phone details", kind: "content" },
+      ] },
+      { id: "support", label: "Provider support banner", fields: [], elements: [
+        { id: "copy", label: "Heading and introduction", kind: "copy" },
+        { id: "button", label: "Contact button", kind: "action" },
+      ] },
+    ],
   },
 ];
 

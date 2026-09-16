@@ -59,6 +59,7 @@ export interface PostRecord {
   author: string;
   publishedAt: string;
   published: boolean;
+  homeFeatured: boolean;
   /* The article's layout. Always set on this side, so the editor never has
      to guess; a document saved before layouts existed reads as Classic. */
   template: PostTemplate;
@@ -258,6 +259,7 @@ export async function loadPosts(): Promise<PostRecord[]> {
         author: typeof data.author === "string" ? data.author : "",
         publishedAt: typeof data.publishedAt === "string" ? data.publishedAt : "",
         published: data.published === true,
+        homeFeatured: data.homeFeatured === true,
         template: isPostTemplate(data.template) ? data.template : DEFAULT_TEMPLATE,
       };
     })

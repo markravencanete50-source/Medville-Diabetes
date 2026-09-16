@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import "./admin.css";
-import { AdminAuthProvider, canOpen, useAdminAuth, type AdminRole } from "./auth";
+import { AdminAuthProvider, canOpen, useAdminAuth, type AdminFeature, type AdminRole } from "./auth";
 import { isAdminApiConfigured } from "./api";
 import { Badge, Banner, Field, ToastProvider, useAdminTheme } from "./ui";
 import { usePageMeta } from "../lib/usePageMeta";
@@ -112,17 +112,17 @@ const ROLE_LABEL: Record<AdminRole, string> = {
   sales: "Sales",
 };
 
-function firstSectionFor(role: AdminRole): Section {
-  return (NAV.find((item) => canOpen(role, item.id))?.id ?? "content") as Section;
+function firstSectionFor(role: AdminRole, features: AdminFeature[]): Section {
+  return (NAV.find((item) => canOpen(role, item.id, features))?.id ?? "content") as Section;
 }
 
 /* The section is held in the hash rather than as a route, so no dashboard
    screen ever appears in a shareable path and nothing about a person's record
    can end up in a link. */
-function useSection(role: AdminRole) {
+function useSection(role: AdminRole, features: AdminFeature[]) {
   const read = (): Section => {
     const raw = window.location.hash.replace("#", "") as Section;
-    return NAV.some((item) => item.id === raw) && canOpen(role, raw) ? raw : firstSectionFor(role);
+    return NAV.some((item) => item.id === raw) && canOpen(role, raw, features) ? raw : firstSectionFor(role, features);
   };
   const [section, setSection] = useState<Section>(read);
 
@@ -132,7 +132,7 @@ function useSection(role: AdminRole) {
     onHash();
     return () => window.removeEventListener("hashchange", onHash);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [role]);
+  }, [role, features]);
 
   const go = (next: Section) => {
     window.location.hash = next;
@@ -275,7 +275,8 @@ function Shell() {
   const { theme, toggle } = useAdminTheme();
   const [navOpen, setNavOpen] = useState(false);
   const role = session!.role;
-  const { section, go } = useSection(role);
+  const features = session!.features;
+  const { section, go } = useSection(role, features);
 
   usePageMeta("Dashboard | Medville Diabetes");
 
@@ -295,7 +296,7 @@ function Shell() {
     return () => document.removeEventListener("keydown", onKey);
   }, [navOpen]);
 
-  const visible = NAV.filter((item) => canOpen(role, item.id));
+  const visible = NAV.filter((item) => canOpen(role, item.id, features));
   const groups = [...new Set(visible.map((item) => item.group))];
   const current = NAV.find((item) => item.id === section);
 

@@ -326,6 +326,8 @@ export interface Post {
      article metadata when it is available. */
   updatedAt?: string;
   published: boolean;
+  /* An owner or editor may pin this article into the three home cards. */
+  homeFeatured?: boolean;
   template?: PostTemplate;
 }
 

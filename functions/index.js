@@ -1,11 +1,13 @@
 import { onRequest } from "firebase-functions/v2/https";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { defineSecret } from "firebase-functions/params";
 import { Firestore, FieldValue } from "@google-cloud/firestore";
-import { createHash, createHmac } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import { createIntakeHandler } from "./intake.js";
 import { createAttributionHandler } from "./attribution.js";
 import { createContactHandler } from "./contact.js";
 import { sendNotification } from "./notification.js";
+import { createNewsletterHandler, sendBlogUpdate, sendNewsletterWelcome } from "./newsletter.js";
 import { readFileSync } from "node:fs";
 
 const db = new Firestore();
@@ -13,6 +15,7 @@ const catalog = JSON.parse(readFileSync(new URL("./catalog.json", import.meta.ur
 const DEFAULT_ORIGINS = "https://www.medvillediabetes.com,https://medvillediabetes.com,https://medville-diabetes.web.app";
 const referralRateLimitSecret = defineSecret("REFERRAL_RATE_LIMIT_SECRET");
 const resendApiKey = defineSecret("RESEND_API_KEY");
+const PUBLIC_SITE_URL = (process.env.PUBLIC_SITE_URL || "https://www.medvillediabetes.com").replace(/\/$/, "");
 
 const handler = createIntakeHandler({
   enabled: process.env.INTAKE_ENABLED === "true" && Boolean(process.env.RATE_LIMIT_SECRET)
@@ -123,6 +126,98 @@ export const contactEnquiry = onRequest({
   region: "us-central1", cors: false, maxInstances: 2,
   memory: "256MiB", timeoutSeconds: 30, secrets: [referralRateLimitSecret, resendApiKey],
 }, contactHandler);
+
+const newsletterHandler = createNewsletterHandler({
+  origins: (process.env.ALLOWED_ORIGIN || DEFAULT_ORIGINS).split(",").map((s) => s.trim()).filter(Boolean),
+  subscribe: async ({ email, ip }) => {
+    const now = Date.now();
+    const hour = Math.floor(now / 3600000);
+    const subscriberId = createHash("sha256").update(email).digest("hex");
+    const rateId = createHmac("sha256", referralRateLimitSecret.value())
+      .update(`newsletter:${hour}:${ip}`).digest("hex");
+    const subscriber = db.collection("newsletterSubscriptions").doc(subscriberId);
+    const rate = db.collection("newsletterLimits").doc(rateId);
+    const result = await db.runTransaction(async (tx) => {
+      const [existing, rateSnapshot] = await Promise.all([tx.get(subscriber), tx.get(rate)]);
+      const count = rateSnapshot.data()?.count || 0;
+      if (count >= 8) throw new Error("limited");
+      const token = existing.data()?.unsubscribeToken || createHash("sha256").update(randomUUID()).digest("hex");
+      tx.set(rate, { count: count + 1, expiresAt: new Date(now + 7200000) });
+      tx.set(subscriber, {
+        email,
+        active: true,
+        unsubscribeToken: token,
+        updatedAt: FieldValue.serverTimestamp(),
+        ...(existing.exists ? {} : { createdAt: FieldValue.serverTimestamp(), consentAt: FieldValue.serverTimestamp() }),
+      }, { merge: true });
+      return {
+        token,
+        sendWelcome: !existing.exists
+          || existing.data()?.active !== true
+          || !existing.data()?.welcomeSentAt,
+      };
+    });
+    if (result.sendWelcome) {
+      await sendNewsletterWelcome({
+        email,
+        unsubscribeUrl: `https://us-central1-medville-diabetes.cloudfunctions.net/blogSubscribe?token=${result.token}`,
+      });
+      await subscriber.update({ welcomeSentAt: FieldValue.serverTimestamp() });
+    }
+  },
+  unsubscribe: async (token) => {
+    const snapshot = await db.collection("newsletterSubscriptions")
+      .where("unsubscribeToken", "==", token).limit(1).get();
+    if (snapshot.empty) return false;
+    await snapshot.docs[0].ref.update({ active: false, unsubscribedAt: FieldValue.serverTimestamp() });
+    return true;
+  },
+});
+
+export const blogSubscribe = onRequest({
+  region: "us-central1", cors: false, maxInstances: 2,
+  memory: "256MiB", timeoutSeconds: 20, secrets: [referralRateLimitSecret, resendApiKey],
+}, newsletterHandler);
+
+export const blogNewsletter = onDocumentWritten({
+  document: "posts/{slug}",
+  region: "us-central1",
+  memory: "256MiB",
+  timeoutSeconds: 300,
+  maxInstances: 1,
+  secrets: [resendApiKey],
+}, async (event) => {
+  const before = event.data?.before?.data();
+  const afterSnapshot = event.data?.after;
+  const after = afterSnapshot?.data();
+  if (!afterSnapshot?.exists || !after?.published || before?.published === true || after.newsletterSentAt) return;
+  const slug = event.params.slug;
+  if (!/^[a-z0-9-]{1,80}$/.test(slug) || typeof after.title !== "string" || !after.title.trim()) return;
+  const subscribers = await db.collection("newsletterSubscriptions").where("active", "==", true).get();
+  let sent = 0;
+  let failed = 0;
+  for (const subscriber of subscribers.docs) {
+    const data = subscriber.data();
+    if (typeof data.email !== "string" || typeof data.unsubscribeToken !== "string") continue;
+    try {
+      await sendBlogUpdate({
+        email: data.email,
+        post: { slug, title: after.title.trim().slice(0, 180), excerpt: typeof after.excerpt === "string" ? after.excerpt.trim().slice(0, 500) : "" },
+        unsubscribeUrl: `https://us-central1-medville-diabetes.cloudfunctions.net/blogSubscribe?token=${data.unsubscribeToken}`,
+      });
+      sent += 1;
+    } catch {
+      failed += 1;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 220));
+  }
+  await afterSnapshot.ref.update({
+    newsletterSentAt: FieldValue.serverTimestamp(),
+    newsletterSentCount: sent,
+    newsletterFailedCount: failed,
+    newsletterSource: PUBLIC_SITE_URL,
+  });
+});
 
 const attributionHandler = createAttributionHandler({
   enabled: () => Boolean(referralRateLimitSecret.value()),

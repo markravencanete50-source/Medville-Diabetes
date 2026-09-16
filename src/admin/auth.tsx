@@ -40,6 +40,14 @@ const IDLE_LIMIT_MS = 20 * 60 * 1000;
 const IDLE_WARNING_MS = 2 * 60 * 1000;
 
 export type AdminRole = "owner" | "marketing" | "sales";
+export type AdminFeature =
+  | "overview" | "leads" | "influencers" | "products" | "content" | "blog"
+  | "appearance" | "faqs" | "testimonials" | "team" | "audit";
+
+export const ADMIN_FEATURES: AdminFeature[] = [
+  "overview", "leads", "influencers", "products", "content", "blog",
+  "appearance", "faqs", "testimonials", "team", "audit",
+];
 
 function normalizeRole(role: unknown): AdminRole | null {
   if (role === "owner") return "owner";
@@ -52,6 +60,7 @@ export interface AdminSession {
   user: User;
   email: string;
   role: AdminRole;
+  features: AdminFeature[];
 }
 
 interface AuthState {
@@ -157,7 +166,11 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         if (auth.currentUser !== user) return;
         const role = normalizeRole(token.claims.role);
         if (role) {
-          setSession({ user, email: user.email ?? "", role });
+          const claimed = Array.isArray(token.claims.features)
+            ? token.claims.features.filter((feature): feature is AdminFeature =>
+              typeof feature === "string" && ADMIN_FEATURES.includes(feature as AdminFeature))
+            : ROLE_ACCESS[role];
+          setSession({ user, email: user.email ?? "", role, features: role === "owner" ? ADMIN_FEATURES : claimed });
           setPendingApproval(false);
         } else {
           setSession(null);
@@ -246,12 +259,13 @@ export function useAdminAuth() {
 /* What each role is allowed to open. Kept beside the roles themselves so the
    navigation and the route guard cannot drift apart. The server enforces the
    same list; this only decides what is worth showing. */
-export const ROLE_ACCESS: Record<AdminRole, string[]> = {
+export const ROLE_ACCESS: Record<AdminRole, AdminFeature[]> = {
   owner: ["overview", "leads", "influencers", "products", "content", "blog", "appearance", "faqs", "testimonials", "team", "audit"],
-  marketing: ["overview", "leads", "influencers", "products", "content", "blog", "appearance", "faqs", "testimonials", "team"],
+  marketing: ["overview", "leads", "influencers", "products", "content", "blog", "appearance", "faqs", "testimonials"],
   sales: ["leads", "products"],
 };
 
-export function canOpen(role: AdminRole, section: string) {
-  return ROLE_ACCESS[role].includes(section);
+export function canOpen(role: AdminRole, section: string, features?: AdminFeature[]) {
+  if (role === "owner") return true;
+  return (features ?? ROLE_ACCESS[role]).includes(section as AdminFeature);
 }

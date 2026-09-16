@@ -37,6 +37,7 @@ export async function sendAdminPasswordEmail({ email, uid, actionLink, purpose }
     headers: {
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       "Content-Type": "application/json",
+      "User-Agent": "medville-diabetes-admin/1.0",
       "Idempotency-Key": `admin-password-${uid}-${deliveryKey}`,
     },
     body: JSON.stringify({

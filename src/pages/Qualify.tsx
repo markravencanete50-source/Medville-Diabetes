@@ -2,7 +2,7 @@ import { cloneElement, isValidElement, useEffect, useId, useRef, useState } from
 import { Link, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { isEnquirable } from "../data/products";
-import { useProducts } from "../lib/useSiteData";
+import { useElementVisible, useProducts, useSectionVisible } from "../lib/useSiteData";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -85,6 +85,14 @@ const STEPS = [
 
 export default function Qualify() {
   usePageMeta(metaFor("/qualify"));
+  const showForm = useSectionVisible("qualify", "form");
+  const showIntro = useElementVisible("qualify", "form", "intro");
+  const showSteps = useElementVisible("qualify", "form", "steps");
+  const showPrivacy = useElementVisible("qualify", "form", "privacy");
+  const showFields = useElementVisible("qualify", "form", "fields");
+  const showProduct = useElementVisible("qualify", "form", "product");
+  const showConsent = useElementVisible("qualify", "form", "consent");
+  const showButton = useElementVisible("qualify", "form", "button");
   const [status, setStatus] = useState<Status>("idle");
   const submissionId = useRef(crypto.randomUUID());
   const sending = useRef(false);
@@ -186,6 +194,8 @@ export default function Qualify() {
     }
   };
 
+  if (!showForm) return null;
+
   if (status === "success") {
     return (
       <section className="bg-wash relative overflow-hidden">
@@ -213,6 +223,7 @@ export default function Qualify() {
       <Container wide className="relative grid gap-10 py-12 md:py-16 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14">
         {/* left: what happens, on the navy ground */}
         <div>
+          {showIntro && (
           <div data-reveal={0} className="reveal-settle">
           <Eyebrow onDark>Check your potential eligibility</Eyebrow>
           <h1 className="mt-3 font-display text-h1 font-bold text-on-dark">
@@ -224,7 +235,9 @@ export default function Qualify() {
               : "Not sure what your plan may cover? Our team can review your information and help you understand your potential eligibility and next steps."}
           </p>
           </div>
+          )}
 
+          {showSteps && (
           <ul className="mt-8 flex list-none flex-col gap-5 p-0">
             {STEPS.map((step, index) => (
               <li
@@ -249,7 +262,9 @@ export default function Qualify() {
               </li>
             ))}
           </ul>
+          )}
 
+          {showPrivacy && (
           <div
             data-reveal={780}
             className="reveal-blur mt-8 flex items-start gap-3 rounded-lg border border-on-dark-accent/30 bg-navy-raised/70 p-5"
@@ -267,6 +282,7 @@ export default function Qualify() {
               and applicable privacy requirements.
             </p>
           </div>
+          )}
         </div>
 
         {/* right: the form remains visible while its server-side launch gate is closed */}
@@ -282,6 +298,8 @@ export default function Qualify() {
             <div hidden aria-hidden="true">
               <label>Leave this blank<input {...register("website")} tabIndex={-1} autoComplete="off" /></label>
             </div>
+            {showFields ? (
+            <>
             <div className="grid gap-5 sm:grid-cols-2">
               <Field label="First Name" error={errors.firstName?.message}>
                 <input {...register("firstName")} required autoComplete="given-name" className={inputClass(!!errors.firstName)} />
@@ -307,8 +325,11 @@ export default function Qualify() {
                 </select>
               </Field>
             </div>
+            </>
+            ) : null}
 
-            {/* insulin question as a Yes / No toggle pair */}
+            {showProduct ? (
+            <>
             <Field
               label="Which product are you interested in?"
               error={errors.productInterest?.message}
@@ -328,7 +349,7 @@ export default function Qualify() {
               </select>
             </Field>
 
-            {selectedProduct && (
+            {selectedProduct ? (
               <aside className="grid gap-4 rounded-lg border border-line-brand bg-grey-light p-4 sm:grid-cols-[112px_1fr] sm:items-center">
                 <div className="flex h-28 items-center justify-center overflow-hidden rounded-md bg-surface-raised">
                   <img
@@ -345,8 +366,11 @@ export default function Qualify() {
                   </p>
                 </div>
               </aside>
-            )}
+            ) : null}
+            </>
+            ) : null}
 
+            {showFields ? (
             <fieldset aria-describedby={errors.injectsInsulinDaily ? "insulin-error" : undefined}>
               <legend className="mb-1.5 text-small font-semibold text-ink">Do you inject insulin daily?</legend>
               <div className="grid grid-cols-2 gap-2.5">
@@ -369,6 +393,7 @@ export default function Qualify() {
               </div>
               {errors.injectsInsulinDaily && <p id="insulin-error" className="mt-2 text-small text-danger">{errors.injectsInsulinDaily.message}</p>}
             </fieldset>
+            ) : null}
 
             {status === "error" && (
               <div role="alert" className="flex items-start gap-3 rounded-md border border-danger/30 bg-danger/5 p-4">
@@ -389,6 +414,8 @@ export default function Qualify() {
               client's instruction to use an explicit mandatory checkbox.
               The policy references are linked to the site's legal pages.
             */}
+            {showConsent ? (
+            <>
             <label className="flex cursor-pointer items-start gap-3 rounded-md bg-grey-light p-4 text-caption leading-relaxed text-grey-muted">
               <input
                 type="checkbox"
@@ -429,7 +456,11 @@ export default function Qualify() {
                 <AlertCircle size={13} aria-hidden="true" /> {errors.consentAccepted.message}
               </p>
             )}
+            </>
+            ) : null}
 
+            {showButton ? (
+            <>
             <Button type="submit" variant="cta" disabled={!intakeEnabled || status === "submitting"} className="w-full">
               {status === "submitting" ? "Sending your information…" : "Check My Eligibility"}
             </Button>
@@ -438,6 +469,8 @@ export default function Qualify() {
                 You can review the form now. Submission will be enabled after the required compliance approval.
               </p>
             )}
+            </>
+            ) : null}
             </fieldset>
           </form>
         </div>

@@ -10,6 +10,7 @@ import { Blob, Eyebrow, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 import { PHONE_DISPLAY, PHONE_TEL } from "../data/company";
+import { useElementVisible, useSectionVisible } from "../lib/useSiteData";
 
 const US_STATES = [
   "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
@@ -42,7 +43,17 @@ type Status = "idle" | "submitting" | "success" | "error";
 
 export default function Contact() {
   usePageMeta(metaFor("/contact"));
-  const [noticeOpen, setNoticeOpen] = useState(true);
+  const showHero = useSectionVisible("contact", "hero");
+  const showForm = useSectionVisible("contact", "form");
+  const showIntro = useElementVisible("contact", "hero", "intro");
+  const showPrivacyCard = useElementVisible("contact", "hero", "privacy");
+  const showPhoneCard = useElementVisible("contact", "hero", "phone");
+  const showFormHeading = useElementVisible("contact", "form", "heading");
+  const showFormFields = useElementVisible("contact", "form", "fields");
+  const showMessageField = useElementVisible("contact", "form", "message");
+  const showConsent = useElementVisible("contact", "form", "consent");
+  const showSubmit = useElementVisible("contact", "form", "button");
+  const [noticeOpen, setNoticeOpen] = useState(showForm);
   const [status, setStatus] = useState<Status>("idle");
   const submissionId = useRef(crypto.randomUUID());
   const sending = useRef(false);
@@ -98,28 +109,38 @@ export default function Contact() {
     <main aria-hidden={noticeOpen || undefined} className="bg-wash relative overflow-hidden">
       <Blob tone="brand" strength={0.28} blur={42} size={420} duration="20s" className="-left-[130px] -top-[120px]" />
       <Grain opacity={0.06} />
-      <Container wide className="relative grid gap-10 py-12 md:py-16 lg:grid-cols-[0.82fr_1.18fr] lg:gap-14">
-        <div>
+      <Container wide className={`relative grid gap-10 py-12 md:py-16 lg:gap-14 ${showHero && showForm ? "lg:grid-cols-[0.82fr_1.18fr]" : "max-w-[820px]"}`}>
+        {showHero && <div>
+          {showIntro && <>
           <Eyebrow onDark>Contact our team</Eyebrow>
           <h1 className="mt-3 max-w-[15ch] font-display text-h1 font-bold text-on-dark">How can we help?</h1>
           <p className="mt-4 max-w-[54ch] text-body leading-relaxed text-on-dark-brand">Send a general question about our products, services, or next steps. Please do not send medical records or personal health information.</p>
+          </>}
 
+          {showPrivacyCard && (
           <div className="mt-8 rounded-[20px] border border-on-dark-accent/25 bg-navy-raised/70 p-6">
             <div className="flex items-start gap-3"><ShieldAlert size={21} className="mt-0.5 flex-none text-brand-bright" aria-hidden="true" /><div><h2 className="font-display text-body font-semibold text-on-dark">Keep your message general</h2><p className="mt-2 text-small leading-relaxed text-on-dark-brand">Do not include diagnoses, medications, glucose readings, insurance or Medicare numbers, Social Security numbers, medical documents, or images.</p></div></div>
           </div>
+          )}
 
+          {showPhoneCard && (
           <div className="mt-5 flex items-start gap-3 rounded-[20px] border border-on-dark-accent/25 bg-navy-raised/70 p-6">
             <PhoneCall size={20} className="mt-0.5 flex-none text-brand-bright" aria-hidden="true" />
             <div><p className="text-small leading-relaxed text-on-dark-brand">Prefer to speak with someone?</p><a href={PHONE_TEL} className="mt-1 inline-block font-display text-body font-semibold text-on-dark underline underline-offset-4">Call {PHONE_DISPLAY}</a></div>
           </div>
-        </div>
+          )}
+        </div>}
 
+        {showForm && (
         <div className="rounded-[26px] bg-surface-raised p-6 shadow-overlay sm:p-9">
           <form onSubmit={handleSubmit(onSubmit)} noValidate aria-label="Contact form" aria-busy={status === "submitting"} className="space-y-5">
+            {showFormHeading && (
             <div><h2 className="font-display text-h3 font-bold text-ink">Send a general question</h2><p className="mt-1 text-small text-grey-dark">All fields are required.</p></div>
+            )}
             <fieldset disabled={noticeOpen || status === "submitting"} className="min-w-0 space-y-5 disabled:opacity-65">
               <legend className="sr-only">Your contact information and question</legend>
               <div hidden aria-hidden="true"><label>Leave this blank<input {...register("website")} tabIndex={-1} autoComplete="off" /></label></div>
+              {showFormFields && <>
               <div className="grid gap-5 sm:grid-cols-2">
                 <Field label="First Name" error={errors.firstName?.message}><input {...register("firstName")} required autoComplete="given-name" className={inputClass(!!errors.firstName)} /></Field>
                 <Field label="Last Name" error={errors.lastName?.message}><input {...register("lastName")} required autoComplete="family-name" className={inputClass(!!errors.lastName)} /></Field>
@@ -130,24 +151,32 @@ export default function Contact() {
                 <Field label="City" error={errors.city?.message}><input {...register("city")} required autoComplete="address-level2" className={inputClass(!!errors.city)} /></Field>
                 <Field label="State" error={errors.state?.message}><select {...register("state")} required autoComplete="address-level1" defaultValue="" className={inputClass(!!errors.state)}><option value="" disabled>Select your state</option>{US_STATES.map((state) => <option key={state} value={state}>{state}</option>)}</select></Field>
               </div>
+              </>}
+              {showMessageField && (
               <Field label="How can we help you?" error={errors.message?.message} help="Use this box only for general questions. Do not include medical or health information."><textarea {...register("message")} required rows={6} maxLength={1200} className={`${inputClass(!!errors.message)} resize-y`} /></Field>
+              )}
 
+              {showConsent && <>
               <label className="flex cursor-pointer items-start gap-3 rounded-md bg-grey-light p-4 text-caption leading-relaxed text-grey-muted">
                 <input type="checkbox" required {...register("privacyAccepted")} aria-invalid={!!errors.privacyAccepted} aria-describedby={errors.privacyAccepted ? "contact-privacy-error" : undefined} className="mt-0.5 h-5 w-5 flex-none accent-ink" />
                 <span>I confirm that this message contains only a general question and does not include medical records, health information, insurance identifiers, or other sensitive personal information.</span>
               </label>
               {errors.privacyAccepted && <p id="contact-privacy-error" className="flex items-center gap-1 text-caption font-medium text-danger"><AlertCircle size={13} aria-hidden="true" /> {errors.privacyAccepted.message}</p>}
+              </>}
 
               {status === "error" && <div role="alert" className="flex items-start gap-3 rounded-md border border-danger/30 bg-danger/5 p-4"><AlertCircle size={18} className="mt-0.5 flex-none text-danger" aria-hidden="true" /><p className="m-0 text-small text-ink">Your message could not be sent. Please try again or call our team.</p></div>}
 
+              {showSubmit && <>
               <Button type="submit" variant="cta" disabled={status === "submitting"} className="w-full">{status === "submitting" ? "Sending your message" : "Send message"}</Button>
               <p className="text-center text-caption leading-relaxed text-grey-muted">We handle your contact details according to our <Link to="/privacy-policy" className="font-semibold text-brand underline underline-offset-2">Privacy Policy</Link>.</p>
+              </>}
             </fieldset>
           </form>
         </div>
+        )}
       </Container>
     </main>
-    {noticeOpen && <PrivacyNotice onContinue={() => setNoticeOpen(false)} />}
+    {showForm && noticeOpen && <PrivacyNotice onContinue={() => setNoticeOpen(false)} />}
   </>;
 }
 

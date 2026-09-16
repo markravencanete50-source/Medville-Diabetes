@@ -398,7 +398,13 @@ function CycleScene({
   );
 }
 
-export default function CareCycle3D() {
+export default function CareCycle3D({
+  showCopy = true,
+  showGraphic = true,
+}: {
+  showCopy?: boolean;
+  showGraphic?: boolean;
+}) {
   const [active, setActive] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion);
   const panel = useRef<HTMLDivElement>(null);
@@ -444,7 +450,7 @@ export default function CareCycle3D() {
   return (
     <section ref={section} className="journey-cycle" aria-labelledby="care-cycle-title">
       <Container wide className="journey-cycle-grid">
-        <div className="journey-cycle-copy">
+        {showCopy && <div className="journey-cycle-copy">
           <p className="journey-eyebrow" {...reveal()}>
             The process at a glance
           </p>
@@ -470,8 +476,9 @@ export default function CareCycle3D() {
               </li>
             ))}
           </ol>
-        </div>
+        </div>}
 
+        {showGraphic && (
         <div
           ref={panel}
           className="journey-cycle-canvas reveal-slow"
@@ -488,6 +495,7 @@ export default function CareCycle3D() {
             <CycleScene reducedMotion={reducedMotion} onPhaseChange={setActive} active={active} />
           </Canvas>
         </div>
+        )}
       </Container>
     </section>
   );

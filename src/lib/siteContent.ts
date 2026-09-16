@@ -254,6 +254,7 @@ function readPosts(docs: RestDocument[]): Post[] {
         publishedAt: typeof f.publishedAt === "string" ? f.publishedAt : "",
         updatedAt: (doc.updateTime ?? "").slice(0, 10) || undefined,
         published: f.published === true,
+        homeFeatured: f.homeFeatured === true,
         template: isPostTemplate(f.template) ? f.template : undefined,
       };
     })

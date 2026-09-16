@@ -102,6 +102,7 @@ function blankPost(): PostRecord {
     author: "",
     publishedAt: todayISO(),
     published: false,
+    homeFeatured: false,
     template: DEFAULT_TEMPLATE,
   };
 }
@@ -496,6 +497,21 @@ function PostEditor({
               />
             </Field>
           </div>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-[var(--a-line)] bg-[var(--a-surface-2)] p-4">
+            <input
+              type="checkbox"
+              checked={draft.homeFeatured}
+              onChange={(event) => set("homeFeatured", event.target.checked)}
+              className="mt-0.5 h-5 w-5 flex-none accent-[var(--a-brand)]"
+            />
+            <span>
+              <span className="block text-[13px] font-semibold">Highlight on the homepage</span>
+              <span className="admin-help m-0 block">
+                Highlighted articles appear first. The newest published articles fill any remaining spaces.
+              </span>
+            </span>
+          </label>
 
           <TemplateChooser value={draft.template} onPick={(template) => set("template", template)} />
 

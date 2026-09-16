@@ -25,6 +25,10 @@ export function createAdminHandler({ authenticate, audit, routes, origins }) {
         await audit(actor, "access.denied", { attempted: body.action });
         return send(403, { error: "You do not have access to that." });
       }
+      if (route.feature && actor.role !== "owner" && !actor.features.includes(route.feature)) {
+        await audit(actor, "access.denied", { attempted: body.action, feature: route.feature });
+        return send(403, { error: "You do not have access to that." });
+      }
       const result = await route.run(actor, body);
       return send(result.error ? 400 : 200, result);
     } catch {

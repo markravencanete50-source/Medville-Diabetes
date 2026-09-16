@@ -17,7 +17,7 @@ import { Blob, Eyebrow, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 import { useParallax, useReveal } from "../lib/useReveal";
-import { useSectionVisible } from "../lib/useSiteData";
+import { useElementVisible, useSectionVisible } from "../lib/useSiteData";
 
 /*
   About Us.
@@ -107,6 +107,20 @@ export default function About() {
   const showStory = useSectionVisible("about", "story");
   const showPromises = useSectionVisible("about", "promises");
   const showClosing = useSectionVisible("about", "closing");
+  const showHeroCopy = useElementVisible("about", "hero", "copy");
+  const showHeroPicture = useElementVisible("about", "hero", "picture");
+  const showHeroPromises = useElementVisible("about", "hero", "promises");
+  const showMissionHeading = useElementVisible("about", "missionVision", "heading");
+  const showMissionCards = useElementVisible("about", "missionVision", "cards");
+  const showMissionPictures = useElementVisible("about", "missionVision", "pictures");
+  const showStoryHeading = useElementVisible("about", "story", "heading");
+  const showStoryParagraphs = useElementVisible("about", "story", "paragraphs");
+  const showStoryStatement = useElementVisible("about", "story", "statement");
+  const showPromisesHeading = useElementVisible("about", "promises", "heading");
+  const showPromiseCards = useElementVisible("about", "promises", "cards");
+  const showPromisePictures = useElementVisible("about", "promises", "pictures");
+  const showClosingCopy = useElementVisible("about", "closing", "copy");
+  const showClosingButton = useElementVisible("about", "closing", "button");
 
   return (
     <div ref={revealRef}>
@@ -120,7 +134,7 @@ export default function About() {
             {/* From lg up the photograph fills the right half to the viewport
                 edge, with its left side faded into the wash. Below lg it runs
                 in the normal flow underneath the copy instead. */}
-            <div aria-hidden="true" className="absolute inset-y-0 right-0 hidden w-[52%] overflow-hidden lg:block">
+            {showHeroPicture && <div aria-hidden="true" className="absolute inset-y-0 right-0 hidden w-[52%] overflow-hidden lg:block">
               <img
                 src="/about/about-hero.webp"
                 alt=""
@@ -132,11 +146,11 @@ export default function About() {
                    woman it is about sits in the middle rather than the edge. */
                 className="mask-fade-left h-full w-full object-cover object-center"
               />
-            </div>
+            </div>}
 
             <Container wide className="relative">
               <div className="grid lg:grid-cols-2">
-                <div className="py-14 md:py-20 lg:py-24 lg:pr-10">
+                {showHeroCopy && <div className="py-14 md:py-20 lg:py-24 lg:pr-10">
                   <span className="rise-in inline-flex items-center gap-2.5 rounded-full bg-navy-raised px-5 py-2.5 text-body font-semibold text-on-dark-accent">
                     <HeartHandshake size={20} strokeWidth={2} />
                     About Medville Diabetes
@@ -171,22 +185,22 @@ export default function About() {
                     access to CGMs and other diabetes supplies simpler and easier to
                     navigate.
                   </p>
-                </div>
+                </div>}
                 <div />
               </div>
 
-              <img
+              {showHeroPicture && <img
                 src="/about/about-hero.webp"
                 alt="A woman wearing a continuous glucose monitor on her arm checks a reading at her kitchen table."
                 width={1536}
                 height={1024}
                 className="rise-in mb-14 h-auto w-full rounded-lg shadow-soft lg:hidden"
                 style={{ "--rise-delay": "660ms" } as React.CSSProperties}
-              />
+              />}
             </Container>
           </div>
 
-          <Container wide className="relative">
+          {showHeroPromises && <Container wide className="relative">
             <ul className="m-0 grid list-none grid-cols-1 gap-y-6 border-t border-on-dark-accent/25 p-0 py-8 sm:grid-cols-2 lg:grid-cols-4">
               {HERO_PROMISES.map((promise, index) => (
                 <li
@@ -205,19 +219,19 @@ export default function About() {
                 </li>
               ))}
             </ul>
-          </Container>
+          </Container>}
         </section>}
 
         {/* mission and vision, each over its own photograph */}
         {showMissionVision && <section className="py-16 md:py-24">
           <Container wide>
-            <div data-reveal={0} className="max-w-[600px]">
+            {showMissionHeading && <div data-reveal={0} className="max-w-[600px]">
               <Eyebrow>Why we are here</Eyebrow>
               <h2 className="mt-3 font-display text-h2 font-bold text-ink">
                 Built Around What Makes Diabetes Care Easier
               </h2>
-            </div>
-            <div className="mt-10 grid gap-6 lg:grid-cols-2">
+            </div>}
+            {showMissionCards && <div className="mt-10 grid gap-6 lg:grid-cols-2">
               {MISSION_VISION.map((item, index) => (
                 <div
                   key={item.title}
@@ -229,7 +243,7 @@ export default function About() {
                   {/* A fixed 16:9 band, so the two photographs line up with
                       each other whatever shape they arrived in. The frame
                       clips; the photograph itself is free to drift. */}
-                  <div className="aspect-[16/9] overflow-hidden">
+                  {showMissionPictures && <div className="aspect-[16/9] overflow-hidden">
                     <img
                       src={item.image}
                       alt={item.alt}
@@ -239,7 +253,7 @@ export default function About() {
                       data-parallax="0.35"
                       className="h-full w-full object-cover"
                     />
-                  </div>
+                  </div>}
                   {/*
                     Pulled up over the foot of the photograph, which is the
                     overlap the earlier design had and worth keeping. The
@@ -256,20 +270,20 @@ export default function About() {
                   </div>
                 </div>
               ))}
-            </div>
+            </div>}
           </Container>
         </section>}
 
         {/* the company story */}
         {showStory && <section className="bg-why-band py-16 md:py-24">
           <Container>
-            <div data-reveal={0}>
+            {showStoryHeading && <div data-reveal={0}>
               <Eyebrow>Backed by Medville</Eyebrow>
               <h2 className="mt-3 max-w-[22ch] font-display text-h2 font-bold text-ink">
                 Medical Supply Experience With a Focus on Diabetes
               </h2>
-            </div>
-            <div className="mt-8 grid gap-x-14 gap-y-5 lg:grid-cols-2">
+            </div>}
+            {showStoryParagraphs && <div className="mt-8 grid gap-x-14 gap-y-5 lg:grid-cols-2">
               {STORY.map((paragraph, index) => (
                 <p
                   key={index}
@@ -279,26 +293,26 @@ export default function About() {
                   {paragraph}
                 </p>
               ))}
-            </div>
-            <p
+            </div>}
+            {showStoryStatement && <p
               data-reveal={300}
               className="reveal-blur reveal-glacial mt-10 rounded-lg border-l-4 border-brand bg-surface-raised px-8 py-6 font-display text-h3 font-semibold leading-snug text-brand shadow-soft"
             >
               Reliable supplies. Dedicated support. More time for life.
-            </p>
+            </p>}
           </Container>
         </section>}
 
         {/* three promises */}
         {showPromises && <section className="bg-grey-light py-14 md:py-20">
           <Container>
-            <div data-reveal={0} className="mb-10 max-w-[560px]">
+            {showPromisesHeading && <div data-reveal={0} className="mb-10 max-w-[560px]">
               <Eyebrow>Three promises</Eyebrow>
               <h2 className="mt-3 font-display text-h2 font-bold text-ink">
                 What You Can Expect From Us
               </h2>
-            </div>
-            <div className="grid gap-6 md:grid-cols-3">
+            </div>}
+            {showPromiseCards && <div className="grid gap-6 md:grid-cols-3">
               {PROMISES.map((promise, index) => (
                 <div
                   key={promise.title}
@@ -310,7 +324,7 @@ export default function About() {
                   </span>
                   <h3 className="mt-5 font-display text-h3 font-bold text-ink">{promise.title}</h3>
                   <p className="mt-3 text-small leading-relaxed text-grey-dark">{promise.body}</p>
-                  <div className="mt-6 overflow-hidden rounded-md bg-grey-light">
+                  {showPromisePictures && <div className="mt-6 overflow-hidden rounded-md bg-grey-light">
                     <img
                       src={promise.image}
                       alt={promise.alt}
@@ -320,10 +334,10 @@ export default function About() {
                       data-parallax="0.45"
                       className="aspect-[5/4] w-full object-cover"
                     />
-                  </div>
+                  </div>}
                 </div>
               ))}
-            </div>
+            </div>}
           </Container>
         </section>}
 
@@ -334,6 +348,7 @@ export default function About() {
             <GlucoseWave variant="onDark" className="h-full" />
           </div>
           <Container className="relative">
+            {showClosingCopy && <>
             <h2
               data-reveal={0}
               className="reveal-push reveal-glacial max-w-[26ch] font-display text-h2 font-bold text-on-dark"
@@ -347,12 +362,15 @@ export default function About() {
               Start by checking your potential CGM eligibility and let us help you
               understand what comes next.
             </p>
+            </>}
+            {showClosingButton && (
             <div data-reveal={420} className="reveal-drop">
               <Button to="/qualify" variant="on-band" className="mt-7">
                 Check My Eligibility
                 <ArrowRight size={16} strokeWidth={2.2} />
               </Button>
             </div>
+            )}
           </Container>
         </section>}
       </div>

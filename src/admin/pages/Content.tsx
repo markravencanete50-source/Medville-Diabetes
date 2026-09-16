@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { Eye, EyeOff, ExternalLink } from "lucide-react";
+import { Eye, EyeOff, ExternalLink, Image, LayoutPanelTop, MousePointerClick, Type } from "lucide-react";
 import {
+  elementIsVisible,
+  elementVisibilityKey,
   PAGE_VISIBILITY_KEY,
   PAGES,
   fieldPath,
@@ -137,9 +139,12 @@ export default function Content() {
           {page.blocks.map((block) => (
             <Card key={block.id}>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em]">
-                  {block.label}
-                </h2>
+                <div>
+                  <p className="admin-help m-0 uppercase tracking-[0.12em]">Section</p>
+                  <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em]">
+                    {block.label}
+                  </h2>
+                </div>
                 {block.hideable !== false && (
                   <VisibilityControl
                     compact
@@ -149,6 +154,29 @@ export default function Content() {
                   />
                 )}
               </div>
+              {block.elements && block.elements.length > 0 && (
+                <div className="mb-5 rounded-lg border border-[var(--a-line)] bg-[var(--a-surface-2)] p-3.5">
+                  <div className="mb-2.5">
+                    <p className="admin-label m-0">Elements in this section</p>
+                    <p className="admin-help m-0">Hide one item without removing the rest of the section.</p>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {block.elements.map((element) => (
+                      <ElementControl
+                        key={element.id}
+                        label={element.label}
+                        kind={element.kind}
+                        help={element.help}
+                        visible={elementIsVisible(values, block.id, element.id)}
+                        onChange={(visible) => set(
+                          elementVisibilityKey(block.id, element.id),
+                          visible ? "" : "hidden",
+                        )}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex flex-col gap-3.5">
                 {block.fields.map((field) => {
                   const key = fieldPath(block.id, field.key);
@@ -203,6 +231,50 @@ export default function Content() {
         </div>
       )}
     </>
+  );
+}
+
+const ELEMENT_ICONS = {
+  copy: Type,
+  picture: Image,
+  action: MousePointerClick,
+  content: LayoutPanelTop,
+};
+
+function ElementControl({
+  label,
+  kind,
+  help,
+  visible,
+  onChange,
+}: {
+  label: string;
+  kind: keyof typeof ELEMENT_ICONS;
+  help?: string;
+  visible: boolean;
+  onChange: (visible: boolean) => void;
+}) {
+  const Icon = ELEMENT_ICONS[kind];
+  return (
+    <div className="flex min-h-[58px] items-center gap-3 rounded-md border border-[var(--a-line)] bg-[var(--a-surface)] px-3 py-2.5">
+      <span className="flex h-9 w-9 flex-none items-center justify-center rounded-md bg-[var(--a-brand-soft)] text-[var(--a-brand)]">
+        <Icon size={17} aria-hidden="true" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="m-0 text-[13px] font-semibold leading-snug">{label}</p>
+        {help && <p className="admin-help m-0">{help}</p>}
+      </div>
+      <button
+        type="button"
+        className={`admin-btn admin-btn-sm flex-none ${visible ? "admin-btn-quiet" : "admin-btn-primary"}`}
+        aria-pressed={visible}
+        aria-label={`${visible ? "Hide" : "Show"} ${label}`}
+        onClick={() => onChange(!visible)}
+      >
+        {visible ? <Eye size={15} aria-hidden="true" /> : <EyeOff size={15} aria-hidden="true" />}
+        {visible ? "Visible" : "Hidden"}
+      </button>
+    </div>
   );
 }
 

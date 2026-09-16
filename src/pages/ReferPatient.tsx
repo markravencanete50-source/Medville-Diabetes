@@ -15,6 +15,7 @@ import { Blob, Eyebrow, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 import { useParallax, useReveal } from "../lib/useReveal";
+import { useElementVisible, useSectionVisible } from "../lib/useSiteData";
 import {
   EMAIL,
   EMAIL_HREF,
@@ -73,17 +74,37 @@ export default function ReferPatient() {
 
   const revealRef = useReveal<HTMLDivElement>();
   const parallaxRef = useParallax<HTMLDivElement>();
+  const showHero = useSectionVisible("refer", "hero");
+  const showSteps = useSectionVisible("refer", "steps");
+  const showVideo = useSectionVisible("refer", "video");
+  const showDownload = useSectionVisible("refer", "download");
+  const showSupport = useSectionVisible("refer", "support");
+  const heroCopy = useElementVisible("refer", "hero", "copy");
+  const heroButtons = useElementVisible("refer", "hero", "buttons");
+  const heroNote = useElementVisible("refer", "hero", "note");
+  const heroPicture = useElementVisible("refer", "hero", "picture");
+  const stepsHeading = useElementVisible("refer", "steps", "heading");
+  const stepCards = useElementVisible("refer", "steps", "cards");
+  const stepsButton = useElementVisible("refer", "steps", "button");
+  const videoCopy = useElementVisible("refer", "video", "copy");
+  const videoPlayer = useElementVisible("refer", "video", "player");
+  const downloadCopy = useElementVisible("refer", "download", "copy");
+  const downloadButton = useElementVisible("refer", "download", "button");
+  const downloadContact = useElementVisible("refer", "download", "contact");
+  const supportCopy = useElementVisible("refer", "support", "copy");
+  const supportButton = useElementVisible("refer", "support", "button");
 
   return (
     <div ref={revealRef}>
       <div ref={parallaxRef}>
         {/* HERO */}
-        <section className="bg-wash relative overflow-hidden">
+        {showHero && <section className="bg-wash relative overflow-hidden">
           <Blob tone="brand" strength={0.2} blur={44} size={480} duration="20s" className="-left-[140px] -top-[160px]" />
           <Blob tone="cyan" strength={0.14} blur={46} size={460} duration="26s" reverse className="-bottom-[190px] -right-[120px]" />
           <Grain opacity={0.05} />
           <Container wide className="relative grid items-center gap-10 py-14 md:py-20 lg:grid-cols-2 lg:gap-14">
             <div>
+              {heroCopy && <>
               <p className="rise-in m-0">
                 <Eyebrow onDark>For healthcare providers</Eyebrow>
               </p>
@@ -100,6 +121,8 @@ export default function ReferPatient() {
                 Send your patient to Medville Diabetes and we will help guide them
                 through the supply process, from potential eligibility to next steps.
               </p>
+              </>}
+              {heroButtons && (
               <div
                 className="rise-in mt-8 flex flex-wrap items-center gap-3.5"
                 style={{ "--rise-delay": "480ms" } as React.CSSProperties}
@@ -112,6 +135,8 @@ export default function ReferPatient() {
                   Contact Our Team
                 </Button>
               </div>
+              )}
+              {heroNote && (
               <p
                 className="rise-in mt-4.5 flex items-start gap-2 text-caption text-on-dark-muted"
                 style={{ "--rise-delay": "640ms" } as React.CSSProperties}
@@ -120,8 +145,10 @@ export default function ReferPatient() {
                 Simple referral process. Clear follow-up. Support for your patient
                 along the way.
               </p>
+              )}
             </div>
 
+            {heroPicture && (
             <div
               className="rise-in overflow-hidden rounded-[26px] shadow-soft"
               style={{ "--rise-delay": "380ms", "--rise-duration": "1400ms" } as React.CSSProperties}
@@ -140,18 +167,22 @@ export default function ReferPatient() {
                 className="aspect-[4/3] w-full object-cover"
               />
             </div>
+            )}
           </Container>
-        </section>
+        </section>}
 
         {/* HOW IT WORKS */}
-        <section className="bg-grey-light py-16 md:py-24">
+        {showSteps && <section className="bg-grey-light py-16 md:py-24">
           <Container wide>
+            {stepsHeading && (
             <div data-reveal={0} className="max-w-[600px]">
               <Eyebrow>How referrals work</Eyebrow>
               <h2 className="mt-3 font-display text-h2 font-bold text-ink">
                 Refer in Three Simple Steps
               </h2>
             </div>
+            )}
+            {stepCards && (
             <div className="mt-11 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
               {STEPS.map((step, index) => (
                 <div
@@ -172,18 +203,22 @@ export default function ReferPatient() {
                 </div>
               ))}
             </div>
+            )}
+            {stepsButton && (
             <div data-reveal={640} className="reveal-drop mt-10">
               <Button href={PACKET_HREF} variant="cta" className="min-h-[50px] px-7">
                 {PACKET_LABEL}
                 <Download size={16} strokeWidth={2.2} />
               </Button>
             </div>
+            )}
           </Container>
-        </section>
+        </section>}
 
         {/* VIDEO EXPLANATION */}
-        <section className="py-16 md:py-24">
+        {showVideo && <section className="py-16 md:py-24">
           <Container className="max-w-[900px]">
+            {videoCopy && (
             <div data-reveal={0} className="text-center">
               <Eyebrow>See how it works</Eyebrow>
               <h2 className="mt-3 font-display text-h2 font-bold text-ink">
@@ -194,7 +229,9 @@ export default function ReferPatient() {
                 what happens after you submit the referral.
               </p>
             </div>
+            )}
 
+            {videoPlayer && (
             <div
               data-reveal={200}
               className="reveal-curtain-left reveal-glacial mt-9 rounded-[24px] bg-grey-light shadow-soft"
@@ -221,11 +258,12 @@ export default function ReferPatient() {
               )}
               </div>
             </div>
+            )}
           </Container>
-        </section>
+        </section>}
 
         {/* DOWNLOAD CALL TO ACTION */}
-        <section className="bg-why-band py-16 md:py-24">
+        {showDownload && <section className="bg-why-band py-16 md:py-24">
           <Container wide>
             <div
               data-reveal={0}
@@ -235,6 +273,7 @@ export default function ReferPatient() {
                   of its widest child, and the email address below is one long
                   unbreakable word. */}
               <div className="min-w-0">
+                {downloadCopy && <>
                 <Eyebrow>Ready to refer?</Eyebrow>
                 <h2 className="mt-3 font-display text-h2 font-bold text-ink">
                   Everything You Need in One Download
@@ -243,6 +282,8 @@ export default function ReferPatient() {
                   Get the Medville Diabetes referral form and requirements together in
                   one packet.
                 </p>
+                </>}
+                {downloadButton && <>
                 <Button href={PACKET_HREF} variant="cta" className="mt-7 min-h-[50px] px-7">
                   {PACKET_LABEL}
                   <Download size={16} strokeWidth={2.2} />
@@ -251,8 +292,10 @@ export default function ReferPatient() {
                   <FileText size={14} strokeWidth={2} />
                   PDF • Printable • For healthcare provider use
                 </p>
+                </>}
               </div>
 
+              {downloadContact && (
               <div className="flex min-w-0 flex-col gap-5 rounded-lg bg-brand-tint p-6 sm:p-7">
                 <div>
                   <p className="m-0 text-caption font-semibold uppercase tracking-[0.14em] text-grey-muted">
@@ -279,14 +322,16 @@ export default function ReferPatient() {
                   </a>
                 </div>
               </div>
+              )}
             </div>
           </Container>
-        </section>
+        </section>}
 
         {/* PROVIDER SUPPORT */}
-        <section className="bg-cta-band relative overflow-hidden py-16">
+        {showSupport && <section className="bg-cta-band relative overflow-hidden py-16">
           <Grain opacity={0.07} />
           <Container className="relative">
+            {supportCopy && <>
             <h2
               data-reveal={0}
               className="reveal-blur reveal-glacial m-0 max-w-[24ch] font-display text-h2 font-bold text-on-dark"
@@ -300,14 +345,17 @@ export default function ReferPatient() {
               Have a question before sending your referral or need help with an
               existing patient request? Our team is here to help.
             </p>
+            </>}
+            {supportButton && (
             <div data-reveal={440} className="reveal-drop">
               <Button to="/contact" variant="on-band" className="mt-7">
                 Contact Our Team
                 <ArrowRight size={16} strokeWidth={2.2} />
               </Button>
             </div>
+            )}
           </Container>
-        </section>
+        </section>}
       </div>
     </div>
   );

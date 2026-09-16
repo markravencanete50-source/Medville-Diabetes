@@ -101,10 +101,15 @@ export function Spinner({ label = "Loading" }: { label?: string }) {
   );
 }
 
-/* ---- toasts ----
-   Deliberately plain text. A toast must never repeat a lead's details,
+/* ---- action notices ----
+   Deliberately plain text. A notice must never repeat a lead's details,
    because a screenshot of a dashboard is one of the easiest ways for PHI to
-   escape a screen. Messages say what happened, never to whom. */
+   escape a screen. Messages say what happened, never to whom.
+
+   Dashboard actions use a centred card instead of a small corner toast. The
+   result is difficult to miss after saving, publishing, sending, revoking or
+   deleting, and it remains keyboard accessible without interrupting the
+   action that just finished. */
 
 interface Toast {
   id: number;
@@ -128,20 +133,32 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={push}>
       {children}
-      <div className="admin-toasts" aria-live="polite">
-        {toasts.map((toast) => (
-          <div
+      <div className="admin-action-notices" aria-live="polite" aria-atomic="true">
+        {toasts.slice(-1).map((toast) => (
+          <section
             key={toast.id}
-            className={`admin-banner admin-banner-${toast.tone === "ok" ? "info" : "danger"} pointer-events-auto`}
-            style={{ background: "var(--a-surface)", boxShadow: "var(--a-shadow)" }}
+            role={toast.tone === "danger" ? "alert" : "status"}
+            className={`admin-action-notice admin-action-notice-${toast.tone}`}
+            aria-label={toast.tone === "ok" ? "Action completed" : "Action needs attention"}
           >
-            {toast.tone === "ok" ? (
-              <Check size={16} className="mt-0.5 flex-none" style={{ color: "var(--a-ok)" }} />
-            ) : (
-              <AlertTriangle size={16} className="mt-0.5 flex-none" style={{ color: "var(--a-danger)" }} />
-            )}
-            <span style={{ color: "var(--a-text)" }}>{toast.message}</span>
-          </div>
+            <span className="admin-action-notice-icon" aria-hidden="true">
+              {toast.tone === "ok" ? <Check size={22} /> : <AlertTriangle size={22} />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="admin-action-notice-title">
+                {toast.tone === "ok" ? "Action completed" : "Action needs attention"}
+              </p>
+              <p className="admin-action-notice-message">{toast.message}</p>
+            </div>
+            <button
+              type="button"
+              className="admin-icon-btn flex-none"
+              aria-label="Close notification"
+              onClick={() => setToasts((current) => current.filter((item) => item.id !== toast.id))}
+            >
+              <X size={18} />
+            </button>
+          </section>
         ))}
       </div>
     </ToastContext.Provider>

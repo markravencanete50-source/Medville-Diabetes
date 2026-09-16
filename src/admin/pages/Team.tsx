@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { Mail, Send } from "lucide-react";
+import { Mail, Send, ShieldOff, Trash2 } from "lucide-react";
 import { adminApi, AdminApiError, type AdminUser } from "../api";
-import { useAdminAuth } from "../auth";
+import { ADMIN_FEATURES, ROLE_ACCESS, useAdminAuth, type AdminFeature, type AdminRole } from "../auth";
 import { Badge, Banner, Card, Empty, Field, PageHeader, Spinner, formatDateTime, useToast } from "../ui";
 
 /*
@@ -52,6 +52,28 @@ const ROLE_NOTE: Record<string, string> = {
   none: "Signed out of everything. The account stays but has no access.",
 };
 
+const FEATURE_LABEL: Record<AdminFeature, string> = {
+  overview: "Overview",
+  leads: "Enquiries",
+  influencers: "Influencers",
+  products: "Products",
+  content: "Edit pages",
+  blog: "Blog",
+  appearance: "Colours",
+  faqs: "Questions",
+  testimonials: "Reviews",
+  team: "Administrators",
+  audit: "Access log",
+};
+
+function defaultFeatures(role: string): AdminFeature[] {
+  return role === "owner"
+    ? [...ADMIN_FEATURES]
+    : role === "marketing" || role === "sales"
+      ? [...ROLE_ACCESS[role as AdminRole]] as AdminFeature[]
+      : [];
+}
+
 export default function Team() {
   const { getToken, session } = useAdminAuth();
   const toast = useToast();
@@ -60,6 +82,7 @@ export default function Team() {
   const [busyUid, setBusyUid] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("marketing");
+  const [inviteFeatures, setInviteFeatures] = useState<AdminFeature[]>(() => defaultFeatures("marketing"));
   const [inviting, setInviting] = useState(false);
   const isOwner = session?.role === "owner";
 
@@ -79,7 +102,7 @@ export default function Team() {
 
     setInviting(true);
     try {
-      const result = await adminApi.inviteAdmin(getToken, email, inviteRole);
+      const result = await adminApi.inviteAdmin(getToken, email, inviteRole, inviteFeatures);
       if (result.emailSent) {
         toast(
           result.created
@@ -129,10 +152,10 @@ export default function Team() {
     void refresh();
   }, [refresh]);
 
-  const setRole = async (user: AdminUser, role: string) => {
+  const setRole = async (user: AdminUser, role: string, features = role === user.role ? user.features : defaultFeatures(role)) => {
     setBusyUid(user.uid);
     try {
-      await adminApi.setAdminRole(getToken, user.uid, role);
+      await adminApi.setAdminRole(getToken, user.uid, role, features);
       toast("Access updated. They will be signed out of their current session.");
       await refresh();
     } catch (problem) {
@@ -142,11 +165,33 @@ export default function Team() {
     }
   };
 
+  const toggleFeature = async (user: AdminUser, feature: AdminFeature) => {
+    const current = user.features.filter((item): item is AdminFeature => ADMIN_FEATURES.includes(item as AdminFeature));
+    const next = current.includes(feature)
+      ? current.filter((item) => item !== feature)
+      : [...current, feature];
+    await setRole(user, user.role, next);
+  };
+
+  const removeUser = async (user: AdminUser) => {
+    if (!window.confirm("Remove this administrator account? This deletes the login and cannot be undone.")) return;
+    setBusyUid(user.uid);
+    try {
+      await adminApi.deleteAdmin(getToken, user.uid);
+      toast("Administrator account removed. The login no longer exists.");
+      await refresh();
+    } catch (problem) {
+      toast(problem instanceof AdminApiError ? problem.message : "That account could not be removed.", "danger");
+    } finally {
+      setBusyUid("");
+    }
+  };
+
   return (
     <>
       <PageHeader
         title="Administrators"
-        lede="Who can sign in to this dashboard and what each person is allowed to open."
+        lede="Invite individual users, choose each feature they can open, revoke access, or remove an account."
       />
 
       <div className="mb-4">
@@ -177,7 +222,11 @@ export default function Team() {
                   id="invite-role"
                   className="admin-select"
                   value={inviteRole}
-                  onChange={(event) => setInviteRole(event.target.value)}
+                  onChange={(event) => {
+                    const role = event.target.value;
+                    setInviteRole(role);
+                    setInviteFeatures(defaultFeatures(role));
+                  }}
                 >
                   <option value="sales">Sales</option>
                   <option value="marketing">Marketing</option>
@@ -197,6 +246,15 @@ export default function Team() {
           <p className="admin-help" style={{ marginTop: 10 }}>
             {ROLE_NOTE[inviteRole]}
           </p>
+          {isOwner && inviteRole !== "owner" && (
+            <FeaturePicker
+              className="mt-4"
+              selected={inviteFeatures}
+              onToggle={(feature) => setInviteFeatures((current) => current.includes(feature)
+                ? current.filter((item) => item !== feature)
+                : [...current, feature])}
+            />
+          )}
         </Card>
       </div>
 
@@ -218,7 +276,7 @@ export default function Team() {
                 <tr>
                   <th scope="col">Person</th>
                   <th scope="col">Last signed in</th>
-                  <th scope="col">Access</th>
+                  <th scope="col">Access and features</th>
                 </tr>
               </thead>
               <tbody>
@@ -257,7 +315,7 @@ export default function Team() {
                           </span>
                         )}
                       </td>
-                      <td data-label="Access" className="sm:min-w-[230px]">
+                      <td data-label="Access and features" className="sm:min-w-[320px]">
                         <Field label="" htmlFor={`role-${user.uid}`}>
                           <select
                             id={`role-${user.uid}`}
@@ -279,6 +337,36 @@ export default function Team() {
                               ? "Only an Owner can change Owner access."
                               : ROLE_NOTE[user.role] ?? ""}
                         </p>
+                        {!isYou && user.role !== "owner" && user.role !== "none" && (
+                          <FeaturePicker
+                            className="mt-3"
+                            selected={user.features as AdminFeature[]}
+                            disabled={busyUid === user.uid}
+                            onToggle={(feature) => void toggleFeature(user, feature)}
+                          />
+                        )}
+                        {!isYou && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {user.role !== "none" && (
+                              <button
+                                type="button"
+                                className="admin-btn admin-btn-quiet"
+                                disabled={busyUid === user.uid || isProtectedOwner}
+                                onClick={() => void setRole(user, "none", [])}
+                              >
+                                <ShieldOff size={14} /> Revoke access
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn-danger"
+                              disabled={busyUid === user.uid || isProtectedOwner}
+                              onClick={() => void removeUser(user)}
+                            >
+                              <Trash2 size={14} /> Remove user
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -289,5 +377,36 @@ export default function Team() {
         )}
       </Card>
     </>
+  );
+}
+
+function FeaturePicker({
+  selected,
+  onToggle,
+  disabled = false,
+  className = "",
+}: {
+  selected: AdminFeature[];
+  onToggle: (feature: AdminFeature) => void;
+  disabled?: boolean;
+  className?: string;
+}) {
+  return (
+    <fieldset className={className} disabled={disabled}>
+      <legend className="admin-label">Feature access</legend>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {ADMIN_FEATURES.filter((feature) => feature !== "audit" && feature !== "team").map((feature) => (
+          <label key={feature} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-[var(--a-line)] bg-[var(--a-surface-2)] px-3 py-2 text-[12px] font-semibold">
+            <input
+              type="checkbox"
+              checked={selected.includes(feature)}
+              onChange={() => onToggle(feature)}
+              className="h-4 w-4 flex-none accent-[var(--a-brand)]"
+            />
+            {FEATURE_LABEL[feature]}
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }

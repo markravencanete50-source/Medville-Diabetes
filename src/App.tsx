@@ -16,6 +16,7 @@ import BlogPost from "./pages/BlogPost";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
+import NewsletterPrompt from "./components/NewsletterPrompt";
 import { SiteDataProvider, usePageVisible } from "./lib/useSiteData";
 import type { PageId } from "./content/schema";
 import type { SiteData } from "./lib/siteContent";
@@ -78,6 +79,7 @@ export function PublicSite({ initialData }: { initialData?: SiteData } = {}) {
         </Routes>
       </main>
       <Footer />
+      <NewsletterPrompt />
     </SiteDataProvider>
   );
 }
