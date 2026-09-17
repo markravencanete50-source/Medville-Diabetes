@@ -18,6 +18,8 @@ photographs, process cards, eligibility labels and product guidance, referral
 packet and video addresses, and search metadata. Contact details feed the header,
 footer, contact, and referral pages. Image uploads use the existing signed
 Cloudinary upload service. Forms keep their validation and server launch gates.
+Saved search metadata also feeds the next deployment's prerendered HTML. Browser
+titles update from live content; crawler snapshots are refreshed at deployment.
 
 The preview receives only known content fields from its same-origin parent window.
 Draft values never enter the public content cache. Preview form submissions and

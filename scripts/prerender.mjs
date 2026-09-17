@@ -323,6 +323,7 @@ const catalog = await loadModule("src/data/products.ts");
 const company = await loadModule("src/data/company.ts");
 const faqs = await loadModule("src/data/faqs.ts");
 const siteContent = await loadModule("src/lib/siteContent.ts");
+const contentSchema = await loadModule("src/content/schema.ts");
 const server = await loadServerModule("src/entry-server.tsx");
 const origin = meta.SITE_ORIGIN;
 
@@ -334,6 +335,14 @@ try {
 }
 const products = siteData.products.length ? siteData.products : catalog.products;
 const posts = siteData.posts;
+function savedPageMeta(path, fallback) {
+  const page = contentSchema.PAGES.find((entry) => entry.path === path);
+  if (!page) return fallback;
+  return {
+    title: siteContent.resolveText(siteData.content, page.id, "meta.title") || fallback.title,
+    description: siteContent.resolveText(siteData.content, page.id, "meta.description") || fallback.description,
+  };
+}
 console.log(`  public content: ${products.length} products, ${posts.length} articles`);
 
 /* Every address this build produced, so the sitemap is a record of what was
@@ -349,7 +358,8 @@ const TRAIL = {
   "/products/insulin-pumps": [{ name: "Products", path: "/products" }],
 };
 
-for (const [path, entry] of Object.entries(meta.PAGE_META)) {
+for (const [path, fallback] of Object.entries(meta.PAGE_META)) {
+  const entry = savedPageMeta(path, fallback);
   const noindex = path === "/404";
   const trail = [HOME, ...(TRAIL[path] ?? []), { name: entry.title.split(" | ")[0], path }];
 
@@ -435,7 +445,7 @@ console.log(`  articles: ${posts.length}`);
 /* The blog index is rewritten last, now that the articles are known, so it
    can name them. Everything else about the page is unchanged. */
 if (posts.length) {
-  const entry = meta.PAGE_META["/blog"];
+  const entry = savedPageMeta("/blog", meta.PAGE_META["/blog"]);
   await emit("/blog", pageHtml(template, {
     path: "/blog",
     title: entry.title,
