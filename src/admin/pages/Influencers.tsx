@@ -116,13 +116,13 @@ export default function Influencers() {
             <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg" style={{ background: "var(--a-brand-soft)", color: "var(--a-brand-text)" }}><BarChart3 size={19} /></span>
             <div><p className="admin-label m-0">Meta Ads measurement</p><p className="admin-help mt-1 max-w-[720px]">Choose Meta Ads when you create a link. The URL includes a campaign name and Medville records unique visits, enquiries, and conversion rate without sending form answers or contact details to Meta.</p></div>
           </div>
-          <Badge tone="ok">Basic KPIs available</Badge>
+          <Badge tone="ok">First-party tracking active</Badge>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <div className="rounded-lg p-4" style={{ background: "var(--a-brand-soft)" }}><div className="flex items-center gap-2"><ShieldCheck size={16} style={{ color: "var(--a-brand-text)" }} /><p className="admin-label m-0">Available now</p></div><p className="admin-help mt-2">Campaign link, unique visits, enquiries, and on-site conversion rate.</p></div>
-          <div className="rounded-lg border p-4" style={{ borderColor: "var(--a-border)" }}><p className="admin-label m-0">Needs a Meta ad account connection</p><p className="admin-help mt-2">Impressions, spend, CTR, CPC, CPM, reach, and frequency. These figures come from the Meta Marketing API, not from the Pixel alone.</p></div>
+          <div className="rounded-lg border p-4" style={{ borderColor: "var(--a-border)" }}><p className="admin-label m-0">Compliance boundary</p><p className="admin-help mt-2">Meta Pixel is intentionally not loaded on the public website, forms, or protected dashboard.</p></div>
         </div>
-        <p className="admin-help mt-4">No Meta API connection is needed for campaign links, unique visits, enquiries, or conversion rate shown here. A browser Pixel is separate and is not connected yet. Form answers and contact details stay in Medville.</p>
+        <p className="admin-help mt-4">Campaign links, unique visits, enquiries, and conversion rate are measured within Medville. Form answers and contact details are not sent to Meta.</p>
       </Card>
 
       <Card className="mb-4">
