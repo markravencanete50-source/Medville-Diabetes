@@ -48,6 +48,7 @@ export default function Content({ repository = pageRepository }: { repository?: 
   const [saved, setSaved] = useState<PageValues>({});
   const [section, setSection] = useState("hero");
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
+  const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
   const frame = useRef<HTMLIFrameElement>(null);
   const loadVersion = useRef(0);
   const editVersion = loadVersion.current;
@@ -83,6 +84,7 @@ export default function Content({ repository = pageRepository }: { repository?: 
         const block = page.blocks.find((entry) => entry.fields.some((field) => fieldPath(entry.id, field.key) === event.data.key));
         if (!block) return;
         setSection(block.id);
+        setMobileView("edit");
         requestAnimationFrame(() => document.getElementById(`content-${pageId}-${event.data.key}`)?.focus({ preventScroll: false }));
       }
     };
@@ -182,12 +184,17 @@ export default function Content({ repository = pageRepository }: { repository?: 
         ))}
       </div>
 
+      <div className="page-editor-view-switch mb-4 flex gap-2" aria-label="Editor view">
+        <button type="button" className={`admin-btn ${mobileView === "edit" ? "admin-btn-primary" : "admin-btn-quiet"}`} aria-pressed={mobileView === "edit"} onClick={() => setMobileView("edit")}>Edit content</button>
+        <button type="button" className={`admin-btn ${mobileView === "preview" ? "admin-btn-primary" : "admin-btn-quiet"}`} aria-pressed={mobileView === "preview"} onClick={() => setMobileView("preview")}>Website preview</button>
+      </div>
+
       {values === null ? (
         <Card>
           {!error && <Spinner label="Loading content" />}
         </Card>
       ) : (
-        <div className="page-editor-layout">
+        <div className={`page-editor-layout page-editor-show-${mobileView}`}>
         <div className="page-editor-controls flex min-w-0 flex-col gap-4">
           <Card>
             <VisibilityControl
