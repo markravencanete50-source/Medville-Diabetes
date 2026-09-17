@@ -230,7 +230,7 @@ const BASE_EDITORIAL_POSTS: Post[] = [
         ]
       }
     ],
-    "image": "/blog/sugar-and-diabetes.webp",
+    "image": "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678437/medville/migrated/397294daa3ffbdfc06143be4.webp",
     "imageAlt": "Two adults discuss a glucose reading in a kitchen with fresh produce nearby",
     "author": "Medville Diabetes",
     "publishedAt": "2026-09-14",
@@ -488,7 +488,7 @@ const BASE_EDITORIAL_POSTS: Post[] = [
         ]
       }
     ],
-    "image": "/blog/carbs-and-diabetes.webp",
+    "image": "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678416/medville/migrated/34fcffe4fa717af3540d77f3.webp",
     "imageAlt": "Balanced rice, vegetables, and protein served together on a plate",
     "author": "Medville Diabetes",
     "publishedAt": "2026-09-14",
@@ -742,7 +742,7 @@ const BASE_EDITORIAL_POSTS: Post[] = [
         ]
       }
     ],
-    "image": "/blog/alcohol-and-diabetes.webp",
+    "image": "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678415/medville/migrated/fbfcc5489664795992619317.webp",
     "imageAlt": "A single glass of red wine with plated food at a dinner table",
     "author": "Medville Diabetes",
     "publishedAt": "2026-09-14",

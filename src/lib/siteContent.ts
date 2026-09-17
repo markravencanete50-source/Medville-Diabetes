@@ -33,7 +33,7 @@ const API_KEY = firebaseConfig.apiKey;
 /* Content changes rarely and a stale minute is harmless, so one fetch per tab
    session is plenty. This also keeps Firestore reads far inside the free tier
    and protects the 0 to 5 USD per month ceiling in Section 7.3. */
-const CACHE_KEY = "medville:site-content:v2";
+const CACHE_KEY = "medville:site-content:v3-cloudinary";
 
 export interface ThemeOverrides {
   brand?: string;

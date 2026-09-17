@@ -48,5 +48,9 @@ export async function sendAdminPasswordEmail({ email, uid, actionLink, purpose }
       ...message,
     }),
   });
-  if (!result.ok) throw new Error("Email delivery failed");
+  if (!result.ok) {
+    const error = new Error("Email delivery failed");
+    error.code = `email/http-${result.status}`;
+    throw error;
+  }
 }

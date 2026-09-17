@@ -29,7 +29,7 @@ const LINES: {
       "Whether you are exploring CGM for the first time or looking for ongoing supplies, browse the systems and sensors available through Medville Diabetes.",
     ],
     cta: "Explore CGMs",
-    image: "/products/freestyle-libre-3-front.webp",
+    image: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678461/medville/migrated/c95251791956e1d4c4ba48ec.webp",
     alt: "A FreeStyle Libre 3 continuous glucose monitor box and sensor.",
   },
   {
@@ -40,7 +40,7 @@ const LINES: {
       "Explore insulin pump technology designed to provide continuous insulin delivery for people whose diabetes care requires insulin.",
     ],
     cta: "Explore Insulin Pumps",
-    image: "/products/tandem-tslim-x2-front.webp",
+    image: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678465/medville/migrated/72273fac98e31785fc1d3960.webp",
     alt: "A Tandem t:slim X2 insulin pump with a touchscreen, next to a sensor.",
   },
 ];

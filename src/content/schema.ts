@@ -373,7 +373,7 @@ export const PAGES: PageDef[] = [
             key: "image",
             label: "Banner photograph",
             kind: "image",
-            fallback: "/services/journey/journey-hero.webp",
+            fallback: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678466/medville/migrated/9930f18999fde5a3b299dde0.webp",
           },
           {
             key: "imageAlt",
@@ -548,7 +548,7 @@ export const PAGES: PageDef[] = [
             key: "image",
             label: "Banner photograph",
             kind: "image",
-            fallback: "/about/about-hero.webp",
+            fallback: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678408/medville/migrated/863d0a5a46132b4c5bf5cb0f.webp",
           },
         ],
       },

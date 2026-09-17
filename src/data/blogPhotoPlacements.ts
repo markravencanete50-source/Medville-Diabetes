@@ -1,4 +1,5 @@
 import type { ImageBlock, Post } from "./blog";
+import { imageUrl } from "../lib/imageUrl";
 
 type Placement = { heading: string; photo: string; alt: string };
 
@@ -61,7 +62,7 @@ export function addInlinePhotos(post: Post): Post {
       const image: ImageBlock = {
         id: `${post.slug}-photo-${pending.photo}`,
         type: "image",
-        url: `/blog/inline/${pending.photo}.webp`,
+        url: imageUrl(`/blog/inline/${pending.photo}.webp`),
         alt: pending.alt,
         ratio: "3/2",
         width: "inset",

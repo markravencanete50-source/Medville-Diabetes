@@ -159,7 +159,7 @@ export default function ReferPatient() {
                 adult patient during a routine visit.
               */}
               <img
-                src="/services/journey/journey-stage-02-confirm.webp"
+                src="https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678468/medville/migrated/feaf9b96de328d8e5b72cfa7.webp"
                 alt="A care coordinator reviews a patient's records during a routine appointment."
                 width={1100}
                 height={825}

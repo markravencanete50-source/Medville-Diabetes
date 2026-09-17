@@ -907,16 +907,20 @@
 }
 
 /* Every completed dashboard action receives one clear result card. */
-.admin-action-notices {
+.admin.admin-action-notices {
   position: fixed;
   inset: 0;
-  z-index: 120;
+  z-index: 10000;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
   pointer-events: none;
+  min-height: 0;
+  background: transparent;
 }
+
+.admin.admin-action-notices.is-visible { background: rgb(0 29 41 / 0.35); }
 
 .admin-action-notice {
   display: flex;

@@ -40,12 +40,14 @@ import { sendAdminPasswordEmail } from "./password-email.js";
 import { createAdminHandler } from "./handler.js";
 import { ADMIN_ROLES, normalizeFeatures, normalizeRole, roleChangeError } from "./roles.js";
 import { validateInfluencerInput } from "./influencers.js";
+import { imageUploadSignature } from "./images.js";
 
 initializeApp({ credential: applicationDefault() });
 
 const db = new Firestore();
 const auth = getAuth();
 const resendApiKey = defineSecret("RESEND_API_KEY");
+const cloudinarySecret = defineSecret("CLOUDINARY_API_SECRET");
 const PUBLIC_SITE_URL = (process.env.PUBLIC_SITE_URL || "https://www.medvillediabetes.com").replace(/\/$/, "");
 
 /*
@@ -243,6 +245,7 @@ function influencerToJson(doc) {
     handle: d.handle ?? "",
     platform: d.platform ?? "Other",
     active: d.active === true,
+    deleted: d.deleted === true,
     clicks: Number.isFinite(d.clicks) ? d.clicks : 0,
     leads: Number.isFinite(d.leads) ? d.leads : 0,
     createdAt: d.createdAt?.toDate?.().toISOString() ?? null,
@@ -278,11 +281,25 @@ async function setInfluencerActive(actor, body) {
     return { error: "Unknown influencer." };
   }
   const reference = db.collection("influencers").doc(body.slug);
-  if (!(await reference.get()).exists) return { error: "Unknown influencer." };
-  await reference.update({
-    active: body.active, updatedAt: FieldValue.serverTimestamp(), updatedBy: actor.uid,
+  const result = await db.runTransaction(async (tx) => {
+    const existing = await tx.get(reference);
+    if (!existing.exists || existing.data().deleted) return { error: "Unknown influencer." };
+    tx.update(reference, {
+      active: body.active, updatedAt: FieldValue.serverTimestamp(), updatedBy: actor.uid,
+    });
+    return { ok: true };
   });
+  if (result.error) return result;
   await audit(actor, "influencers.setActive", { influencerId: body.slug, active: body.active });
+  return { ok: true };
+}
+
+async function setInfluencerDeleted(actor, body) {
+  if (!validId(body.slug) || typeof body.deleted !== "boolean") return { error: "Unknown influencer." };
+  const reference = db.collection("influencers").doc(body.slug);
+  if (!(await reference.get()).exists) return { error: "Unknown influencer." };
+  await audit(actor, "influencers.delete.requested", { influencerId: body.slug, deleted: body.deleted });
+  await reference.update({ deleted: body.deleted, active: false, updatedAt: FieldValue.serverTimestamp(), updatedBy: actor.uid });
   return { ok: true };
 }
 
@@ -440,8 +457,9 @@ async function inviteAdmin(actor, body) {
       purpose: "invite",
     });
     await audit(actor, "admins.passwordEmail.sent", { targetUid: user.uid, purpose: "invite" });
-  } catch {
+  } catch (problem) {
     emailSent = false;
+    console.error("Admin invitation delivery failed", { code: /^[a-z0-9/-]{1,80}$/i.test(problem?.code || "") ? problem.code : "unknown" });
     await audit(actor, "admins.passwordEmail.failed", { targetUid: user.uid, purpose: "invite" });
   }
   return { ok: true, uid: user.uid, created, emailSent };
@@ -472,8 +490,9 @@ async function resendAdminPasswordEmail(actor, body) {
     });
     await audit(actor, "admins.passwordEmail.sent", { targetUid: user.uid, purpose: "reset" });
     return { ok: true };
-  } catch {
+  } catch (problem) {
     await audit(actor, "admins.passwordEmail.failed", { targetUid: user.uid, purpose: "reset" });
+    console.error("Admin password email delivery failed", { code: /^[a-z0-9/-]{1,80}$/i.test(problem?.code || "") ? problem.code : "unknown" });
     return { error: "The email could not be sent. Please try again." };
   }
 }
@@ -549,6 +568,14 @@ async function deleteAdmin(actor, body) {
 /* ---- routing ---- */
 
 const ROUTES = {
+  "images.signUpload": { roles: ADMIN_ROLES, run: async (actor, body) => {
+    const result = imageUploadSignature(actor, body, {
+      secret: cloudinarySecret.value(), apiKey: process.env.CLOUDINARY_API_KEY,
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    });
+    if (!result.error) await audit(actor, "images.upload.requested", { folder: body.folder });
+    return result;
+  } },
   "leads.list": { roles: ADMIN_ROLES, feature: "leads", run: listLeads },
   "leads.get": { roles: ADMIN_ROLES, feature: "leads", run: getLead },
   "leads.update": { roles: ADMIN_ROLES, feature: "leads", run: updateLead },
@@ -556,6 +583,7 @@ const ROUTES = {
   "influencers.list": { roles: ADMIN_ROLES, feature: "influencers", run: listInfluencers },
   "influencers.create": { roles: ADMIN_ROLES, feature: "influencers", run: createInfluencer },
   "influencers.setActive": { roles: ADMIN_ROLES, feature: "influencers", run: setInfluencerActive },
+  "influencers.setDeleted": { roles: ADMIN_ROLES, feature: "influencers", run: setInfluencerDeleted },
   "audit.list": { roles: ["owner"], feature: "audit", run: listAudit },
   "admins.list": { roles: ["owner"], feature: "team", run: listAdmins },
   "admins.setRole": { roles: ["owner"], feature: "team", run: setAdminRole },
@@ -582,5 +610,5 @@ const ROUTES = {
 
 export const adminApi = onRequest({
   region: "us-central1", cors: false, maxInstances: 2,
-  memory: "256MiB", timeoutSeconds: 30, secrets: [resendApiKey],
+  memory: "256MiB", timeoutSeconds: 30, secrets: [resendApiKey, cloudinarySecret],
 }, createAdminHandler({ authenticate, audit, routes: ROUTES, origins: ALLOWED_ORIGINS }));

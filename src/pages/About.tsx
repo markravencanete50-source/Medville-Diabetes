@@ -44,7 +44,7 @@ const MISSION_VISION = [
     icon: Compass,
     title: "Our Mission",
     body: "Our mission is to make getting diabetes supplies easier, more dependable, and less stressful. We combine access to trusted products with clear communication and responsive support, helping people navigate the supply process without adding more unnecessary work to diabetes management.",
-    image: "/about/mission-bg.webp",
+    image: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678409/medville/migrated/66712e3bbe59f8f86d2b50ce.webp",
     width: 1290,
     height: 860,
     alt: "A pharmacy delivery is handed to a smiling woman at her front door.",
@@ -53,7 +53,7 @@ const MISSION_VISION = [
     icon: Eye,
     title: "Our Vision",
     body: "Our vision is a diabetes supply experience that fits more naturally into everyday life, where people spend less time chasing answers, worrying about supplies, or trying to figure out what comes next. We want dependable access and helpful support to feel like the standard, giving the people we serve more time and confidence to focus on everything beyond managing diabetes.",
-    image: "/about/vision-bg.webp",
+    image: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678413/medville/migrated/d6194a26f3394385532c7685.webp",
     width: 960,
     height: 430,
     alt: "A family shares a meal in the garden while one of them checks a glucose reading on her phone.",
@@ -79,21 +79,21 @@ const PROMISES = [
     icon: PackageCheck,
     title: "Dependable Supplies",
     body: "Getting the supplies you rely on should not feel uncertain. We work to provide dependable access to diabetes products and help make ongoing supply needs easier to manage.",
-    image: "/about/value-leading-brands.webp",
+    image: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678410/medville/migrated/7a42be8d1f2b96b1a4c62250.webp",
     alt: "A FreeStyle Libre box and a Dexcom box with their sensors in front.",
   },
   {
     icon: MessagesSquare,
     title: "Clear Communication",
     body: "You should not have to chase down answers. We keep you informed and help explain what comes next throughout the supply process.",
-    image: "/about/value-plain-answers.webp",
+    image: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678411/medville/migrated/57b933eb57e05842013512ec.webp",
     alt: "A clipboard with three completed checks, next to a speech bubble and a small plant.",
   },
   {
     icon: PhoneCall,
     title: "Support When You Need It",
     body: "Questions happen. Our team is here to help you navigate supply-related questions, potential eligibility, and next steps without adding more confusion.",
-    image: "/about/value-privacy.webp",
+    image: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678412/medville/migrated/6dd33173a50411fd3bfc41ac.webp",
     alt: "A shield with a lock in front of a database and a cloud.",
   },
 ];
@@ -136,7 +136,7 @@ export default function About() {
                 in the normal flow underneath the copy instead. */}
             {showHeroPicture && <div aria-hidden="true" className="absolute inset-y-0 right-0 hidden w-[52%] overflow-hidden lg:block">
               <img
-                src="/about/about-hero.webp"
+                src="https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678408/medville/migrated/863d0a5a46132b4c5bf5cb0f.webp"
                 alt=""
                 width={1536}
                 height={1024}
@@ -190,7 +190,7 @@ export default function About() {
               </div>
 
               {showHeroPicture && <img
-                src="/about/about-hero.webp"
+                src="https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678408/medville/migrated/863d0a5a46132b4c5bf5cb0f.webp"
                 alt="A woman wearing a continuous glucose monitor on her arm checks a reading at her kitchen table."
                 width={1536}
                 height={1024}

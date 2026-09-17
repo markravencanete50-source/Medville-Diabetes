@@ -32,10 +32,10 @@ const useBrowserLayoutEffect = typeof window === "undefined" ? useEffect : useLa
 const CareCycle3D = lazy(() => import("../components/CareCycle3D"));
 
 const IMAGES = {
-  hero: "/services/journey/journey-hero.webp",
-  start: "/services/journey/journey-stage-01-start.webp",
-  approve: "/services/journey/journey-stage-03-approve.webp",
-  deliver: "/services/journey/journey-stage-04-deliver.webp",
+  hero: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678466/medville/migrated/9930f18999fde5a3b299dde0.webp",
+  start: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678467/medville/migrated/ae2ee892ea4486576ba0c1de.webp",
+  approve: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678469/medville/migrated/ecac64179b08172654d46658.webp",
+  deliver: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678470/medville/migrated/c230690d42cb5175fcc59880.webp",
 };
 
 const STAGES = [

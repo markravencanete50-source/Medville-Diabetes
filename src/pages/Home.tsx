@@ -78,7 +78,7 @@ const STEPS = [
     tone: "brand" as const,
     title: "Tell Us About Yourself",
     body: "Complete our short eligibility form with your basic information so we can get started.",
-    image: "/home/step-1-short-form.webp",
+    image: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678443/medville/migrated/d8dcbb474d0fe00a6c364302.webp",
     width: 900,
     height: 762,
     alt: "A person completes a short eligibility form on a smartphone at home.",
@@ -88,7 +88,7 @@ const STEPS = [
     tone: "cyan" as const,
     title: "We Review Your Potential Eligibility",
     body: "Our team reviews the information you provide and checks available coverage information to help determine your potential eligibility.",
-    image: "/home/step-2-review.webp",
+    image: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678444/medville/migrated/84bf33a56417b8e28f204015.webp",
     width: 900,
     height: 720,
     alt: "A Medville Diabetes team member reviews information at a computer.",
@@ -98,7 +98,7 @@ const STEPS = [
     tone: "brand" as const,
     title: "We Walk You Through What Comes Next",
     body: "We will contact you to explain what we found, answer your questions, and help you understand the next steps.",
-    image: "/home/step-3-delivery.webp",
+    image: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678445/medville/migrated/aabb5b234cb80a4ce6b1431c.webp",
     width: 900,
     height: 720,
     alt: "A customer speaks with a Medville Diabetes representative by phone at home.",
@@ -442,7 +442,7 @@ export default function Home() {
             >
               <div>
                 <img
-                  src="/home/why-monitoring.webp"
+                  src="https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678446/medville/migrated/5c69689deb0d4c56447b8c30.webp"
                   alt="A woman wearing a sensor on her arm looks at her phone, which shows a glucose reading of 112 inside her target range."
                   loading="lazy"
                   width={1200}

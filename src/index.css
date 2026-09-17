@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+.newsletter-dialog::backdrop { background: rgb(0 29 41 / 0.55); }
+
 /* Article headings have in-page links in the reading guide. */
 .article-prose h2[id], .article-prose h3[id] { scroll-margin-top: 7rem; }
 .article-prose h2 { line-height: 1.3; }

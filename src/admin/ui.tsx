@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Info, X } from "lucide-react";
+import { createPortal } from "react-dom";
 
 /*
   The small set of pieces every dashboard screen is built from. Keeping them
@@ -133,7 +134,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={push}>
       {children}
-      <div className="admin-action-notices" aria-live="polite" aria-atomic="true">
+      {createPortal(<div className={`admin admin-action-notices${toasts.length ? " is-visible" : ""}`} aria-live="polite" aria-atomic="true">
         {toasts.slice(-1).map((toast) => (
           <section
             key={toast.id}
@@ -160,7 +161,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             </button>
           </section>
         ))}
-      </div>
+      </div>, document.body)}
     </ToastContext.Provider>
   );
 }

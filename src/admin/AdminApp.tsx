@@ -22,7 +22,7 @@ import {
 import "./admin.css";
 import { AdminAuthProvider, canOpen, useAdminAuth, type AdminFeature, type AdminRole } from "./auth";
 import { isAdminApiConfigured } from "./api";
-import { Badge, Banner, Field, ToastProvider, useAdminTheme } from "./ui";
+import { Badge, Banner, Field, ToastProvider, useAdminTheme, useToast } from "./ui";
 import { usePageMeta } from "../lib/usePageMeta";
 
 /*
@@ -160,6 +160,7 @@ function Brand() {
 
 function SignIn() {
   const { signIn, pendingApproval, signedOutReason, configured } = useAdminAuth();
+  const toast = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -171,6 +172,7 @@ function SignIn() {
     setError("");
     try {
       await signIn(email, password);
+      toast("Signed in successfully.");
     } catch (problem) {
       /*
         One message for every wrong credential. Saying which half was wrong
@@ -272,6 +274,7 @@ function SignIn() {
 
 function Shell() {
   const { session, signOutNow, idleWarning, keepAwake } = useAdminAuth();
+  const toast = useToast();
   const { theme, toggle } = useAdminTheme();
   const [navOpen, setNavOpen] = useState(false);
   const role = session!.role;
@@ -357,7 +360,7 @@ function Shell() {
         <button
           type="button"
           className="admin-nav-link w-full"
-          onClick={() => void signOutNow("You signed out.")}
+          onClick={() => void signOutNow("You signed out.").then(() => toast("Signed out successfully.")).catch(() => toast("Sign out failed. Please try again.", "danger"))}
         >
           <LogOut size={17} /> Sign out
         </button>

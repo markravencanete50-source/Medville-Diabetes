@@ -6,8 +6,8 @@ import {
   getDocs,
   setDoc,
 } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { adminDb, adminStorage } from "./auth";
+import { adminDb, adminAuth } from "./auth";
+import { adminApi } from "./api";
 import type { PageId, PageValues } from "../content/schema";
 import type { Product } from "../data/products";
 import {
@@ -189,35 +189,31 @@ export async function uploadImage(file: File, folder: string): Promise<string> {
   if (file.size > MAX_UPLOAD_BYTES) {
     throw new Error("That image is larger than 5 MB. Please use a smaller file.");
   }
-  const safeName = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-").replace(/^-|-$/g, "");
-  const path = `site/${folder}/${Date.now()}-${safeName}`;
-  const target = ref(adminStorage(), path);
-  await uploadBytes(target, file, { cacheControl: "public, max-age=31536000, immutable" });
-  return getDownloadURL(target);
+  const signed = await adminApi.signImageUpload(async () => adminAuth().currentUser?.getIdToken(true) ?? null, folder);
+  const form = new FormData();
+  form.set("file", file);
+  form.set("api_key", signed.apiKey);
+  form.set("signature", signed.signature);
+  for (const [key, value] of Object.entries(signed.params)) form.set(key, value);
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${signed.cloudName}/image/upload`, {
+    method: "POST", body: form, signal: AbortSignal.timeout(60000),
+  });
+  if (!response.ok) throw new Error("Image upload failed. Please try again.");
+  const result = await response.json();
+  if (typeof result.secure_url !== "string" || !result.secure_url.startsWith(`https://res.cloudinary.com/${signed.cloudName}/image/upload/`)) {
+    throw new Error("The image service returned an invalid image address.");
+  }
+  return result.secure_url.replace("/image/upload/", "/image/upload/f_auto,q_auto,c_limit,w_1920/");
 }
 
-/*
-  Uploading needs a Cloud Storage bucket, and a project on the free tier does
-  not have one: Firebase only creates the default bucket on the Blaze plan. So
-  every picture on the dashboard can also be given as a web address, which
-  needs nothing enabled and works today. When Storage is switched on, upload
-  starts working with no change to any screen.
-
-  This wording used to live in the blog editor alone, which is how the product
-  form ended up with no web-address field and no explanation: the client could
-  pick a file, watch it fail, and had no other route to a picture. One copy
-  here, used by both.
-*/
+/* One shared explanation for all editors. Upload authorization is server-side. */
 export const UPLOAD_HELP =
-  "Upload needs Cloud Storage, which is not switched on for this project yet. Paste a web address instead, or ask for Storage to be enabled.";
+  "Upload a JPEG, PNG, WebP, GIF or AVIF image up to 5 MB to Cloudinary, or paste an image address.";
 
 export function uploadProblem(problem: unknown) {
   const message = problem instanceof Error ? problem.message : "";
-  /* A missing bucket surfaces as an unhelpful storage error, and a retry that
-     runs out of time surfaces as a timeout. Both mean the same thing to the
-     person at the screen, so say the useful sentence rather than repeat it. */
-  return /bucket|not found|404|unknown|retry|timeout|exceeded/i.test(message)
-    ? UPLOAD_HELP
+  return /timeout|exceeded/i.test(message)
+    ? "The image upload timed out. Please try again with a smaller image."
     : message || UPLOAD_HELP;
 }
 

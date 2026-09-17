@@ -27,6 +27,7 @@ export default function Influencers() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [busySlug, setBusySlug] = useState("");
+  const [showDeleted, setShowDeleted] = useState(false);
 
   const load = useCallback(async () => {
     setError("");
@@ -40,7 +41,8 @@ export default function Influencers() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const totals = useMemo(() => (items ?? []).reduce(
+  const visibleItems = (items ?? []).filter((item) => Boolean(item.deleted) === showDeleted);
+  const totals = useMemo(() => (items ?? []).filter((item) => !item.deleted).reduce(
     (sum, item) => ({ clicks: sum.clicks + item.clicks, leads: sum.leads + item.leads }),
     { clicks: 0, leads: 0 },
   ), [items]);
@@ -78,6 +80,17 @@ export default function Influencers() {
     } catch { toast("The link could not be copied. Select it from the table instead.", "danger"); }
   };
 
+  const setDeleted = async (item: Influencer) => {
+    setBusySlug(item.slug);
+    try {
+      await adminApi.setInfluencerDeleted(getToken, item.slug, !item.deleted);
+      setItems((current) => (current ?? []).map((value) => value.slug === item.slug ? { ...value, deleted: !item.deleted, active: false } : value));
+      toast(item.deleted ? "Link restored. Reactivate it when ready." : "Link deleted. You can restore it from Deleted links.");
+    } catch (problem) {
+      toast(problem instanceof AdminApiError ? problem.message : "That did not work.", "danger");
+    } finally { setBusySlug(""); }
+  };
+
   const conversion = totals.clicks ? `${((totals.leads / totals.clicks) * 100).toFixed(1)}%` : "0%";
 
   return (
@@ -91,7 +104,7 @@ export default function Influencers() {
       {error && <div className="mb-4"><Banner tone="warn">{error}</Banner></div>}
 
       <div className="mb-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
-        <Card><div className="admin-stat"><b>{items?.length ?? 0}</b><span>Partners</span></div></Card>
+        <Card><div className="admin-stat"><b>{(items ?? []).filter((item) => !item.deleted).length}</b><span>Partners</span></div></Card>
         <Card><div className="admin-stat"><b>{totals.clicks}</b><span>Unique visits</span></div></Card>
         <Card><div className="admin-stat"><b>{totals.leads}</b><span>Enquiries</span></div></Card>
         <Card><div className="admin-stat"><b>{conversion}</b><span>Conversion</span></div></Card>
@@ -103,13 +116,13 @@ export default function Influencers() {
             <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg" style={{ background: "var(--a-brand-soft)", color: "var(--a-brand-text)" }}><BarChart3 size={19} /></span>
             <div><p className="admin-label m-0">Meta Ads measurement</p><p className="admin-help mt-1 max-w-[720px]">Choose Meta Ads when you create a link. The URL includes a campaign name and Medville records unique visits, enquiries, and conversion rate without sending form answers or contact details to Meta.</p></div>
           </div>
-          <Badge tone="warn">Pixel connection required</Badge>
+          <Badge tone="ok">Basic KPIs available</Badge>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <div className="rounded-lg p-4" style={{ background: "var(--a-brand-soft)" }}><div className="flex items-center gap-2"><ShieldCheck size={16} style={{ color: "var(--a-brand-text)" }} /><p className="admin-label m-0">Available now</p></div><p className="admin-help mt-2">Campaign link, unique visits, enquiries, and on-site conversion rate.</p></div>
           <div className="rounded-lg border p-4" style={{ borderColor: "var(--a-border)" }}><p className="admin-label m-0">Needs a Meta ad account connection</p><p className="admin-help mt-2">Impressions, spend, CTR, CPC, CPM, reach, and frequency. These figures come from the Meta Marketing API, not from the Pixel alone.</p></div>
         </div>
-        <p className="admin-help mt-4">A browser Pixel is not active yet. This diabetes website must not send health information, form fields, or health-related page activity to Meta. Add the approved Pixel ID and ad account only after privacy and legal review.</p>
+        <p className="admin-help mt-4">No Meta API connection is needed for campaign links, unique visits, enquiries, or conversion rate shown here. A browser Pixel is separate and is not connected yet. Form answers and contact details stay in Medville.</p>
       </Card>
 
       <Card className="mb-4">
@@ -118,7 +131,7 @@ export default function Influencers() {
             <span className="flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: "var(--a-brand-soft)", color: "var(--a-brand-text)" }}><Link2 size={18} /></span>
             <div><p className="admin-label m-0">Create a referral link</p><p className="admin-help m-0">The handle becomes a safe link code; no visitor details are placed in the URL.</p></div>
           </div>
-          <div className="grid items-end gap-3 md:grid-cols-[1fr_1fr_180px_auto]">
+          <div className="grid items-start gap-3 md:grid-cols-[1fr_1fr_180px_auto]">
             <Field label="Influencer name" htmlFor="influencer-name">
               <input id="influencer-name" className="admin-input" maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder="T1D Girlie" />
             </Field>
@@ -130,26 +143,27 @@ export default function Influencers() {
                 {PLATFORMS.map((value) => <option key={value}>{value}</option>)}
               </select>
             </Field>
-            <button type="submit" className="admin-btn admin-btn-primary w-full md:w-auto" disabled={busy}><Plus size={16} /> {busy ? "Creating" : "Create link"}</button>
+            <button type="submit" className="admin-btn admin-btn-primary w-full md:mt-[25px] md:w-auto" disabled={busy}><Plus size={16} /> {busy ? "Creating" : "Create link"}</button>
           </div>
         </form>
       </Card>
 
+      <label className="admin-help mb-3 flex items-center gap-2"><input type="checkbox" checked={showDeleted} onChange={(event) => setShowDeleted(event.target.checked)} />Deleted links</label>
       <Card pad={false}>
-        {items === null ? <Spinner label="Loading influencers" /> : !items.length ? (
-          <Empty>No influencer links yet. Create the first one above.</Empty>
+        {items === null ? <Spinner label="Loading influencers" /> : !visibleItems.length ? (
+          <Empty>{showDeleted ? "No deleted links." : "No influencer links yet. Create the first one above."}</Empty>
         ) : (
           <div className="admin-table-wrap">
             <table className="admin-table">
               <thead><tr><th scope="col">Influencer</th><th scope="col">Referral link</th><th scope="col">Visits</th><th scope="col">Enquiries</th><th scope="col">Conversion</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
-              <tbody>{items.map((item) => {
+              <tbody>{visibleItems.map((item) => {
                 const rate = item.clicks ? `${((item.leads / item.clicks) * 100).toFixed(1)}%` : "0%";
                 return <tr key={item.slug}>
                   <td data-label="Influencer"><span className="font-semibold">{item.name}</span><span className="block text-xs" style={{ color: "var(--a-text-faint)" }}>{item.platform} · {item.handle}</span></td>
                   <td data-label="Referral link"><input className="admin-input min-w-[260px]" readOnly value={referralUrl(item)} aria-label={`Referral link for ${item.name}`} /></td>
                   <td data-label="Visits">{item.clicks}</td><td data-label="Enquiries">{item.leads}</td><td data-label="Conversion">{rate}</td>
                   <td data-label="Status"><Badge tone={item.active ? "ok" : "quiet"}>{item.active ? "Active" : "Paused"}</Badge></td>
-                  <td><button type="button" className="admin-btn admin-btn-quiet admin-btn-sm" onClick={() => void copy(item)}><Copy size={14} /> Copy</button><button type="button" className="admin-btn admin-btn-quiet admin-btn-sm ml-2" disabled={busySlug === item.slug} onClick={() => void setActive(item)}>{item.active ? "Pause" : "Reactivate"}</button></td>
+                  <td>{!item.deleted && <><button type="button" className="admin-btn admin-btn-quiet admin-btn-sm" onClick={() => void copy(item)}><Copy size={14} /> Copy</button><button type="button" className="admin-btn admin-btn-quiet admin-btn-sm ml-2" disabled={Boolean(busySlug)} onClick={() => void setActive(item)}>{item.active ? "Pause" : "Reactivate"}</button></>}<button type="button" className="admin-btn admin-btn-quiet admin-btn-sm ml-2" disabled={Boolean(busySlug)} onClick={() => void setDeleted(item)}>{item.deleted ? "Restore" : "Delete"}</button></td>
                 </tr>;
               })}</tbody>
             </table>

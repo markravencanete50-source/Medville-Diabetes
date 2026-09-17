@@ -1,9 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Bell, CheckCircle2, Mail, X } from "lucide-react";
 import { useLocation } from "react-router-dom";
-
-const STORAGE_KEY = "medville:blog-subscription-prompt";
-const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+import { createPortal } from "react-dom";
 
 type Status = "idle" | "sending" | "success" | "error";
 
@@ -16,21 +14,29 @@ export default function NewsletterPrompt() {
   const [website, setWebsite] = useState("");
   const headingId = useId();
   const sending = useRef(false);
+  const shownThisVisit = useRef(false);
+  const dialog = useRef<HTMLDialogElement>(null);
   const endpoint = (import.meta.env.VITE_NEWSLETTER_ENDPOINT as string | undefined)
     || "https://us-central1-medville-diabetes.cloudfunctions.net/blogSubscribe";
 
   useEffect(() => {
-    if (pathname === "/qualify") return;
-    let lastSeen = 0;
-    try { lastSeen = Number(localStorage.getItem(STORAGE_KEY) || 0); } catch { /* private window */ }
-    if (Date.now() - lastSeen < THIRTY_DAYS) return;
-    const timer = window.setTimeout(() => setOpen(true), 2200);
-    return () => window.clearTimeout(timer);
+    if (pathname.startsWith("/qualify") || pathname.startsWith("/admin")) { setOpen(false); return; }
+    if (shownThisVisit.current) return;
+    shownThisVisit.current = true;
+    setOpen(true);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    dialog.current?.showModal();
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = overflow; previous?.focus(); };
+  }, [open]);
 
   const close = () => {
     setOpen(false);
-    try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch { /* private window */ }
   };
 
   const submit = async (event: React.FormEvent) => {
@@ -48,7 +54,6 @@ export default function NewsletterPrompt() {
       });
       if (!response.ok) throw new Error(String(response.status));
       setStatus("success");
-      try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch { /* private window */ }
     } catch {
       setStatus("error");
     } finally {
@@ -58,12 +63,14 @@ export default function NewsletterPrompt() {
 
   if (!open) return null;
 
-  return (
-    <aside
+  return createPortal(
+    <dialog
+      ref={dialog}
+      onCancel={close}
       role="dialog"
-      aria-modal="false"
+      aria-modal="true"
       aria-labelledby={headingId}
-      className="fixed bottom-4 left-4 right-4 z-[80] ml-auto max-w-[440px] rounded-[22px] border border-line-brand bg-surface-raised p-5 shadow-overlay sm:bottom-6 sm:right-6 sm:p-6"
+      className="newsletter-dialog fixed inset-0 m-auto max-h-[calc(100dvh-32px)] w-[calc(100%-32px)] max-w-[440px] overflow-y-auto rounded-[22px] border border-line-brand bg-surface-raised p-5 shadow-overlay sm:p-6"
     >
       <button
         type="button"
@@ -99,7 +106,7 @@ export default function NewsletterPrompt() {
           <p className="mt-4 text-small leading-relaxed text-grey-dark">
             Subscribe to receive an email when we publish a new article about diabetes technology, health, and daily life.
           </p>
-          <form onSubmit={submit} className="mt-4 space-y-3" noValidate>
+          <form onSubmit={submit} className="mt-4 space-y-3">
             <div className="relative">
               <Mail size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-grey-muted" aria-hidden="true" />
               <label htmlFor="newsletter-email" className="sr-only">Email address</label>
@@ -131,6 +138,6 @@ export default function NewsletterPrompt() {
           </form>
         </>
       )}
-    </aside>
+    </dialog>, document.body
   );
 }

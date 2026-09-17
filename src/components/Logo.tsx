@@ -27,7 +27,7 @@ export default function Logo({
 }) {
   return (
     <img
-      src={onDark ? "/brand/medville-logo-on-dark.svg" : "/brand/medville-logo.svg"}
+      src={onDark ? "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678437/medville/migrated/6f1ad44d8d7fc756dddebeb4.svg" : "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678439/medville/migrated/cb3bde6857cf3c208fbb950d.svg"}
       alt="Medville Diabetes"
       loading={loading}
       /* The intrinsic ratio of the cropped lockup. Giving it here reserves the

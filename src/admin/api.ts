@@ -93,6 +93,7 @@ export interface Influencer {
   handle: string;
   platform: string;
   active: boolean;
+  deleted?: boolean;
   clicks: number;
   leads: number;
   createdAt: string | null;
@@ -150,6 +151,8 @@ async function call<T>(getToken: GetToken, action: string, payload: Record<strin
 }
 
 export const adminApi = {
+  signImageUpload: (getToken: GetToken, folder: string) =>
+    call<{ cloudName: string; apiKey: string; signature: string; params: Record<string, string> }>(getToken, "images.signUpload", { folder }),
   listLeads: (getToken: GetToken, status?: LeadStatus, cursor?: string) =>
     call<{ leads: Lead[]; nextCursor: string | null }>(getToken, "leads.list", { ...(status ? { status } : {}), ...(cursor ? { cursor } : {}) }),
 
@@ -171,6 +174,9 @@ export const adminApi = {
 
   setInfluencerActive: (getToken: GetToken, slug: string, active: boolean) =>
     call<{ ok: true }>(getToken, "influencers.setActive", { slug, active }),
+
+  setInfluencerDeleted: (getToken: GetToken, slug: string, deleted: boolean) =>
+    call<{ ok: true }>(getToken, "influencers.setDeleted", { slug, deleted }),
 
   listAudit: (getToken: GetToken) => call<{ entries: AuditEntry[] }>(getToken, "audit.list"),
 

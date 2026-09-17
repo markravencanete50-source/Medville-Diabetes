@@ -34,7 +34,7 @@ export interface PageMeta {
   canonicalPath?: string;
 }
 
-const DEFAULT_IMAGE = "/og-image.jpg";
+const DEFAULT_IMAGE = "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678446/medville/migrated/0e9e44384770d452dd649e29.jpg";
 
 /* A meta or link tag is created the first time it is asked for, so a page can
    set something index.html does not declare. */
