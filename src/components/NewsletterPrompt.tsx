@@ -94,17 +94,17 @@ export default function NewsletterPrompt() {
         </div>
       ) : (
         <>
-          <div className="flex items-start gap-3 pr-10">
+          <div className="flex items-center gap-3 pr-10">
             <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-brand-soft text-brand">
               <Bell size={20} aria-hidden="true" />
             </span>
-            <div>
-              <p className="text-caption font-semibold uppercase tracking-[0.14em] text-brand">New article updates</p>
-              <h2 id={headingId} className="mt-1 font-display text-h3 font-bold text-ink">Learn with Medville Diabetes</h2>
-            </div>
+            <p className="text-caption font-semibold uppercase tracking-[0.14em] text-brand">New article updates</p>
           </div>
-          <p className="mt-4 text-small leading-relaxed text-grey-dark">
-            Subscribe to receive an email when we publish a new article about diabetes technology, health, and daily life.
+          <h2 id={headingId} className="mt-3 whitespace-nowrap font-display text-[clamp(1.25rem,5.6vw,1.6rem)] font-bold tracking-[-0.025em] text-ink">
+            Learn with Medville Diabetes
+          </h2>
+          <p className="mt-3 text-small leading-relaxed text-grey-dark">
+            Get practical, easy-to-understand guidance on diabetes technology, everyday health, and living with confidence—delivered whenever we publish something new.
           </p>
           <form onSubmit={submit} className="mt-4 space-y-3">
             <div className="relative">
