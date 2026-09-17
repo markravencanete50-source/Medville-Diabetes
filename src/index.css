@@ -1229,3 +1229,4 @@ video[data-parallax] {
   .journey-stage-visual > img { min-height: 0; aspect-ratio: 4 / 3; }
   .journey-closing { padding: 78px 0; }
 }
+.editor-selected { outline: 2px solid var(--color-brand-bright); outline-offset: 4px; }

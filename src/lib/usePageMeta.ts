@@ -1,5 +1,10 @@
 import { useEffect } from "react";
 import { SITE_ORIGIN } from "../data/pageMeta";
+import { useLocation } from "react-router-dom";
+import { PAGES } from "../content/schema";
+import { useSiteData } from "./useSiteData";
+import { resolveText } from "./siteContent";
+import { isEditorPreview } from "./editorPreview";
 
 /*
   Sets everything a search engine or a link preview reads off a page.
@@ -69,7 +74,13 @@ export function usePageMeta(
       ? { title: titleOrMeta, description: maybeDescription }
       : titleOrMeta;
 
-  const { title, description, image, type, noindex, canonicalPath } = input;
+  const { pathname } = useLocation();
+  const { content } = useSiteData();
+  const page = PAGES.find((entry) => entry.path === pathname);
+  const title = (page && resolveText(content, page.id, "meta.title")) || input.title;
+  const description = (page && resolveText(content, page.id, "meta.description")) || input.description;
+  const { image, type, canonicalPath } = input;
+  const noindex = isEditorPreview() || input.noindex;
 
   useEffect(() => {
     document.title = title;

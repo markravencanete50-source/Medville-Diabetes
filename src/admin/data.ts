@@ -9,6 +9,8 @@ import {
 import { adminDb, adminAuth } from "./auth";
 import { adminApi } from "./api";
 import type { PageId, PageValues } from "../content/schema";
+import { pageValidationError } from "../content/validation";
+import { EDITORIAL_POSTS } from "../data/editorialPosts";
 import type { Product } from "../data/products";
 import {
   DEFAULT_TEMPLATE,
@@ -89,10 +91,12 @@ export const THEME_DEFAULTS: ThemeRecord = {
 
 export async function loadPage(pageId: PageId): Promise<PageValues> {
   const snapshot = await getDoc(doc(adminDb(), "siteContent", pageId));
-  return snapshot.exists() ? (snapshot.data() as PageValues) : {};
+  return snapshot.exists() ? Object.fromEntries(Object.entries(snapshot.data()).filter(([, value]) => typeof value === "string")) as PageValues : {};
 }
 
 export async function savePage(pageId: PageId, values: PageValues) {
+  const problem = pageValidationError(pageId, values);
+  if (problem) throw new Error(problem);
   /* Empty means "use the built-in wording", so empties are dropped rather
      than stored as blank strings that would show as gaps on the site. */
   const clean: PageValues = {};
@@ -242,7 +246,7 @@ export function newId() {
 
 export async function loadPosts(): Promise<PostRecord[]> {
   const snapshot = await getDocs(collection(adminDb(), "posts"));
-  return snapshot.docs
+  const live = snapshot.docs
     .map((entry) => {
       const data = entry.data() as Record<string, unknown>;
       return {
@@ -262,6 +266,9 @@ export async function loadPosts(): Promise<PostRecord[]> {
     /* Newest first, and drafts with no date yet sort to the top where the
        author will see them. */
     .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
+  const bySlug = new Map<string, PostRecord>(EDITORIAL_POSTS.map((post) => [post.slug, { ...post, homeFeatured: post.homeFeatured ?? false, template: post.template ?? DEFAULT_TEMPLATE }]));
+  for (const post of live) bySlug.set(post.slug, post);
+  return [...bySlug.values()].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
 }
 
 /* Firestore rejects undefined anywhere in a document, so every optional field

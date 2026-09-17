@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { RotateCw } from "lucide-react";
 import type { Product } from "../data/products";
 import { prefersReducedMotion } from "../lib/useReveal";
+import { usePageText } from "../lib/useSiteData";
 
 /*
   The hero's floating product card: a raised 28px-radius card holding the
@@ -25,6 +26,7 @@ const CHIPS = [
 const TAP_TRAVEL = 4;
 
 export default function HeroViewer({ product }: { product: Product }) {
+  const { text } = usePageText("home");
   const [angle, setAngle] = useState(0);
   const [snapping, setSnapping] = useState(false);
   const drag = useRef<{ x: number; startX: number; moved: boolean } | null>(null);
@@ -125,11 +127,11 @@ export default function HeroViewer({ product }: { product: Product }) {
           </div>
           <span className="pointer-events-none absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-ink/75 px-3.5 py-1.5 text-[0.75rem] font-medium text-on-dark backdrop-blur-[4px]">
             <RotateCw size={13} strokeWidth={2} />
-            Tap or drag to flip
+            {text("hero.flipHint")}
           </span>
         </div>
 
-        {CHIPS.map((chip) => (
+        {CHIPS.map((chip, index) => (
           <div
             key={chip.text}
             className={`floaty2 absolute inline-flex items-center rounded-full bg-surface-raised px-4 py-2.5 text-caption font-semibold text-ink shadow-pill max-lg:hidden ${chip.className}`}
@@ -140,7 +142,7 @@ export default function HeroViewer({ product }: { product: Product }) {
               } as React.CSSProperties
             }
           >
-            {chip.text}
+            {text(`hero.chip${index + 1}`)}
           </div>
         ))}
       </div>

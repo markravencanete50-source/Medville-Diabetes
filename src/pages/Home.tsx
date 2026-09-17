@@ -1,3 +1,4 @@
+import { editableItems } from "../content/editableItems";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -138,14 +139,15 @@ export default function Home() {
 
   const revealRef = useReveal<HTMLDivElement>();
   const parallaxRef = useParallax<HTMLDivElement>();
+  const { text } = usePageText("home");
+  const statNumber = (key: string) => Math.min(100000000, Math.max(0, Number(text(`stats.${key}`)) || 0));
   const { ref: statsRef, values: stats } = useCountUp({
-    years: 15,
-    products: 35000,
-    makers: 300,
-    providers: 6000,
+    years: statNumber("years"),
+    products: statNumber("products"),
+    makers: statNumber("makers"),
+    providers: statNumber("providers"),
   });
   const [quickView, setQuickView] = useState<string | null>(null);
-  const { text } = usePageText("home");
   const showHero = useSectionVisible("home", "hero");
   const showStats = useSectionVisible("home", "stats");
   const showProcess = useSectionVisible("home", "process");
@@ -283,7 +285,7 @@ export default function Home() {
             wide
             className="relative grid gap-8 py-12 [grid-template-columns:repeat(auto-fit,minmax(210px,1fr))]"
           >
-            {NUMBERS.map((entry, index) => (
+            {editableItems(NUMBERS, text, "stats.numbers").map((entry, index) => (
               <div
                 key={entry.key}
                 data-reveal={index * 170}
@@ -311,17 +313,12 @@ export default function Home() {
         {showProcess && <section className="bg-grey-light py-16 md:py-24">
           <Container wide>
             {showProcessIntro && <div data-reveal={0} className="max-w-[660px]">
-              <Eyebrow>Getting started</Eyebrow>
-              <h2 className="mt-3 font-display text-h2 font-bold text-ink">
-                A Simpler Way to Check Your CGM Options
-              </h2>
-              <p className="mt-3 text-body leading-relaxed text-grey-dark">
-                Not sure what your insurance may cover or what comes next? Start with a
-                few basic details and we will help you navigate the process.
-              </p>
+              <Eyebrow>{text("process.getting-started")}</Eyebrow>
+              <h2 className="mt-3 font-display text-h2 font-bold text-ink">{text("process.a-simpler-way-to-check-your-cgm-options")}</h2>
+              <p className="mt-3 text-body leading-relaxed text-grey-dark">{text("process.not-sure-what-your-insurance-may-cover-or-what-comes-next-start-w")}</p>
             </div>}
             {showProcessCards && <div className="mt-11 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
-              {STEPS.map((step, index) => (
+              {editableItems(STEPS, text, "process.steps").map((step, index) => (
                 <div
                   key={step.title}
                   data-reveal={index * 200}
@@ -334,8 +331,7 @@ export default function Home() {
                   >
                     <step.icon size={22} strokeWidth={2} />
                   </span>
-                  <p className="mt-5 text-caption font-bold tracking-[0.14em] text-brand-bright">
-                    STEP {index + 1}
+                  <p className="mt-5 text-caption font-bold tracking-[0.14em] text-brand-bright">{text("process.step")} {index + 1}
                   </p>
                   <h3 className="mt-1.5 font-display text-[1.15rem] font-semibold text-ink">
                     {step.title}
@@ -367,21 +363,13 @@ export default function Home() {
             <div data-reveal={0} className="flex flex-wrap items-end justify-between gap-4">
               {showProductsIntro && (
               <div>
-                <Eyebrow>Explore diabetes technology</Eyebrow>
-                <h2 className="mt-3 font-display text-h2 font-bold text-ink">
-                  Find What Fits Your Routine
-                </h2>
-                <p className="mt-2.5 max-w-[58ch] text-body leading-relaxed text-grey-dark">
-                  From continuous glucose monitors to insulin delivery technology,
-                  explore trusted products designed to support diabetes management in
-                  everyday life.
-                </p>
+                <Eyebrow>{text("products.explore-diabetes-technology")}</Eyebrow>
+                <h2 className="mt-3 font-display text-h2 font-bold text-ink">{text("products.find-what-fits-your-routine")}</h2>
+                <p className="mt-2.5 max-w-[58ch] text-body leading-relaxed text-grey-dark">{text("products.from-continuous-glucose-monitors-to-insulin-delivery-technology-e")}</p>
               </div>
               )}
               {showProductsLink && (
-              <Link to="/products" className="group inline-flex items-center gap-1.5 py-1 text-small font-semibold text-brand">
-                View All Products
-                <ArrowRight size={15} strokeWidth={2.2} className="transition-transform duration-(--duration-micro) group-hover:translate-x-0.5" />
+              <Link to="/products" className="group inline-flex items-center gap-1.5 py-1 text-small font-semibold text-brand">{text("products.view-all-products")}<ArrowRight size={15} strokeWidth={2.2} className="transition-transform duration-(--duration-micro) group-hover:translate-x-0.5" />
               </Link>
               )}
             </div>
@@ -407,13 +395,11 @@ export default function Home() {
           <Container className="relative grid items-center gap-12 lg:grid-cols-2">
             {showWhyBenefits && <div>
               <div data-reveal={0}>
-                <Eyebrow>Why CGM?</Eyebrow>
-                <h2 className="mt-3 font-display text-h2 font-bold text-ink">
-                  More Insight. Less Interruption.
-                </h2>
+                <Eyebrow>{text("whyCgm.why-cgm")}</Eyebrow>
+                <h2 className="mt-3 font-display text-h2 font-bold text-ink">{text("whyCgm.more-insight-less-interruption")}</h2>
               </div>
               <ul className="mt-7 flex list-none flex-col gap-5.5 p-0">
-                {WHY.map((item, index) => (
+                {editableItems(WHY, text, "whyCgm.benefits").map((item, index) => (
                   <li key={item.title} data-reveal={200 + index * 190} className="reveal-left flex gap-4">
                     <span
                       className={`flex h-11 w-11 flex-none items-center justify-center rounded-full shadow-[0_1px_3px_rgb(0_41_59/0.1)] ${
@@ -442,8 +428,8 @@ export default function Home() {
             >
               <div>
                 <img
-                  src="https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678446/medville/migrated/5c69689deb0d4c56447b8c30.webp"
-                  alt="A woman wearing a sensor on her arm looks at her phone, which shows a glucose reading of 112 inside her target range."
+                  src={text("whyCgm.section-photograph")}
+                  alt={text("whyCgm.photograph-description")}
                   loading="lazy"
                   width={1200}
                   height={936}
@@ -455,7 +441,7 @@ export default function Home() {
           </Container>
           {showWhyCaptions && <Container className="relative">
             <div className="mt-12 grid gap-6 border-t border-line-brand pt-9 sm:grid-cols-3">
-              {CAPTIONS.map((item, index) => (
+              {editableItems(CAPTIONS, text, "whyCgm.captions").map((item, index) => (
                 <div
                   key={item.text}
                   data-reveal={index * 180}
@@ -476,10 +462,8 @@ export default function Home() {
           <section className="py-16 md:py-24">
             <Container wide>
               {showTestimonialHeading && <div data-reveal={0} className="mx-auto max-w-[640px] text-center">
-                <Eyebrow>Real life experiences</Eyebrow>
-                <h2 className="mt-3 font-display text-h2 font-bold text-ink">
-                  Do not take our word for it. Take theirs.
-                </h2>
+                <Eyebrow>{text("testimonials.real-life-experiences")}</Eyebrow>
+                <h2 className="mt-3 font-display text-h2 font-bold text-ink">{text("testimonials.do-not-take-our-word-for-it-take-theirs")}</h2>
               </div>}
               {showTestimonialCards && <div className="mt-10 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
                 {testimonials.map((item, index) => (
@@ -501,10 +485,7 @@ export default function Home() {
                   </figure>
                 ))}
               </div>}
-              {showTestimonialDisclaimer && <p data-reveal={140} className="reveal-swift mx-auto mt-6 max-w-[70ch] text-center text-[0.78rem] leading-relaxed text-grey-faint">
-                Individual experiences vary. Testimonials do not guarantee eligibility,
-                insurance coverage, product availability, or results.
-              </p>}
+              {showTestimonialDisclaimer && <p data-reveal={140} className="reveal-swift mx-auto mt-6 max-w-[70ch] text-center text-[0.78rem] leading-relaxed text-grey-faint">{text("testimonials.individual-experiences-vary-testimonials-do-not-guarantee-eligibi")}</p>}
             </Container>
           </section>
         )}
@@ -517,20 +498,12 @@ export default function Home() {
           </div>
           <Container className="relative grid items-center gap-8 py-14 md:py-[88px] lg:grid-cols-2">
             {showCtaCopy && <div data-reveal={0} className="reveal-blur reveal-glacial">
-              <h2 className="m-0 max-w-[24ch] font-display text-h2 font-bold text-on-dark">
-                Wondering If Your Insurance May Help Cover a CGM?
-              </h2>
-              <p className="mt-3.5 max-w-[56ch] text-[1.02rem] leading-relaxed text-on-dark-brand">
-                It only takes a few minutes to get started. Submit your information and
-                our team can review your potential eligibility and help you understand
-                what comes next.
-              </p>
+              <h2 className="m-0 max-w-[24ch] font-display text-h2 font-bold text-on-dark">{text("cta.wondering-if-your-insurance-may-help-cover-a-cgm")}</h2>
+              <p className="mt-3.5 max-w-[56ch] text-[1.02rem] leading-relaxed text-on-dark-brand">{text("cta.it-only-takes-a-few-minutes-to-get-started-submit-your-informatio")}</p>
             </div>}
             <div data-reveal={320} className="reveal-push flex flex-col gap-3 lg:justify-self-start">
               {showCtaButton && (
-              <Button to="/qualify" variant="on-band" className="min-h-[54px] px-9 text-body">
-                Check My Eligibility
-                <ArrowRight size={17} strokeWidth={2.2} />
+              <Button to="/qualify" variant="on-band" className="min-h-[54px] px-9 text-body">{text("hero.primaryCta")}<ArrowRight size={17} strokeWidth={2.2} />
               </Button>
               )}
               {/*
@@ -544,13 +517,8 @@ export default function Home() {
                   strokeWidth={2}
                   className="mr-1.5 inline-block -translate-y-px align-middle"
                   aria-hidden="true"
-                />
-                Your information will be handled according to our{" "}
-                <Link to="/privacy-policy" className="inline-block py-1 underline underline-offset-2 hover:text-on-dark">
-                  Privacy Policy
-                </Link>{" "}
-                and applicable privacy requirements.
-              </p>}
+                />{text("cta.your-information-will-be-handled-according-to-our")}{" "}
+                <Link to="/privacy-policy" className="inline-block py-1 underline underline-offset-2 hover:text-on-dark">{text("cta.privacy-policy")}</Link>{" "}{text("cta.and-applicable-privacy-requirements")}</p>}
             </div>
           </Container>
         </section>}
@@ -572,9 +540,7 @@ export default function Home() {
                 </div>
                 )}
                 {showBlogLink && (
-                <Link to="/blog" className="group inline-flex items-center gap-1.5 text-small font-semibold text-brand">
-                  Read our blog
-                  <ArrowRight size={15} strokeWidth={2.2} className="transition-transform duration-(--duration-micro) group-hover:translate-x-0.5" />
+                <Link to="/blog" className="group inline-flex items-center gap-1.5 text-small font-semibold text-brand">{text("blog.read-our-blog")}<ArrowRight size={15} strokeWidth={2.2} className="transition-transform duration-(--duration-micro) group-hover:translate-x-0.5" />
                 </Link>
                 )}
               </div>
@@ -604,8 +570,7 @@ export default function Home() {
                       <p className="m-0 text-caption font-semibold uppercase tracking-[0.12em] text-brand">
                         {formatPostDate(post.publishedAt)}
                         <span className="ml-3 normal-case tracking-normal text-grey-muted">
-                          {readingMinutes(post.body)} min read
-                        </span>
+                          {readingMinutes(post.body)} {text("blog.min-read")}</span>
                       </p>
                       <h3 className="mt-2 font-display text-[1.05rem] font-semibold leading-snug text-ink">
                         {post.title}
@@ -613,9 +578,7 @@ export default function Home() {
                       {post.excerpt && (
                         <p className="mt-2 text-small leading-relaxed text-grey-dark">{post.excerpt}</p>
                       )}
-                      <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-small font-semibold text-brand">
-                        Read the article
-                        <ArrowRight size={15} strokeWidth={2.2} />
+                      <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-small font-semibold text-brand">{text("blog.read-the-article")}<ArrowRight size={15} strokeWidth={2.2} />
                       </span>
                     </div>
                   </Link>
@@ -630,10 +593,8 @@ export default function Home() {
         {showFaqs && <section id="faqs" className="scroll-mt-24 py-16 md:py-24">
           <Container className="max-w-[860px]">
             {showFaqHeading && <div data-reveal={0} className="text-center">
-              <Eyebrow>Common questions</Eyebrow>
-              <h2 className="mt-3 font-display text-h2 font-bold text-ink">
-                Questions? Start Here.
-              </h2>
+              <Eyebrow>{text("faqs.common-questions")}</Eyebrow>
+              <h2 className="mt-3 font-display text-h2 font-bold text-ink">{text("faqs.questions-start-here")}</h2>
             </div>}
             <div
               data-reveal={140}

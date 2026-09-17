@@ -207,7 +207,9 @@ only change made to their wording.
   and receive build-time search metadata. Additional articles live in the
   Firestore `posts` collection, written from the dashboard's Blog screen.
   A published dashboard post with the same slug replaces a bundled article
-  on the public site. Bundled articles are edited in source, not the dashboard.
+  on the public site. Bundled articles also appear in the dashboard editor.
+  Publishing saves an override; restoring the original removes that override.
+  Page editing and preview behavior are documented in PAGE-EDITOR.md.
   A post body is a list of typed blocks, not
   HTML: `src/data/blog.ts` holds the shapes, the markdown-lite inline parser
   (**bold**, *italic*, [link](url)) and the decoder, and

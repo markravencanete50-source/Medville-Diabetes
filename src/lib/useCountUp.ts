@@ -22,6 +22,7 @@ export function useCountUp<T extends Record<string, number>>(targets: T) {
      restart the animation. */
   const targetsRef = useRef(targets);
   targetsRef.current = targets;
+  const targetSignature = JSON.stringify(targets);
 
   useEffect(() => {
     const band = ref.current;
@@ -62,7 +63,7 @@ export function useCountUp<T extends Record<string, number>>(targets: T) {
       observer.disconnect();
       if (frame) cancelAnimationFrame(frame);
     };
-  }, []);
+  }, [targetSignature]);
 
   return { ref, values };
 }

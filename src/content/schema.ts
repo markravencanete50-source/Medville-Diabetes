@@ -15,7 +15,11 @@
   English, no contractions, short sentences.
 */
 
-export type FieldKind = "text" | "longText" | "image";
+import { EXTRA_FIELDS } from "./extraFields";
+import { PRODUCT_DISCLAIMER } from "../data/company";
+import { metaFor } from "../data/pageMeta";
+
+export type FieldKind = "text" | "longText" | "image" | "url";
 
 export interface FieldDef {
   key: string;
@@ -615,14 +619,14 @@ export const PAGES: PageDef[] = [
             label: "Small label above the heading",
             kind: "text",
             max: 40,
-            fallback: "Contact Us",
+            fallback: "Contact our team",
           },
           {
             key: "heading",
             label: "Heading",
             kind: "text",
             max: 90,
-            fallback: "Need Help? Start Here.",
+            fallback: "How can we help?",
           },
           {
             key: "body",
@@ -630,7 +634,7 @@ export const PAGES: PageDef[] = [
             kind: "longText",
             max: 320,
             fallback:
-              "Have a question about a product, your eligibility submission, supplies, or next steps? Reach out to the Medville Diabetes team and we will help point you in the right direction.",
+              "Send a general question about our products, services, or next steps. Please do not send medical records or personal health information.",
           },
         ],
       },
@@ -738,9 +742,26 @@ export const PAGES: PageDef[] = [
   },
 ];
 
+for (const page of PAGES) {
+  if (!page.blocks.some((block) => block.id === "meta")) {
+    const meta = metaFor(page.path);
+    page.blocks.unshift({ id: "meta", label: "Search engine listing", hideable: false, fields: [
+      { key: "title", label: "Browser and search title", kind: "text", fallback: meta.title, max: 100 },
+      { key: "description", label: "Search description", kind: "longText", fallback: meta.description, max: 320 },
+    ] });
+  }
+  for (const block of page.blocks) {
+    block.fields.push(...(EXTRA_FIELDS[page.id]?.[block.id] ?? []));
+  }
+}
+PAGES.find((page) => page.id === "products")!.blocks.find((block) => block.id === "catalog")!.fields.push({ key: "disclaimer", label: "Product disclaimer", kind: "longText", fallback: PRODUCT_DISCLAIMER, max: 1000 });
+
 /* Lookup helpers used by both the website and the dashboard. */
 
 export const PAGE_BY_ID = new Map(PAGES.map((page) => [page.id, page]));
+export const PAGE_FIELDS = new Map(PAGES.map((page) => [page.id,
+  new Map(page.blocks.flatMap((block) => block.fields.map((field) => [fieldPath(block.id, field.key), field] as const))),
+]));
 
 export function fieldPath(blockId: string, fieldKey: string) {
   return `${blockId}.${fieldKey}`;

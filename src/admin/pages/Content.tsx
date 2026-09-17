@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Eye, EyeOff, ExternalLink, Image, LayoutPanelTop, MousePointerClick, Type } from "lucide-react";
 import {
   elementIsVisible,
@@ -21,6 +21,8 @@ import {
   uploadProblem,
 } from "../data";
 import { Banner, Card, Field, PageHeader, Spinner, useToast } from "../ui";
+import { PREVIEW_READY, PREVIEW_UPDATE, PREVIEW_SELECT } from "../../lib/editorPreview";
+import { pageValidationError } from "../../content/validation";
 
 /*
   Page text.
@@ -35,36 +37,89 @@ import { Banner, Card, Field, PageHeader, Spinner, useToast } from "../ui";
   always get back to the original by clearing a box.
 */
 
-export default function Content() {
+const pageRepository = { loadPage, savePage };
+
+export default function Content({ repository = pageRepository }: { repository?: typeof pageRepository } = {}) {
   const toast = useToast();
   const [pageId, setPageId] = useState<PageId>("home");
   const [values, setValues] = useState<PageValues | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [saved, setSaved] = useState<PageValues>({});
+  const [section, setSection] = useState("hero");
+  const [device, setDevice] = useState<"desktop" | "phone">("desktop");
+  const frame = useRef<HTMLIFrameElement>(null);
+  const loadVersion = useRef(0);
+  const editVersion = loadVersion.current;
+  const canvas = useRef<HTMLDivElement>(null);
+  const [canvasWidth, setCanvasWidth] = useState(0);
+  const dirty = values !== null && JSON.stringify(values) !== JSON.stringify(saved);
 
   const page = PAGES.find((entry) => entry.id === pageId)!;
 
-  const refresh = useCallback(async (id: PageId) => {
+  useEffect(() => {
+    const version = ++loadVersion.current;
     setValues(null);
     setError("");
-    try {
-      setValues(await loadPage(id));
-    } catch {
-      setValues({});
-      setError("The saved text could not be loaded. Check that Firestore is enabled.");
-    }
-  }, []);
+    void repository.loadPage(pageId).then((next) => {
+      if (version !== loadVersion.current) return;
+      setValues(next);
+      setSaved(next);
+    }).catch(() => {
+      if (version === loadVersion.current) setError("The saved content could not be loaded. Reload this page to try again. Saving is disabled to protect existing content.");
+    });
+    return () => { loadVersion.current++; };
+  }, [pageId, repository]);
+
+  const sendPreview = () => {
+    if (values) frame.current?.contentWindow?.postMessage({ type: PREVIEW_UPDATE, pageId, values }, window.location.origin);
+  };
+  useEffect(() => {
+    sendPreview();
+    const ready = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.source !== frame.current?.contentWindow) return;
+      if (event.data?.type === PREVIEW_READY) sendPreview();
+      if (event.data?.type === PREVIEW_SELECT && event.data.pageId === pageId && typeof event.data.key === "string") {
+        const block = page.blocks.find((entry) => entry.fields.some((field) => fieldPath(entry.id, field.key) === event.data.key));
+        if (!block) return;
+        setSection(block.id);
+        requestAnimationFrame(() => document.getElementById(`content-${pageId}-${event.data.key}`)?.focus({ preventScroll: false }));
+      }
+    };
+    window.addEventListener("message", ready);
+    return () => window.removeEventListener("message", ready);
+  }, [pageId, values]);
 
   useEffect(() => {
-    void refresh(pageId);
-  }, [pageId, refresh]);
+    if (!canvas.current) return;
+    const observer = new ResizeObserver(([entry]) => setCanvasWidth(entry.contentRect.width));
+    observer.observe(canvas.current);
+    return () => observer.disconnect();
+  }, [values === null]);
+
+  useEffect(() => {
+    const beforeLeave = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ""; } };
+    window.addEventListener("beforeunload", beforeLeave);
+    return () => window.removeEventListener("beforeunload", beforeLeave);
+  }, [dirty]);
+
+  const changePage = (id: PageId) => {
+    if (id === pageId || busy) return;
+    if (dirty && !window.confirm("Discard unsaved changes to this page?")) return;
+    setValues(null);
+    setPageId(id);
+    setSection(PAGES.find((entry) => entry.id === id)!.blocks.find((block) => block.id !== "meta")!.id);
+  };
 
   const save = async () => {
     if (!values) return;
+    const problem = pageValidationError(pageId, values);
+    if (problem) { toast(problem, "danger"); return; }
     setBusy(true);
     try {
-      await savePage(pageId, values);
-      toast("Saved. The website updates within a minute.");
+      await repository.savePage(pageId, values);
+      setSaved(values);
+      toast("Saved. Visitors will see the changes when they open or refresh the page.");
     } catch {
       toast("That could not be saved.", "danger");
     } finally {
@@ -72,14 +127,18 @@ export default function Content() {
     }
   };
 
-  const set = (key: string, value: string) =>
-    setValues((current) => ({ ...(current ?? {}), [key]: value }));
+  const set = (key: string, value: string) => {
+    if (editVersion !== loadVersion.current) return;
+    setValues((current) => current === null ? null : ({ ...current, [key]: value }));
+  };
+  const previewWidth = device === "phone" ? 390 : 1280;
+  const previewScale = canvasWidth ? Math.min(1, canvasWidth / previewWidth) : 1;
 
   return (
     <>
       <PageHeader
         title="Edit pages"
-        lede="Edit page text and choose which pages and sections visitors can see."
+        lede="Edit each section and see your changes in the website preview before saving."
         actions={
           <>
             <a
@@ -94,7 +153,7 @@ export default function Content() {
               type="button"
               className="admin-btn admin-btn-primary"
               onClick={() => void save()}
-              disabled={busy || !values}
+              disabled={busy || !values || !dirty}
             >
               {busy ? "Saving" : "Save changes"}
             </button>
@@ -115,7 +174,8 @@ export default function Content() {
             type="button"
             className={`admin-btn admin-btn-sm ${entry.id === pageId ? "admin-btn-primary" : "admin-btn-quiet"}`}
             aria-pressed={entry.id === pageId}
-            onClick={() => setPageId(entry.id)}
+            disabled={busy}
+            onClick={() => changePage(entry.id)}
           >
             {entry.label}
           </button>
@@ -124,10 +184,11 @@ export default function Content() {
 
       {values === null ? (
         <Card>
-          <Spinner label="Loading text" />
+          {!error && <Spinner label="Loading content" />}
         </Card>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="page-editor-layout">
+        <div className="page-editor-controls flex min-w-0 flex-col gap-4">
           <Card>
             <VisibilityControl
               label={`${page.label} page`}
@@ -136,7 +197,15 @@ export default function Content() {
               onChange={(visible) => set(PAGE_VISIBILITY_KEY, visible ? "" : "hidden")}
             />
           </Card>
-          {page.blocks.map((block) => (
+          <Field label="Choose a section" htmlFor="page-editor-section">
+            <select id="page-editor-section" className="admin-select" value={section} onChange={(event) => setSection(event.target.value)}>
+              {page.blocks.map((block) => <option key={block.id} value={block.id}>{block.label}</option>)}
+            </select>
+          </Field>
+          {pageId === "blog" && <Card><p className="admin-help">Edit article titles, cover pictures, and article sections in the Blog editor.</p><a href="#blog" className="admin-btn admin-btn-quiet" onClick={(event) => { if (dirty && !window.confirm("Discard unsaved page changes and open the Blog editor?")) event.preventDefault(); }}>Edit articles</a></Card>}
+          {(pageId === "home" || pageId === "products" || pageId === "qualify") && <p className="admin-help">Product names and photographs are shared across the website. Edit them in Products. Reviews and questions have their own editors.</p>}
+          <fieldset disabled={busy} className="min-w-0">
+          {page.blocks.filter((block) => block.id === section).map((block) => (
             <Card key={block.id}>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -160,7 +229,7 @@ export default function Content() {
                     <p className="admin-label m-0">Elements in this section</p>
                     <p className="admin-help m-0">Hide one item without removing the rest of the section.</p>
                   </div>
-                  <div className="grid gap-2 md:grid-cols-2">
+                  <div className="grid gap-2">
                     {block.elements.map((element) => (
                       <ElementControl
                         key={element.id}
@@ -209,7 +278,7 @@ export default function Content() {
                           className="admin-textarea"
                           maxLength={field.max}
                           placeholder={field.fallback}
-                          value={value}
+                          value={values[key] ?? field.fallback}
                           onChange={(event) => set(key, event.target.value)}
                         />
                       ) : (
@@ -218,7 +287,7 @@ export default function Content() {
                           className="admin-input"
                           maxLength={field.max}
                           placeholder={field.fallback}
-                          value={value}
+                          value={values[key] ?? field.fallback}
                           onChange={(event) => set(key, event.target.value)}
                         />
                       )}
@@ -228,6 +297,26 @@ export default function Content() {
               </div>
             </Card>
           ))}
+          </fieldset>
+          <div className="flex items-center justify-between gap-3">
+            <span className="admin-help" role="status">{dirty ? "Unsaved changes" : "All changes saved"}</span>
+            <button className="admin-btn admin-btn-quiet" type="button" disabled={!dirty || busy} onClick={() => setValues(saved)}>Discard changes</button>
+          </div>
+        </div>
+        <section className="page-editor-preview" aria-label="Website preview">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3">
+            <div><h2 className="admin-label">Website preview</h2><p className="admin-help">Click text or a picture to edit it. Forms do not send.</p></div>
+            <div className="flex gap-2">
+              <button type="button" className={`admin-btn admin-btn-sm ${device === "desktop" ? "admin-btn-primary" : "admin-btn-quiet"}`} aria-pressed={device === "desktop"} onClick={() => setDevice("desktop")}>Desktop</button>
+              <button type="button" className={`admin-btn admin-btn-sm ${device === "phone" ? "admin-btn-primary" : "admin-btn-quiet"}`} aria-pressed={device === "phone"} onClick={() => setDevice("phone")}>Phone</button>
+            </div>
+          </div>
+          <div ref={canvas} className="page-editor-preview-canvas">
+            <div style={{ width: previewWidth * previewScale, height: "72vh", minHeight: 480 }}>
+              <iframe key={pageId} ref={frame} src={`${page.path}?editorPreview=1`} title={`${page.label} website preview`} className="page-editor-frame" style={{ width: previewWidth, height: `calc(max(72vh, 480px) / ${previewScale})`, transform: `scale(${previewScale})`, transformOrigin: "top left" }} onLoad={sendPreview} />
+            </div>
+          </div>
+        </section>
         </div>
       )}
     </>

@@ -33,6 +33,9 @@ const MEDVILLE = {
   paper: "#ffffff",
 };
 
+import { usePageText } from "../lib/useSiteData";
+import { editableItems } from "../content/editableItems";
+
 type Position = [number, number, number];
 
 /* One list, so the route, the models, the labels and the copy cannot drift
@@ -355,6 +358,8 @@ function CycleScene({
   onPhaseChange,
   active,
 }: SceneProps & { active: number }) {
+  const { text } = usePageText("services");
+  const phases = editableItems(PHASES, text, "cycle.phases");
   return (
     <Fit>
       <group rotation={[-0.08, 0.12, 0]}>
@@ -382,7 +387,7 @@ function CycleScene({
         <HomeMarker position={PHASES[4].position} />
         <Resupply position={PHASES[5].position} />
 
-        {PHASES.map((phase, index) => (
+        {phases.map((phase, index) => (
           <NodeLabel
             key={phase.node}
             position={phase.position}
@@ -405,6 +410,8 @@ export default function CareCycle3D({
   showCopy?: boolean;
   showGraphic?: boolean;
 }) {
+  const { text, parts } = usePageText("services");
+  const phases = editableItems(PHASES, text, "cycle.phases");
   const [active, setActive] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion);
   const panel = useRef<HTMLDivElement>(null);
@@ -452,24 +459,23 @@ export default function CareCycle3D({
       <Container wide className="journey-cycle-grid">
         {showCopy && <div className="journey-cycle-copy">
           <p className="journey-eyebrow" {...reveal()}>
-            The process at a glance
+            {text("cycle.eyebrow")}
           </p>
           <h2 id="care-cycle-title" {...reveal(90)}>
-            One simple process. <em>Every step coordinated.</em>
+            {parts("cycle.heading").map((part, index) => part.accent ? <em key={index}>{part.value}</em> : part.value)}
           </h2>
           <p className="journey-cycle-lede" {...reveal(180)}>
-            Get a clear view of the journey, from your initial call through insurance
-            coordination and ongoing supply deliveries.
+            {text("cycle.body")}
           </p>
           <div className="journey-cycle-active" aria-live="polite" {...reveal(270)}>
             <span>{String(active + 1).padStart(2, "0")}</span>
             <div>
-              <strong>{PHASES[active].label}</strong>
-              <small>{PHASES[active].detail}</small>
+              <strong>{phases[active].label}</strong>
+              <small>{phases[active].detail}</small>
             </div>
           </div>
           <ol className="journey-cycle-labels" aria-label="Care cycle milestones" {...reveal(350)}>
-            {PHASES.map((phase, index) => (
+            {phases.map((phase, index) => (
               <li key={phase.label} className={active === index ? "is-active" : ""}>
                 <i>{String(index + 1).padStart(2, "0")}</i>
                 <span>{phase.label}</span>

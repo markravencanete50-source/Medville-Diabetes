@@ -50,6 +50,7 @@ import { useReveal } from "../../lib/useReveal";
 import { Badge, Banner, Card, Drawer, Empty, Field, PageHeader, Spinner, useToast } from "../ui";
 import { ColorPicker } from "../ColorPicker";
 import { FontPicker } from "../FontPicker";
+import { EDITORIAL_POSTS } from "../../data/editorialPosts";
 
 /*
   The blog editor.
@@ -132,10 +133,11 @@ export default function Blog() {
   }, [refresh]);
 
   const remove = async (post: PostRecord) => {
-    if (!window.confirm(`Delete "${post.title}"? This cannot be undone.`)) return;
+    const builtIn = EDITORIAL_POSTS.some((entry) => entry.slug === post.slug);
+    if (!window.confirm(builtIn ? `Restore the original version of "${post.title}"? Your saved edits will be removed.` : `Delete "${post.title}"? This cannot be undone.`)) return;
     try {
       await deletePost(post.slug);
-      toast("Article deleted.");
+      toast(builtIn ? "Original article restored." : "Article deleted.");
       void refresh();
     } catch {
       toast("The article could not be deleted.", "danger");
@@ -224,7 +226,7 @@ export default function Blog() {
                         <button
                           type="button"
                           className="admin-btn admin-btn-danger"
-                          aria-label={`Delete ${post.title}`}
+                          aria-label={`${EDITORIAL_POSTS.some((entry) => entry.slug === post.slug) ? "Restore original" : "Delete"} ${post.title}`}
                           onClick={() => void remove(post)}
                         >
                           <Trash2 size={15} />

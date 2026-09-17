@@ -5,7 +5,7 @@ import Container from "./Container";
 import Logo from "./Logo";
 import Button from "./Button";
 
-import { PHONE_DISPLAY, PHONE_TEL } from "../data/company";
+import { useCompanyDetails } from "../lib/useCompanyDetails";
 import { pageIsVisible, type PageId } from "../content/schema";
 import { useSiteData } from "../lib/useSiteData";
 
@@ -20,6 +20,7 @@ const links = [
 ] satisfies { to: string; label: string; page: PageId }[];
 
 export default function Header() {
+  const { PHONE_DISPLAY, PHONE_TEL } = useCompanyDetails();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const { content } = useSiteData();

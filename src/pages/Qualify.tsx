@@ -1,3 +1,5 @@
+import { editableItems } from "../content/editableItems";
+import { usePageText } from "../lib/useSiteData";
 import { cloneElement, isValidElement, useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -19,6 +21,7 @@ import { Blob, Eyebrow, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 import { useReveal } from "../lib/useReveal";
+import { isEditorPreview } from "../lib/editorPreview";
 
 /*
   PHI NOTICE: read before changing this file.
@@ -84,6 +87,7 @@ const STEPS = [
 ];
 
 export default function Qualify() {
+  const { text } = usePageText("qualify");
   usePageMeta(metaFor("/qualify"));
   const showForm = useSectionVisible("qualify", "form");
   const showIntro = useElementVisible("qualify", "form", "intro");
@@ -138,7 +142,7 @@ export default function Qualify() {
   const intakeEnabled = Boolean(endpoint) && import.meta.env.VITE_INTAKE_ENABLED === "true";
 
   useEffect(() => {
-    if (!validReferralCode) return;
+    if (!validReferralCode || isEditorPreview()) return;
     const clickEndpoint = (import.meta.env.VITE_ATTRIBUTION_ENDPOINT as string | undefined)
       || "https://us-central1-medville-diabetes.cloudfunctions.net/trackReferralClick";
     const storageKey = `medville:referral-visit:${validReferralCode}`;
@@ -167,7 +171,7 @@ export default function Qualify() {
       call that is never coming. Until launch is approved, the questions are
       visible for review but entry and submission remain disabled.
     */
-    if (!endpoint || !intakeEnabled || sending.current) return;
+    if (!endpoint || !intakeEnabled || sending.current || isEditorPreview()) return;
     sending.current = true;
     setStatus("submitting");
     try {
@@ -202,15 +206,9 @@ export default function Qualify() {
         <Grain opacity={0.05} />
         <Container className="relative max-w-2xl py-20 text-center md:py-28">
           <CheckCircle2 size={52} className="mx-auto text-brand-bright" aria-hidden="true" />
-          <h1 ref={successHeading} tabIndex={-1} className="mt-5 font-display text-h1 font-bold text-on-dark">
-            Thank You. We Received Your Information.
-          </h1>
-          <p className="mx-auto mt-4 max-w-[60ch] text-body-lg leading-relaxed text-on-dark-brand">
-            Our team will review the information you submitted and contact you to
-            discuss your potential eligibility and available next steps. Submitting
-            this form does not guarantee insurance coverage or qualification.
-          </p>
-          <Button to="/products" variant="ghost-dark" className="mt-8">Explore Products</Button>
+          <h1 ref={successHeading} tabIndex={-1} className="mt-5 font-display text-h1 font-bold text-on-dark">{text("form.thank-you-we-received-your-information")}</h1>
+          <p className="mx-auto mt-4 max-w-[60ch] text-body-lg leading-relaxed text-on-dark-brand">{text("form.our-team-will-review-the-information-you-submitted-and-contact-yo")}</p>
+          <Button to="/products" variant="ghost-dark" className="mt-8">{text("form.explore-products")}</Button>
         </Container>
       </section>
     );
@@ -225,21 +223,19 @@ export default function Qualify() {
         <div>
           {showIntro && (
           <div data-reveal={0} className="reveal-settle">
-          <Eyebrow onDark>Check your potential eligibility</Eyebrow>
-          <h1 className="mt-3 font-display text-h1 font-bold text-on-dark">
-            Does Your Insurance Help Cover a CGM?
-          </h1>
+          <Eyebrow onDark>{text("form.check-your-potential-eligibility")}</Eyebrow>
+          <h1 className="mt-3 font-display text-h1 font-bold text-on-dark">{text("form.does-your-insurance-help-cover-a-cgm")}</h1>
           <p className="mt-4 max-w-[54ch] text-body leading-relaxed text-on-dark-brand">
             {intakeEnabled
-              ? "Not sure what your plan may cover? Complete the short form below and our team will review your information to help you understand your potential eligibility and next steps."
-              : "Not sure what your plan may cover? Our team can review your information and help you understand your potential eligibility and next steps."}
+              ? text("form.not-sure-what-your-plan-may-cover-complete-the-short-form-below-a")
+              : text("form.not-sure-what-your-plan-may-cover-our-team-can-review-your-inform")}
           </p>
           </div>
           )}
 
           {showSteps && (
           <ul className="mt-8 flex list-none flex-col gap-5 p-0">
-            {STEPS.map((step, index) => (
+            {editableItems(STEPS, text, "form.steps").map((step, index) => (
               <li
                 key={step.title}
                 data-reveal={200 + index * 190}
@@ -249,8 +245,7 @@ export default function Qualify() {
                   <step.icon size={20} strokeWidth={2} />
                 </span>
                 <div>
-                  <p className="m-0 text-caption font-bold tracking-[0.14em] text-brand-bright">
-                    STEP {index + 1}
+                  <p className="m-0 text-caption font-bold tracking-[0.14em] text-brand-bright">{text("form.step")} {index + 1}
                   </p>
                   <h2 className="m-0 mt-0.5 font-display text-body font-semibold text-on-dark">
                     {step.title}
@@ -270,17 +265,11 @@ export default function Qualify() {
             className="reveal-blur mt-8 flex items-start gap-3 rounded-lg border border-on-dark-accent/30 bg-navy-raised/70 p-5"
           >
             <LockKeyhole size={16} className="mt-0.5 flex-none text-brand-bright" aria-hidden="true" />
-            <p className="m-0 text-caption leading-relaxed text-on-dark-brand">
-              Your privacy matters. Information submitted through this form will be
-              handled according to our{" "}
+            <p className="m-0 text-caption leading-relaxed text-on-dark-brand">{text("form.your-privacy-matters-information-submitted-through-this-form-will")}{" "}
               <Link
                 to="/privacy-policy"
                 className="inline-block py-1 font-semibold text-on-dark underline underline-offset-2"
-              >
-                Privacy Policy
-              </Link>{" "}
-              and applicable privacy requirements.
-            </p>
+              >{text("form.privacy-policy")}</Link>{" "}{text("form.and-applicable-privacy-requirements")}</p>
           </div>
           )}
         </div>
@@ -291,36 +280,36 @@ export default function Qualify() {
           className="reveal-right reveal-slow rounded-[26px] bg-surface-raised p-6 shadow-overlay sm:p-9"
         >
           <form onSubmit={handleSubmit(onSubmit)} noValidate aria-label="Eligibility form" aria-busy={status === "submitting"} className="space-y-5">
-            <h2 className="font-display text-h3 font-bold text-ink">Check your eligibility</h2>
-            <p className="text-small text-grey-dark">All fields are required.</p>
+            <h2 className="font-display text-h3 font-bold text-ink">{text("form.check-your-eligibility")}</h2>
+            <p className="text-small text-grey-dark">{text("form.all-fields-are-required")}</p>
             <fieldset disabled={status === "submitting"} className="min-w-0 space-y-5 disabled:opacity-70">
-            <legend className="sr-only">Your contact details and eligibility questions</legend>
+            <legend className="sr-only">{text("form.your-contact-details-and-eligibility-questions")}</legend>
             <div hidden aria-hidden="true">
               <label>Leave this blank<input {...register("website")} tabIndex={-1} autoComplete="off" /></label>
             </div>
             {showFields ? (
             <>
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="First Name" error={errors.firstName?.message}>
+              <Field label={text("form.first-name")} error={errors.firstName?.message}>
                 <input {...register("firstName")} required autoComplete="given-name" className={inputClass(!!errors.firstName)} />
               </Field>
-              <Field label="Last Name" error={errors.lastName?.message}>
+              <Field label={text("form.last-name")} error={errors.lastName?.message}>
                 <input {...register("lastName")} required autoComplete="family-name" className={inputClass(!!errors.lastName)} />
               </Field>
             </div>
-            <Field label="Email Address" error={errors.email?.message}>
+            <Field label={text("form.email-address")} error={errors.email?.message}>
               <input {...register("email")} required type="email" autoComplete="email" inputMode="email" className={inputClass(!!errors.email)} />
             </Field>
-            <Field label="Phone Number" error={errors.phone?.message}>
+            <Field label={text("form.phone-number")} error={errors.phone?.message}>
               <input {...register("phone")} required type="tel" autoComplete="tel" inputMode="tel" className={inputClass(!!errors.phone)} />
             </Field>
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="City" error={errors.city?.message}>
+              <Field label={text("form.city")} error={errors.city?.message}>
                 <input {...register("city")} required autoComplete="address-level2" className={inputClass(!!errors.city)} />
               </Field>
-              <Field label="State" error={errors.state?.message}>
+              <Field label={text("form.state")} error={errors.state?.message}>
                 <select {...register("state")} required autoComplete="address-level1" defaultValue="" className={inputClass(!!errors.state)}>
-                  <option value="" disabled>Select your state</option>
+                  <option value="" disabled>{text("form.select-your-state")}</option>
                   {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </Field>
@@ -331,7 +320,7 @@ export default function Qualify() {
             {showProduct ? (
             <>
             <Field
-              label="Which product are you interested in?"
+              label={text("form.which-product-are-you-interested-in")}
               error={errors.productInterest?.message}
             >
               <select
@@ -340,7 +329,7 @@ export default function Qualify() {
                 defaultValue={arrivedFrom}
                 className={inputClass(!!errors.productInterest)}
               >
-                <option value="" disabled>Select a product</option>
+                <option value="" disabled>{text("form.select-a-product")}</option>
                 {enquirable.map((product) => (
                   <option key={product.slug} value={product.slug}>
                     {product.name}
@@ -359,10 +348,10 @@ export default function Qualify() {
                   />
                 </div>
                 <div>
-                  <p className="text-caption font-bold uppercase tracking-[0.12em] text-brand">Your selection</p>
+                  <p className="text-caption font-bold uppercase tracking-[0.12em] text-brand">{text("form.your-selection")}</p>
                   <h3 className="mt-1 font-display text-body font-semibold text-ink">{selectedProduct.name}</h3>
                   <p className="mt-1.5 text-small leading-relaxed text-grey-dark">
-                    {productLifestyleCopy(selectedProduct.line, selectedProduct.category)}
+                    {text(`form.productGuidance.${selectedProduct.line === "insulin-pump" ? "pump" : selectedProduct.category.toLowerCase()}`)}
                   </p>
                 </div>
               </aside>
@@ -372,7 +361,7 @@ export default function Qualify() {
 
             {showFields ? (
             <fieldset aria-describedby={errors.injectsInsulinDaily ? "insulin-error" : undefined}>
-              <legend className="mb-1.5 text-small font-semibold text-ink">Do you inject insulin daily?</legend>
+              <legend className="mb-1.5 text-small font-semibold text-ink">{text("form.do-you-inject-insulin-daily")}</legend>
               <div className="grid grid-cols-2 gap-2.5">
                 {(["yes", "no"] as const).map((value) => {
                   const selected = insulinAnswer === value;
@@ -386,7 +375,7 @@ export default function Qualify() {
                       }`}
                     >
                       <input type="radio" value={value} required {...register("injectsInsulinDaily")} aria-invalid={!!errors.injectsInsulinDaily} />
-                      {value === "yes" ? "Yes" : "No"}
+                      {value === "yes" ? text("form.yes") : text("form.no")}
                     </label>
                   );
                 })}
@@ -401,10 +390,7 @@ export default function Qualify() {
                 {/* The client's copy document, section 6e. It does not name
                     the phone number, and the header and footer both carry it
                     on this page, so it is not repeated here. */}
-                <p className="m-0 text-small text-ink">
-                  Something went wrong while submitting your information. Please try
-                  again or contact our team for assistance.
-                </p>
+                <p className="m-0 text-small text-ink">{text("form.something-went-wrong-while-submitting-your-information-please-try")}</p>
               </div>
             )}
 
@@ -425,29 +411,9 @@ export default function Qualify() {
                 aria-describedby={errors.consentAccepted ? "consent-error" : undefined}
                 className="mt-0.5 h-5 w-5 flex-none accent-ink"
               />
-              <span>
-              By ticking this box, I certify that I personally entered my
-              own information, and I give express consent authorizing Medville
-              Diabetes (MD), and its marketing partners to contact me at the email
-              address and/or phone number provided (mobile phone as applicable)
-              which may include direct calls, auto-dialed calls, text messages, and
-              artificial or pre-recorded voice calls to discuss continuous glucose
-              monitors and related healthcare products/services; regardless of my
-              inclusion on any State or Federal Do Not Call list. I further certify
-              that I am the customary user of the telephone number I have provided
-              and am authorized to provide express consent to be contacted at this
-              number. MD may, with your verbal consent, transfer your call to a
-              third party for the purpose of offering other products and/or
-              services. MD may be compensated for the call transfer. Consent is not
-              a condition of purchase. By ticking this box, I also
-              consent to{" "}
-              <Link to="/privacy-policy" className="font-semibold text-brand underline underline-offset-2">
-                MD Privacy Policy
-              </Link>{" "}
-              and{" "}
-              <Link to="/terms-of-service" className="font-semibold text-brand underline underline-offset-2">
-                MD Terms and Conditions
-              </Link>
+              <span>{text("form.by-ticking-this-box-i-certify-that-i-personally-entered-my-own-in")}{" "}
+              <Link to="/privacy-policy" className="font-semibold text-brand underline underline-offset-2">{text("form.md-privacy-policy")}</Link>{" "}{text("form.and")}{" "}
+              <Link to="/terms-of-service" className="font-semibold text-brand underline underline-offset-2">{text("form.md-terms-and-conditions")}</Link>
               .
               </span>
             </label>
@@ -462,12 +428,10 @@ export default function Qualify() {
             {showButton ? (
             <>
             <Button type="submit" variant="cta" disabled={!intakeEnabled || status === "submitting"} className="w-full">
-              {status === "submitting" ? "Sending your information…" : "Check My Eligibility"}
+              {status === "submitting" ? text("form.sending-your-information") : text("form.check-my-eligibility")}
             </Button>
             {!intakeEnabled && (
-              <p role="status" className="text-center text-caption text-grey-muted">
-                You can review the form now. Submission will be enabled after the required compliance approval.
-              </p>
+              <p role="status" className="text-center text-caption text-grey-muted">{text("form.you-can-review-the-form-now-submission-will-be-enabled-after-the-")}</p>
             )}
             </>
             ) : null}
@@ -502,17 +466,4 @@ function inputClass(hasError: boolean) {
   return `w-full min-h-[46px] rounded-md border-[1.5px] bg-surface-raised px-4 py-2.5 text-body text-ink placeholder:text-grey-muted transition-colors duration-(--duration-micro) focus:border-brand focus:outline-none ${
     hasError ? "border-danger" : "border-line-input"
   }`;
-}
-
-function productLifestyleCopy(line: "cgm" | "insulin-pump", category: "System" | "Sensor" | "Accessory") {
-  if (line === "insulin-pump") {
-    return "This pump supports continuous insulin delivery through the day. Training and guidance from a qualified healthcare professional are required.";
-  }
-  if (category === "Sensor") {
-    return "This sensor supports a compatible CGM system so you can continue seeing glucose readings and trends during daily activities.";
-  }
-  if (category === "Accessory") {
-    return "This accessory supports a compatible CGM system so glucose information can remain available during daily routines.";
-  }
-  return "This CGM can help you see glucose readings and trends throughout the day. The information can support conversations about food, activity, sleep, and medication with your healthcare professional.";
 }

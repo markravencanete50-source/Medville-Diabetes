@@ -1,3 +1,5 @@
+import { editableItems } from "../content/editableItems";
+import { usePageText } from "../lib/useSiteData";
 import {
   ArrowRight,
   Download,
@@ -16,14 +18,7 @@ import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 import { useParallax, useReveal } from "../lib/useReveal";
 import { useElementVisible, useSectionVisible } from "../lib/useSiteData";
-import {
-  EMAIL,
-  EMAIL_HREF,
-  PHONE_DISPLAY,
-  PHONE_TEL,
-  REFERRAL_PACKET_URL,
-  REFERRAL_VIDEO_URL,
-} from "../data/company";
+import { useCompanyDetails } from "../lib/useCompanyDetails";
 
 /*
   Refer a Patient, for healthcare providers.
@@ -63,13 +58,12 @@ const STEPS = [
   },
 ];
 
-const PACKET_READY = REFERRAL_PACKET_URL !== "";
-const PACKET_LABEL = "Download Referral Form & Requirements";
-const PACKET_HREF = PACKET_READY
-  ? REFERRAL_PACKET_URL
-  : `${EMAIL_HREF}?subject=Referral%20form%20and%20requirements%20request`;
-
 export default function ReferPatient() {
+  const { EMAIL, EMAIL_HREF, PHONE_DISPLAY, PHONE_TEL } = useCompanyDetails();
+  const { text } = usePageText("refer");
+  const PACKET_LABEL = text("download.buttonLabel");
+  const PACKET_HREF = text("download.packetUrl") || `${EMAIL_HREF}?subject=Referral%20form%20and%20requirements%20request`;
+  const videoUrl = text("video.embedUrl");
   usePageMeta(metaFor("/refer-a-patient"));
 
   const revealRef = useReveal<HTMLDivElement>();
@@ -106,21 +100,16 @@ export default function ReferPatient() {
             <div>
               {heroCopy && <>
               <p className="rise-in m-0">
-                <Eyebrow onDark>For healthcare providers</Eyebrow>
+                <Eyebrow onDark>{text("hero.for-healthcare-providers")}</Eyebrow>
               </p>
               <h1
                 className="rise-in mt-3 max-w-[20ch] font-display text-h1 font-bold leading-[1.08] text-on-dark"
                 style={{ "--rise-delay": "150ms" } as React.CSSProperties}
-              >
-                A Simpler Way to Refer Patients for Diabetes Supplies
-              </h1>
+              >{text("hero.a-simpler-way-to-refer-patients-for-diabetes-supplies")}</h1>
               <p
                 className="rise-in mt-5 max-w-[54ch] text-body-lg leading-relaxed text-on-dark-brand"
                 style={{ "--rise-delay": "320ms" } as React.CSSProperties}
-              >
-                Send your patient to Medville Diabetes and we will help guide them
-                through the supply process, from potential eligibility to next steps.
-              </p>
+              >{text("hero.send-your-patient-to-medville-diabetes-and-we-will-help-guide-the")}</p>
               </>}
               {heroButtons && (
               <div
@@ -131,9 +120,7 @@ export default function ReferPatient() {
                   {PACKET_LABEL}
                   <Download size={16} strokeWidth={2.2} />
                 </Button>
-                <Button to="/contact" variant="ghost-dark" className="min-h-[50px]">
-                  Contact Our Team
-                </Button>
+                <Button to="/contact" variant="ghost-dark" className="min-h-[50px]">{text("hero.contact-our-team")}</Button>
               </div>
               )}
               {heroNote && (
@@ -141,10 +128,7 @@ export default function ReferPatient() {
                 className="rise-in mt-4.5 flex items-start gap-2 text-caption text-on-dark-muted"
                 style={{ "--rise-delay": "640ms" } as React.CSSProperties}
               >
-                <Sparkles size={14} strokeWidth={2.2} className="mt-0.5 flex-none text-brand-bright" />
-                Simple referral process. Clear follow-up. Support for your patient
-                along the way.
-              </p>
+                <Sparkles size={14} strokeWidth={2.2} className="mt-0.5 flex-none text-brand-bright" />{text("hero.simple-referral-process-clear-follow-up-support-for-your-patient")}</p>
               )}
             </div>
 
@@ -159,8 +143,8 @@ export default function ReferPatient() {
                 adult patient during a routine visit.
               */}
               <img
-                src="https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678468/medville/migrated/feaf9b96de328d8e5b72cfa7.webp"
-                alt="A care coordinator reviews a patient's records during a routine appointment."
+                src={text("hero.section-photograph")}
+                alt={text("hero.photograph-description")}
                 width={1100}
                 height={825}
                 data-parallax="0.5"
@@ -176,15 +160,13 @@ export default function ReferPatient() {
           <Container wide>
             {stepsHeading && (
             <div data-reveal={0} className="max-w-[600px]">
-              <Eyebrow>How referrals work</Eyebrow>
-              <h2 className="mt-3 font-display text-h2 font-bold text-ink">
-                Refer in Three Simple Steps
-              </h2>
+              <Eyebrow>{text("steps.how-referrals-work")}</Eyebrow>
+              <h2 className="mt-3 font-display text-h2 font-bold text-ink">{text("steps.refer-in-three-simple-steps")}</h2>
             </div>
             )}
             {stepCards && (
             <div className="mt-11 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
-              {STEPS.map((step, index) => (
+              {editableItems(STEPS, text, "steps.cards").map((step, index) => (
                 <div
                   key={step.title}
                   data-reveal={index * 200}
@@ -193,8 +175,7 @@ export default function ReferPatient() {
                   <span className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-brand-soft text-brand">
                     <step.icon size={22} strokeWidth={2} />
                   </span>
-                  <p className="mt-5 text-caption font-bold tracking-[0.14em] text-brand-bright">
-                    STEP {index + 1}
+                  <p className="mt-5 text-caption font-bold tracking-[0.14em] text-brand-bright">{text("steps.step")} {index + 1}
                   </p>
                   <h3 className="mt-1.5 font-display text-[1.15rem] font-semibold text-ink">
                     {step.title}
@@ -220,14 +201,9 @@ export default function ReferPatient() {
           <Container className="max-w-[900px]">
             {videoCopy && (
             <div data-reveal={0} className="text-center">
-              <Eyebrow>See how it works</Eyebrow>
-              <h2 className="mt-3 font-display text-h2 font-bold text-ink">
-                Referral Process in Under a Minute
-              </h2>
-              <p className="mx-auto mt-3 max-w-[58ch] text-body leading-relaxed text-grey-dark">
-                A quick walkthrough of how to refer a patient to Medville Diabetes and
-                what happens after you submit the referral.
-              </p>
+              <Eyebrow>{text("video.see-how-it-works")}</Eyebrow>
+              <h2 className="mt-3 font-display text-h2 font-bold text-ink">{text("video.referral-process-in-under-a-minute")}</h2>
+              <p className="mx-auto mt-3 max-w-[58ch] text-body leading-relaxed text-grey-dark">{text("video.a-quick-walkthrough-of-how-to-refer-a-patient-to-medville-diabete")}</p>
             </div>
             )}
 
@@ -237,9 +213,11 @@ export default function ReferPatient() {
               className="reveal-curtain-left reveal-glacial mt-9 rounded-[24px] bg-grey-light shadow-soft"
             >
               <div>
-              {REFERRAL_VIDEO_URL ? (
+              {videoUrl ? (
                 <iframe
-                  src={REFERRAL_VIDEO_URL}
+                  src={videoUrl}
+                  sandbox="allow-scripts allow-same-origin allow-presentation"
+                  referrerPolicy="no-referrer"
                   title="How to refer a patient to Medville Diabetes"
                   allowFullScreen
                   className="aspect-video w-full border-0"
@@ -247,13 +225,8 @@ export default function ReferPatient() {
               ) : (
                 <div className="tint-product flex aspect-video w-full flex-col items-center justify-center gap-3 px-6 text-center">
                   <PlayCircle size={46} strokeWidth={1.6} className="text-brand" aria-hidden="true" />
-                  <p className="m-0 font-display text-body font-semibold text-ink">
-                    The referral walkthrough video is on its way.
-                  </p>
-                  <p className="m-0 max-w-[46ch] text-small leading-relaxed text-grey-muted">
-                    In the meantime, the three steps above cover the whole process, and
-                    our team is available by phone or email.
-                  </p>
+                  <p className="m-0 font-display text-body font-semibold text-ink">{text("video.the-referral-walkthrough-video-is-on-its-way")}</p>
+                  <p className="m-0 max-w-[46ch] text-small leading-relaxed text-grey-muted">{text("video.in-the-meantime-the-three-steps-above-cover-the-whole-process-and")}</p>
                 </div>
               )}
               </div>
@@ -274,14 +247,9 @@ export default function ReferPatient() {
                   unbreakable word. */}
               <div className="min-w-0">
                 {downloadCopy && <>
-                <Eyebrow>Ready to refer?</Eyebrow>
-                <h2 className="mt-3 font-display text-h2 font-bold text-ink">
-                  Everything You Need in One Download
-                </h2>
-                <p className="mt-3 max-w-[52ch] text-body leading-relaxed text-grey-dark">
-                  Get the Medville Diabetes referral form and requirements together in
-                  one packet.
-                </p>
+                <Eyebrow>{text("download.ready-to-refer")}</Eyebrow>
+                <h2 className="mt-3 font-display text-h2 font-bold text-ink">{text("download.everything-you-need-in-one-download")}</h2>
+                <p className="mt-3 max-w-[52ch] text-body leading-relaxed text-grey-dark">{text("download.get-the-medville-diabetes-referral-form-and-requirements-together")}</p>
                 </>}
                 {downloadButton && <>
                 <Button href={PACKET_HREF} variant="cta" className="mt-7 min-h-[50px] px-7">
@@ -289,18 +257,14 @@ export default function ReferPatient() {
                   <Download size={16} strokeWidth={2.2} />
                 </Button>
                 <p className="mt-3.5 flex items-center gap-2 text-caption text-grey-muted">
-                  <FileText size={14} strokeWidth={2} />
-                  PDF • Printable • For healthcare provider use
-                </p>
+                  <FileText size={14} strokeWidth={2} />{text("download.pdf-printable-for-healthcare-provider-use")}</p>
                 </>}
               </div>
 
               {downloadContact && (
               <div className="flex min-w-0 flex-col gap-5 rounded-lg bg-brand-tint p-6 sm:p-7">
                 <div>
-                  <p className="m-0 text-caption font-semibold uppercase tracking-[0.14em] text-grey-muted">
-                    Send completed referrals to
-                  </p>
+                  <p className="m-0 text-caption font-semibold uppercase tracking-[0.14em] text-grey-muted">{text("download.send-completed-referrals-to")}</p>
                   <a
                     href={EMAIL_HREF}
                     className="mt-1.5 flex items-start gap-2 font-display text-body font-semibold text-brand"
@@ -310,15 +274,12 @@ export default function ReferPatient() {
                   </a>
                 </div>
                 <div className="border-t border-brand-mint pt-5">
-                  <p className="m-0 text-caption font-semibold uppercase tracking-[0.14em] text-grey-muted">
-                    Questions?
-                  </p>
+                  <p className="m-0 text-caption font-semibold uppercase tracking-[0.14em] text-grey-muted">{text("download.questions")}</p>
                   <a
                     href={PHONE_TEL}
                     className="mt-1.5 flex items-center gap-2 font-display text-body font-semibold text-brand"
                   >
-                    <PhoneCall size={17} strokeWidth={2} className="flex-none" />
-                    Call {PHONE_DISPLAY}
+                    <PhoneCall size={17} strokeWidth={2} className="flex-none" />{text("download.call")} {PHONE_DISPLAY}
                   </a>
                 </div>
               </div>
@@ -335,22 +296,15 @@ export default function ReferPatient() {
             <h2
               data-reveal={0}
               className="reveal-blur reveal-glacial m-0 max-w-[24ch] font-display text-h2 font-bold text-on-dark"
-            >
-              Need Help With a Referral?
-            </h2>
+            >{text("support.need-help-with-a-referral")}</h2>
             <p
               data-reveal={240}
               className="reveal-settle mt-3.5 max-w-[58ch] text-body leading-relaxed text-on-dark-brand"
-            >
-              Have a question before sending your referral or need help with an
-              existing patient request? Our team is here to help.
-            </p>
+            >{text("support.have-a-question-before-sending-your-referral-or-need-help-with-an")}</p>
             </>}
             {supportButton && (
             <div data-reveal={440} className="reveal-drop">
-              <Button to="/contact" variant="on-band" className="mt-7">
-                Contact Our Team
-                <ArrowRight size={16} strokeWidth={2.2} />
+              <Button to="/contact" variant="on-band" className="mt-7">{text("support.contact-our-team")}<ArrowRight size={16} strokeWidth={2.2} />
               </Button>
             </div>
             )}

@@ -1,3 +1,4 @@
+import { editableItems } from "../content/editableItems";
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowDown,
@@ -129,21 +130,17 @@ const STAGES = [
 
 /* The static panel the page shows while the care cycle chunk downloads. */
 function CycleFallback() {
+  const { text, parts } = usePageText("services");
   return (
     <section className="journey-cycle journey-cycle-loading" aria-label="Loading the care cycle">
       <Container wide className="journey-cycle-grid">
         <div className="journey-cycle-copy">
-          <p className="journey-eyebrow">The process at a glance</p>
-          <h2>
-            One simple process. <em>Every step coordinated.</em>
-          </h2>
-          <p className="journey-cycle-lede">
-            Get a clear view of the journey, from your initial call through insurance
-            coordination and ongoing supply deliveries.
-          </p>
+          <p className="journey-eyebrow">{text("cycle.eyebrow")}</p>
+          <h2>{parts("cycle.heading").map((part, index) => part.accent ? <em key={index}>{part.value}</em> : part.value)}</h2>
+          <p className="journey-cycle-lede">{text("cycle.body")}</p>
         </div>
         <div className="journey-cycle-canvas">
-          <span>Loading care cycle</span>
+          <span>{text("cycle.loading-care-cycle")}</span>
         </div>
       </Container>
     </section>
@@ -228,12 +225,10 @@ export default function Services() {
             </h1>
             <p className="journey-hero-lede">{text("hero.body")}</p>
             <div className="journey-hero-actions">
-              <Button variant="ghost-dark" onClick={() => goToStage(0)}>
-                See the journey
-                <ArrowDown size={16} strokeWidth={2.2} />
+              <Button variant="ghost-dark" onClick={() => goToStage(0)}>{text("hero.see-the-journey")}<ArrowDown size={16} strokeWidth={2.2} />
               </Button>
             </div>
-            <p className="journey-hero-note">The whole process, made clear in three steps.</p>
+            <p className="journey-hero-note">{text("hero.the-whole-process-made-clear-in-three-steps")}</p>
           </div>}
 
           {showHeroPicture && <div className="journey-hero-photo">
@@ -244,9 +239,9 @@ export default function Services() {
               height={900}
             />
             <div className="journey-hero-card">
-              <span>One coordinated team</span>
-              <strong>We make the next step easier to see.</strong>
-              <p>From call to resupply</p>
+              <span>{text("hero.one-coordinated-team")}</span>
+              <strong>{text("hero.we-make-the-next-step-easier-to-see")}</strong>
+              <p>{text("hero.from-call-to-resupply")}</p>
             </div>
           </div>}
         </Container>
@@ -270,7 +265,7 @@ export default function Services() {
         </Container>
 
         {showStageCards && <div className="journey-sequence">
-          {STAGES.map((stage, index) => {
+          {editableItems(STAGES, text, "stages.stages").map((stage, index) => {
             const Icon = stage.icon;
             return (
               <article
@@ -294,7 +289,7 @@ export default function Services() {
                       height={825}
                     />
                     <figcaption>
-                      <span>Step {stage.number}</span>
+                      <span>{text("stages.step")} {stage.number}</span>
                       <strong>{stage.label}</strong>
                     </figcaption>
                   </figure>}
@@ -303,13 +298,12 @@ export default function Services() {
                     <p className="journey-stage-kicker">
                       <span>
                         <Icon size={17} strokeWidth={2.1} />
-                      </span>
-                      Step {stage.number} · {stage.label}
+                      </span>{text("stages.step")}{stage.number} · {stage.label}
                     </p>
                     <h2>{stage.title}</h2>
                     <p className="journey-stage-summary">{stage.copy}</p>
                     <div className="journey-step-list">
-                      <strong>What our team does in this step</strong>
+                      <strong>{text("stages.what-our-team-does-in-this-step")}</strong>
                       {stage.steps.map((step) => (
                         <div className="journey-step" key={step.number}>
                           <span>{step.number}</span>
@@ -332,7 +326,7 @@ export default function Services() {
         <Grain />
         <Container className="journey-closing-content">
           {showClosingCopy && <>
-          <p className="journey-eyebrow">The full care path</p>
+          <p className="journey-eyebrow">{text("closing.the-full-care-path")}</p>
           <h2>
             {parts("closing.heading").map((part, index) =>
               part.accent ? <em key={index}>{part.value}</em> : part.value

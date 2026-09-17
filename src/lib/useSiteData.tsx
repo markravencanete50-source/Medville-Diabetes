@@ -15,7 +15,10 @@ import {
   pageIsVisible,
   sectionIsVisible,
   type PageId,
+  type PageValues,
+  PAGES,
 } from "../content/schema";
+import { isEditorPreview, PREVIEW_READY, PREVIEW_UPDATE, PREVIEW_SELECT } from "./editorPreview";
 import type { ProductLine } from "../data/products";
 
 /*
@@ -75,6 +78,26 @@ export function SiteDataProvider({
     };
   });
   const applied = useRef(false);
+  const [draft, setDraft] = useState<{ pageId: PageId; values: PageValues } | null>(null);
+
+  useEffect(() => {
+    if (!isEditorPreview()) return;
+    const receive = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.source !== window.parent) return;
+      if (event.data?.type !== PREVIEW_UPDATE) return;
+      const page = PAGES.find((entry) => entry.id === event.data.pageId);
+      if (!page || !event.data.values || typeof event.data.values !== "object") return;
+      const values: PageValues = {};
+      const allowed = new Set(Object.keys(defaultsFor(page.id)));
+      for (const [key, value] of Object.entries(event.data.values)) {
+        if ((allowed.has(key) || key.startsWith("__visibility.")) && typeof value === "string" && value.length <= 10000) values[key] = value;
+      }
+      setDraft({ pageId: page.id, values });
+    };
+    window.addEventListener("message", receive);
+    window.parent.postMessage({ type: PREVIEW_READY }, window.location.origin);
+    return () => window.removeEventListener("message", receive);
+  }, []);
 
   /* Paint the cached colours before the browser shows anything, so a themed
      site never flashes the default palette first. */
@@ -101,7 +124,32 @@ export function SiteDataProvider({
     return () => controller.abort();
   }, []);
 
-  return <SiteDataContext.Provider value={data}>{children}</SiteDataContext.Provider>;
+  const previewData = useMemo(() => draft ? {
+    ...data, content: { ...data.content, [draft.pageId]: draft.values },
+  } : data, [data, draft]);
+  useEffect(() => {
+    if (!isEditorPreview() || !draft) return;
+    const select = (event: MouseEvent) => {
+      if (!(event.target instanceof Element)) return;
+      if (event.target.closest("a")) event.preventDefault();
+      const fields = Object.keys(defaultsFor(draft.pageId));
+      for (let element: Element | null = event.target; element && element.id !== "main"; element = element.parentElement) {
+        const value = element instanceof HTMLImageElement ? element.getAttribute("src") : element.textContent?.replace(/\s+/g, " ").trim();
+        if (!value) continue;
+        const key = fields.find((path) => resolveText(previewData.content, draft.pageId, path).replace(/\s+/g, " ").trim() === value);
+        if (key) {
+          event.preventDefault();
+          document.querySelector(".editor-selected")?.classList.remove("editor-selected");
+          element.classList.add("editor-selected");
+          window.parent.postMessage({ type: PREVIEW_SELECT, pageId: draft.pageId, key }, window.location.origin);
+          break;
+        }
+      }
+    };
+    document.addEventListener("click", select, true);
+    return () => document.removeEventListener("click", select, true);
+  }, [draft, previewData]);
+  return <SiteDataContext.Provider value={previewData}>{children}</SiteDataContext.Provider>;
 }
 
 export function useSiteData() {

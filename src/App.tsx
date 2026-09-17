@@ -20,6 +20,7 @@ import NewsletterPrompt from "./components/NewsletterPrompt";
 import { SiteDataProvider, usePageVisible } from "./lib/useSiteData";
 import type { PageId } from "./content/schema";
 import type { SiteData } from "./lib/siteContent";
+import { isEditorPreview } from "./lib/editorPreview";
 
 /*
   The dashboard is one lazy chunk, so a marketing visitor never downloads
@@ -59,7 +60,7 @@ export function PublicSite({ initialData }: { initialData?: SiteData } = {}) {
         Skip to the main content
       </a>
       <Header />
-      <main id="main">
+      <main id="main" onSubmitCapture={isEditorPreview() ? (event) => { event.preventDefault(); event.stopPropagation(); } : undefined}>
         <Routes>
           <Route path="/" element={<PageGuard page="home"><Home /></PageGuard>} />
           <Route path="/products" element={<PageGuard page="products"><ProductsLanding /></PageGuard>} />
@@ -79,13 +80,14 @@ export function PublicSite({ initialData }: { initialData?: SiteData } = {}) {
         </Routes>
       </main>
       <Footer />
-      <NewsletterPrompt />
+      {!isEditorPreview() && <NewsletterPrompt />}
     </SiteDataProvider>
   );
 }
 
 function PageGuard({ page, children }: { page: PageId; children: React.ReactNode }) {
-  return usePageVisible(page) ? children : <NotFound />;
+  const visible = usePageVisible(page);
+  return visible || isEditorPreview() ? children : <NotFound />;
 }
 
 /*

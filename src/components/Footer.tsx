@@ -1,15 +1,7 @@
 import { Link } from "react-router-dom";
 import Container from "./Container";
 import Logo from "./Logo";
-import {
-  ADDRESS_LINE_1,
-  ADDRESS_LINE_2,
-  EMAIL,
-  EMAIL_HREF,
-  HOURS_SHORT,
-  PHONE_DISPLAY,
-  PHONE_TEL,
-} from "../data/company";
+import { useCompanyDetails } from "../lib/useCompanyDetails";
 import { pageIsVisible, sectionIsVisible, type PageId } from "../content/schema";
 import { useSiteData } from "../lib/useSiteData";
 
@@ -60,6 +52,7 @@ const RESOURCES: ResourceLink[] = [
 ];
 
 export default function Footer() {
+  const { ADDRESS_LINE_1, ADDRESS_LINE_2, EMAIL, EMAIL_HREF, HOURS_SHORT, PHONE_DISPLAY, PHONE_TEL } = useCompanyDetails();
   const { content } = useSiteData();
   const pageVisible = (page: PageId | undefined) => !page || pageIsVisible(content[page]);
   const resourceVisible = (item: ResourceLink) =>

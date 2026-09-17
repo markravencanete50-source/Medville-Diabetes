@@ -1,3 +1,5 @@
+import { editableItems } from "../content/editableItems";
+import { usePageText } from "../lib/useSiteData";
 import {
   ArrowRight,
   ClipboardCheck,
@@ -99,6 +101,7 @@ const PROMISES = [
 ];
 
 export default function About() {
+  const { text } = usePageText("about");
   usePageMeta(metaFor("/about"));
   const revealRef = useReveal<HTMLDivElement>();
   const parallaxRef = useParallax<HTMLDivElement>();
@@ -136,7 +139,7 @@ export default function About() {
                 in the normal flow underneath the copy instead. */}
             {showHeroPicture && <div aria-hidden="true" className="absolute inset-y-0 right-0 hidden w-[52%] overflow-hidden lg:block">
               <img
-                src="https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678408/medville/migrated/863d0a5a46132b4c5bf5cb0f.webp"
+                src={text("hero.image")}
                 alt=""
                 width={1536}
                 height={1024}
@@ -152,15 +155,11 @@ export default function About() {
               <div className="grid lg:grid-cols-2">
                 {showHeroCopy && <div className="py-14 md:py-20 lg:py-24 lg:pr-10">
                   <span className="rise-in inline-flex items-center gap-2.5 rounded-full bg-navy-raised px-5 py-2.5 text-body font-semibold text-on-dark-accent">
-                    <HeartHandshake size={20} strokeWidth={2} />
-                    About Medville Diabetes
-                  </span>
+                    <HeartHandshake size={20} strokeWidth={2} />{text("hero.eyebrow")}</span>
                   <h1
                     className="rise-in mt-6 max-w-[19ch] font-display text-h1 font-bold leading-[1.08] text-on-dark"
                     style={{ "--rise-delay": "150ms" } as React.CSSProperties}
-                  >
-                    Making Diabetes Supply One Less Thing to Manage
-                  </h1>
+                  >{text("hero.heading")}</h1>
                   <div
                     className="rise-in mt-7 flex items-center gap-2"
                     style={{ "--rise-delay": "280ms" } as React.CSSProperties}
@@ -171,27 +170,18 @@ export default function About() {
                   <p
                     className="rise-in mt-7 max-w-[48ch] text-body-lg leading-relaxed text-on-dark-brand"
                     style={{ "--rise-delay": "400ms" } as React.CSSProperties}
-                  >
-                    Living with diabetes comes with enough routines, decisions, and
-                    responsibilities. Getting the supplies you rely on should not
-                    make your day more complicated.
-                  </p>
+                  >{text("hero.body")}</p>
                   <p
                     className="rise-in mt-4 max-w-[48ch] text-body-lg leading-relaxed text-on-dark-brand"
                     style={{ "--rise-delay": "540ms" } as React.CSSProperties}
-                  >
-                    Medville Diabetes brings the medical supply experience of Medville
-                    into a service focused specifically on diabetes, helping make
-                    access to CGMs and other diabetes supplies simpler and easier to
-                    navigate.
-                  </p>
+                  >{text("hero.medville-diabetes-brings-the-medical-supply-experience-of-medvill")}</p>
                 </div>}
                 <div />
               </div>
 
               {showHeroPicture && <img
-                src="https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678408/medville/migrated/863d0a5a46132b4c5bf5cb0f.webp"
-                alt="A woman wearing a continuous glucose monitor on her arm checks a reading at her kitchen table."
+                src={text("hero.image")}
+                alt={text("hero.photograph-description")}
                 width={1536}
                 height={1024}
                 className="rise-in mb-14 h-auto w-full rounded-lg shadow-soft lg:hidden"
@@ -202,7 +192,7 @@ export default function About() {
 
           {showHeroPromises && <Container wide className="relative">
             <ul className="m-0 grid list-none grid-cols-1 gap-y-6 border-t border-on-dark-accent/25 p-0 py-8 sm:grid-cols-2 lg:grid-cols-4">
-              {HERO_PROMISES.map((promise, index) => (
+              {editableItems(HERO_PROMISES, text, "hero.promises").map((promise, index) => (
                 <li
                   key={promise.lines[1]}
                   data-reveal={index * 170}
@@ -226,13 +216,11 @@ export default function About() {
         {showMissionVision && <section className="py-16 md:py-24">
           <Container wide>
             {showMissionHeading && <div data-reveal={0} className="max-w-[600px]">
-              <Eyebrow>Why we are here</Eyebrow>
-              <h2 className="mt-3 font-display text-h2 font-bold text-ink">
-                Built Around What Makes Diabetes Care Easier
-              </h2>
+              <Eyebrow>{text("missionVision.why-we-are-here")}</Eyebrow>
+              <h2 className="mt-3 font-display text-h2 font-bold text-ink">{text("missionVision.built-around-what-makes-diabetes-care-easier")}</h2>
             </div>}
             {showMissionCards && <div className="mt-10 grid gap-6 lg:grid-cols-2">
-              {MISSION_VISION.map((item, index) => (
+              {editableItems(MISSION_VISION, text, "missionVision.cards").map((item, index) => (
                 <div
                   key={item.title}
                   data-reveal={180 + index * 210}
@@ -278,13 +266,11 @@ export default function About() {
         {showStory && <section className="bg-why-band py-16 md:py-24">
           <Container>
             {showStoryHeading && <div data-reveal={0}>
-              <Eyebrow>Backed by Medville</Eyebrow>
-              <h2 className="mt-3 max-w-[22ch] font-display text-h2 font-bold text-ink">
-                Medical Supply Experience With a Focus on Diabetes
-              </h2>
+              <Eyebrow>{text("story.backed-by-medville")}</Eyebrow>
+              <h2 className="mt-3 max-w-[22ch] font-display text-h2 font-bold text-ink">{text("story.medical-supply-experience-with-a-focus-on-diabetes")}</h2>
             </div>}
             {showStoryParagraphs && <div className="mt-8 grid gap-x-14 gap-y-5 lg:grid-cols-2">
-              {STORY.map((paragraph, index) => (
+              {editableItems(STORY, text, "story.paragraphs").map((paragraph, index) => (
                 <p
                   key={index}
                   data-reveal={160 + index * 160}
@@ -297,9 +283,7 @@ export default function About() {
             {showStoryStatement && <p
               data-reveal={300}
               className="reveal-blur reveal-glacial mt-10 rounded-lg border-l-4 border-brand bg-surface-raised px-8 py-6 font-display text-h3 font-semibold leading-snug text-brand shadow-soft"
-            >
-              Reliable supplies. Dedicated support. More time for life.
-            </p>}
+            >{text("story.reliable-supplies-dedicated-support-more-time-for-life")}</p>}
           </Container>
         </section>}
 
@@ -307,13 +291,11 @@ export default function About() {
         {showPromises && <section className="bg-grey-light py-14 md:py-20">
           <Container>
             {showPromisesHeading && <div data-reveal={0} className="mb-10 max-w-[560px]">
-              <Eyebrow>Three promises</Eyebrow>
-              <h2 className="mt-3 font-display text-h2 font-bold text-ink">
-                What You Can Expect From Us
-              </h2>
+              <Eyebrow>{text("promises.three-promises")}</Eyebrow>
+              <h2 className="mt-3 font-display text-h2 font-bold text-ink">{text("promises.what-you-can-expect-from-us")}</h2>
             </div>}
             {showPromiseCards && <div className="grid gap-6 md:grid-cols-3">
-              {PROMISES.map((promise, index) => (
+              {editableItems(PROMISES, text, "promises.cards").map((promise, index) => (
                 <div
                   key={promise.title}
                   data-reveal={index * 200}
@@ -352,22 +334,15 @@ export default function About() {
             <h2
               data-reveal={0}
               className="reveal-push reveal-glacial max-w-[26ch] font-display text-h2 font-bold text-on-dark"
-            >
-              Ready to Make Getting Your Supplies Easier?
-            </h2>
+            >{text("closing.ready-to-make-getting-your-supplies-easier")}</h2>
             <p
               data-reveal={220}
               className="reveal-settle mt-3 max-w-[56ch] text-body leading-relaxed text-on-dark-brand"
-            >
-              Start by checking your potential CGM eligibility and let us help you
-              understand what comes next.
-            </p>
+            >{text("closing.start-by-checking-your-potential-cgm-eligibility-and-let-us-help-")}</p>
             </>}
             {showClosingButton && (
             <div data-reveal={420} className="reveal-drop">
-              <Button to="/qualify" variant="on-band" className="mt-7">
-                Check My Eligibility
-                <ArrowRight size={16} strokeWidth={2.2} />
+              <Button to="/qualify" variant="on-band" className="mt-7">{text("closing.check-my-eligibility")}<ArrowRight size={16} strokeWidth={2.2} />
               </Button>
             </div>
             )}

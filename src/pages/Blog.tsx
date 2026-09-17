@@ -1,3 +1,5 @@
+import { editableItems } from "../content/editableItems";
+import { usePageText } from "../lib/useSiteData";
 import { Link } from "react-router-dom";
 import { ArrowRight, BookOpenText } from "lucide-react";
 import Container from "../components/Container";
@@ -23,10 +25,12 @@ export const TOPIC_BY_SLUG: Record<string, (typeof TOPICS)[number]["id"]> = {
 };
 
 function TopicFor({ post }: { post: Post }) {
-  return <span className="text-caption font-semibold uppercase tracking-[0.13em] text-brand">{TOPICS.find((topic) => topic.id === TOPIC_BY_SLUG[post.slug])?.label ?? "Diabetes education"}</span>;
+  const { text } = usePageText("blog");
+  return <span className="text-caption font-semibold uppercase tracking-[0.13em] text-brand">{editableItems(TOPICS, text, "articles.topics").find((topic) => topic.id === TOPIC_BY_SLUG[post.slug])?.label ?? "Diabetes education"}</span>;
 }
 
 function EditorialPostRow({ post, imageRight = false, showPicture = true }: { post: Post; imageRight?: boolean; showPicture?: boolean }) {
+  const { text } = usePageText("blog");
   return <article>
     <Link
       to={`/blog/${post.slug}`}
@@ -35,7 +39,7 @@ function EditorialPostRow({ post, imageRight = false, showPicture = true }: { po
       {showPicture && <div className={`relative aspect-[16/10] overflow-hidden bg-grey-light lg:aspect-auto lg:min-h-[340px] ${imageRight ? "lg:order-2" : ""}`}>
         {post.image ? <img src={post.image} alt={post.imageAlt} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.035] motion-reduce:transition-none motion-reduce:group-hover:scale-100" /> : <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-4 bg-wash px-8 text-center text-on-dark">
           <BookOpenText size={42} strokeWidth={1.5} aria-hidden="true" />
-          <span className="max-w-[18ch] font-display text-h3 font-bold">Practical diabetes education</span>
+          <span className="max-w-[18ch] font-display text-h3 font-bold">{text("articles.practical-diabetes-education")}</span>
         </div>}
       </div>}
       <div className={`flex flex-col justify-center p-7 sm:p-9 lg:p-11 ${imageRight ? "lg:order-1" : ""}`}>
@@ -43,8 +47,8 @@ function EditorialPostRow({ post, imageRight = false, showPicture = true }: { po
         <h3 className="mt-3 max-w-[24ch] font-display text-h3 font-bold leading-tight text-ink transition-colors group-hover:text-brand">{post.title}</h3>
         <p className="mt-4 max-w-[58ch] text-body leading-relaxed text-grey-dark">{post.excerpt}</p>
         <div className="mt-7 flex flex-wrap items-center justify-between gap-4 border-t border-line-brand pt-5">
-          <span className="text-caption text-grey-muted">{formatPostDate(post.publishedAt)} · {readingMinutes(post.body)} min read</span>
-          <span className="inline-flex items-center gap-2 text-small font-semibold text-brand">Read article <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transition-none" aria-hidden="true" /></span>
+          <span className="text-caption text-grey-muted">{formatPostDate(post.publishedAt)} · {readingMinutes(post.body)} {text("articles.min-read")}</span>
+          <span className="inline-flex items-center gap-2 text-small font-semibold text-brand">{text("articles.read-article")} <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transition-none" aria-hidden="true" /></span>
         </div>
       </div>
     </Link>
@@ -52,6 +56,7 @@ function EditorialPostRow({ post, imageRight = false, showPicture = true }: { po
 }
 
 export default function Blog() {
+  const { text } = usePageText("blog");
   usePageMeta(metaFor("/blog"));
   const posts = usePosts();
   const featured = posts.find((post) => post.slug === "what-is-a-continuous-glucose-monitor") ?? posts[0];
@@ -71,38 +76,38 @@ export default function Blog() {
   return <>
     {showHero && <section className="bg-wash"><Container wide className="py-11 md:py-16">
       {showHeroCopy && <>
-      <p className="text-caption font-semibold uppercase tracking-[0.18em] text-on-dark-accent">Medville Diabetes journal</p>
-      <h1 className="mt-4 max-w-[21ch] font-display text-h1 font-bold leading-tight text-on-dark">Clear Answers for Life With Diabetes</h1>
-      <p className="mt-4 max-w-[62ch] text-body-lg leading-relaxed text-on-dark-brand">Explore practical guides to glucose monitoring, daily choices, and getting the supplies you need. Each article gives you useful questions to take to your healthcare team.</p>
+      <p className="text-caption font-semibold uppercase tracking-[0.18em] text-on-dark-accent">{text("hero.medville-diabetes-journal")}</p>
+      <h1 className="mt-4 max-w-[21ch] font-display text-h1 font-bold leading-tight text-on-dark">{text("hero.clear-answers-for-life-with-diabetes")}</h1>
+      <p className="mt-4 max-w-[62ch] text-body-lg leading-relaxed text-on-dark-brand">{text("hero.explore-practical-guides-to-glucose-monitoring-daily-choices-and")}</p>
       </>}
     </Container></section>}
 
     {showArticles && (
     <Container wide className="py-10 md:py-14">
-      {posts.length === 0 ? <p className="text-body text-grey-dark">Articles are coming soon. Explore our <Link to="/products/cgm" className="font-semibold text-brand underline">CGM products</Link> in the meantime.</p> : <>
-        {showTopics && <nav aria-label="Blog topics" className="flex flex-wrap gap-2 border-b border-line-brand pb-8">{TOPICS.map((topic) => <a key={topic.id} href={`#${topic.id}`} className="rounded-full border border-line-brand bg-surface-raised px-4 py-2 text-small font-semibold text-brand transition-colors hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-brand">{topic.label}</a>)}</nav>}
+      {posts.length === 0 ? <p className="text-body text-grey-dark">{text("articles.articles-are-coming-soon-explore-our")} <Link to="/products/cgm" className="font-semibold text-brand underline">{text("articles.cgm-products")}</Link> {text("articles.in-the-meantime")}</p> : <>
+        {showTopics && <nav aria-label="Blog topics" className="flex flex-wrap gap-2 border-b border-line-brand pb-8">{editableItems(TOPICS, text, "articles.topics").map((topic) => <a key={topic.id} href={`#${topic.id}`} className="rounded-full border border-line-brand bg-surface-raised px-4 py-2 text-small font-semibold text-brand transition-colors hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-brand">{topic.label}</a>)}</nav>}
         {showFeatured && featured && <section aria-labelledby="start-heading" className="pt-10 md:pt-14">
-          <p className="text-caption font-semibold uppercase tracking-[0.16em] text-brand">Start here</p><h2 id="start-heading" className="mt-2 font-display text-h2 font-bold text-ink">A Guide to Glucose Monitoring</h2>
+          <p className="text-caption font-semibold uppercase tracking-[0.16em] text-brand">{text("articles.start-here")}</p><h2 id="start-heading" className="mt-2 font-display text-h2 font-bold text-ink">{text("articles.a-guide-to-glucose-monitoring")}</h2>
           <Link to={`/blog/${featured.slug}`} className="group mt-6 grid overflow-hidden rounded-[20px] border border-line-brand bg-surface-raised shadow-soft focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-brand lg:grid-cols-[1.05fr_1fr]">
             {showPictures && featured.image && <div className="aspect-[16/10] overflow-hidden bg-grey-light lg:aspect-auto"><img src={featured.image} alt={featured.imageAlt} {...{ fetchpriority: "high" }} className="h-full w-full object-cover" /></div>}
-            <div className="flex flex-col justify-center p-7 md:p-10"><TopicFor post={featured} /><h3 className="mt-3 max-w-[24ch] font-display text-h2 font-bold leading-tight text-ink group-hover:text-brand">{featured.title}</h3><p className="mt-4 max-w-[54ch] text-body leading-relaxed text-grey-dark">{featured.excerpt}</p><span className="mt-6 inline-flex items-center gap-2 text-small font-semibold text-brand">Read the guide <ArrowRight size={17} aria-hidden="true" /></span></div>
+            <div className="flex flex-col justify-center p-7 md:p-10"><TopicFor post={featured} /><h3 className="mt-3 max-w-[24ch] font-display text-h2 font-bold leading-tight text-ink group-hover:text-brand">{featured.title}</h3><p className="mt-4 max-w-[54ch] text-body leading-relaxed text-grey-dark">{featured.excerpt}</p><span className="mt-6 inline-flex items-center gap-2 text-small font-semibold text-brand">{text("articles.read-the-guide")} <ArrowRight size={17} aria-hidden="true" /></span></div>
           </Link>
         </section>}
-        {showLists && TOPICS.map((topic, topicIndex) => {
+        {showLists && editableItems(TOPICS, text, "articles.topics").map((topic, topicIndex) => {
           const matches = remaining.filter((post) => TOPIC_BY_SLUG[post.slug] === topic.id);
           return <section id={topic.id} key={topic.id} aria-labelledby={`${topic.id}-heading`} className="scroll-mt-24 pt-14 md:pt-20">
-            <div className="flex flex-col justify-between gap-3 border-t border-line-brand pt-8 md:flex-row md:items-end"><div><h2 id={`${topic.id}-heading`} className="font-display text-h2 font-bold text-ink">{topic.label}</h2><p className="mt-2 max-w-[60ch] text-body text-grey-dark">{topic.description}</p></div><span className="text-caption font-semibold text-grey-muted">{matches.length} {matches.length === 1 ? "article" : "articles"}</span></div>
-            {matches.length ? <div className="mt-7 space-y-7 md:space-y-9">{matches.map((post, postIndex) => <EditorialPostRow key={post.slug} post={post} imageRight={(topicIndex + postIndex) % 2 === 1} showPicture={showPictures} />)}</div> : <p className="mt-6 text-small text-grey-dark">More guides are on the way.</p>}
+            <div className="flex flex-col justify-between gap-3 border-t border-line-brand pt-8 md:flex-row md:items-end"><div><h2 id={`${topic.id}-heading`} className="font-display text-h2 font-bold text-ink">{topic.label}</h2><p className="mt-2 max-w-[60ch] text-body text-grey-dark">{topic.description}</p></div><span className="text-caption font-semibold text-grey-muted">{matches.length} {matches.length === 1 ? text("articles.article") : text("articles.articles")}</span></div>
+            {matches.length ? <div className="mt-7 space-y-7 md:space-y-9">{matches.map((post, postIndex) => <EditorialPostRow key={post.slug} post={post} imageRight={(topicIndex + postIndex) % 2 === 1} showPicture={showPictures} />)}</div> : <p className="mt-6 text-small text-grey-dark">{text("articles.more-guides-are-on-the-way")}</p>}
           </section>;
         })}
-        {showLists && uncategorized.length > 0 && <section aria-labelledby="more-heading" className="pt-16"><h2 id="more-heading" className="font-display text-h2 font-bold text-ink">More articles</h2><div className="mt-7 space-y-7 md:space-y-9">{uncategorized.map((post, postIndex) => <EditorialPostRow key={post.slug} post={post} imageRight={postIndex % 2 === 1} showPicture={showPictures} />)}</div></section>}
+        {showLists && uncategorized.length > 0 && <section aria-labelledby="more-heading" className="pt-16"><h2 id="more-heading" className="font-display text-h2 font-bold text-ink">{text("articles.more-articles")}</h2><div className="mt-7 space-y-7 md:space-y-9">{uncategorized.map((post, postIndex) => <EditorialPostRow key={post.slug} post={post} imageRight={postIndex % 2 === 1} showPicture={showPictures} />)}</div></section>}
       </>}
     </Container>
     )}
 
     {showClosing && <section className="bg-brand-tint py-12 md:py-16"><Container wide className="grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
-      {showClosingCopy && <div><h2 className="font-display text-h3 font-bold text-ink">Need help with diabetes supplies?</h2><p className="mt-2 max-w-[60ch] text-body leading-relaxed text-grey-dark">Learn about our CGM options and how our team helps you navigate the supply process.</p></div>}
-      {showClosingButtons && <div className="flex flex-wrap gap-3"><Link to="/products/cgm" className="rounded-full bg-brand px-5 py-3 text-small font-semibold text-on-dark hover:bg-brand-hover">Explore CGMs</Link><Link to="/services" className="rounded-full border border-brand px-5 py-3 text-small font-semibold text-brand hover:bg-surface-raised">How we help</Link></div>}
+      {showClosingCopy && <div><h2 className="font-display text-h3 font-bold text-ink">{text("closing.need-help-with-diabetes-supplies")}</h2><p className="mt-2 max-w-[60ch] text-body leading-relaxed text-grey-dark">{text("closing.learn-about-our-cgm-options-and-how-our-team-helps-you-navigate-t")}</p></div>}
+      {showClosingButtons && <div className="flex flex-wrap gap-3"><Link to="/products/cgm" className="rounded-full bg-brand px-5 py-3 text-small font-semibold text-on-dark hover:bg-brand-hover">{text("closing.explore-cgms")}</Link><Link to="/services" className="rounded-full border border-brand px-5 py-3 text-small font-semibold text-brand hover:bg-surface-raised">{text("closing.how-we-help")}</Link></div>}
     </Container></section>}
   </>;
 }

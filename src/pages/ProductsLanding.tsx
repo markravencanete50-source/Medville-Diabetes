@@ -1,9 +1,9 @@
+import { editableItems } from "../content/editableItems";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import Container from "../components/Container";
 import { Blob, Eyebrow, Grain } from "../components/Decor";
 import type { ProductLine } from "../data/products";
-import { PRODUCT_DISCLAIMER } from "../data/company";
 import { useElementVisible, usePageText, useProducts, useSectionVisible } from "../lib/useSiteData";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
@@ -89,7 +89,7 @@ export default function ProductsLanding() {
         {showCatalog && <section className="pb-16 pt-10 md:pb-24 md:pt-14">
           <Container wide>
             {showCatalogCards && <div className="grid gap-6 md:grid-cols-2">
-              {LINES.map((entry, index) => {
+              {editableItems(LINES, text, "catalog.categories").map((entry, index) => {
                 const count = catalogue.filter((p) => p.line === entry.line).length;
                 return (
                   <Link
@@ -114,14 +114,14 @@ export default function ProductsLanding() {
                            neither waits for scroll. Only the first is the
                            largest paint, so only it asks to jump the queue. */
                         loading="eager"
-                        {...{ fetchpriority: index === 0 ? "high" : "auto" }}
+                        {...{ fetchpriority: index === 0 ? text("catalog.high") : text("catalog.auto") }}
                         data-parallax="0.4"
                         className="h-full w-full object-cover"
                       />
                     </div>}
                     <div className="flex flex-1 flex-col p-8">
                       <p className="m-0 text-caption font-bold uppercase tracking-[0.14em] text-brand-bright">
-                        {count} {count === 1 ? "product" : "products"}
+                        {count} {count === 1 ? text("catalog.product") : text("catalog.products")}
                       </p>
                       <h2 className="mt-2 font-display text-h3 font-bold text-ink">
                         {entry.title}
@@ -152,7 +152,7 @@ export default function ProductsLanding() {
               data-reveal={200}
               className="reveal-settle mx-auto mt-12 max-w-[78ch] text-center text-caption leading-relaxed text-grey-faint"
             >
-              {PRODUCT_DISCLAIMER}
+              {text("catalog.disclaimer")}
             </p>}
           </Container>
         </section>}

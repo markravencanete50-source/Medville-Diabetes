@@ -1,3 +1,4 @@
+import { usePageText } from "../lib/useSiteData";
 import { cloneElement, isValidElement, useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -9,8 +10,9 @@ import Button from "../components/Button";
 import { Blob, Eyebrow, Grain } from "../components/Decor";
 import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
-import { PHONE_DISPLAY, PHONE_TEL } from "../data/company";
+import { useCompanyDetails } from "../lib/useCompanyDetails";
 import { useElementVisible, useSectionVisible } from "../lib/useSiteData";
+import { isEditorPreview } from "../lib/editorPreview";
 
 const US_STATES = [
   "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
@@ -42,6 +44,8 @@ type FormValues = z.infer<typeof schema>;
 type Status = "idle" | "submitting" | "success" | "error";
 
 export default function Contact() {
+  const { PHONE_DISPLAY, PHONE_TEL } = useCompanyDetails();
+  const { text } = usePageText("contact");
   usePageMeta(metaFor("/contact"));
   const showHero = useSectionVisible("contact", "hero");
   const showForm = useSectionVisible("contact", "form");
@@ -53,7 +57,7 @@ export default function Contact() {
   const showMessageField = useElementVisible("contact", "form", "message");
   const showConsent = useElementVisible("contact", "form", "consent");
   const showSubmit = useElementVisible("contact", "form", "button");
-  const [noticeOpen, setNoticeOpen] = useState(showForm);
+  const [noticeOpen, setNoticeOpen] = useState(showForm && !isEditorPreview());
   const [status, setStatus] = useState<Status>("idle");
   const submissionId = useRef(crypto.randomUUID());
   const sending = useRef(false);
@@ -71,7 +75,7 @@ export default function Contact() {
   }, [status]);
 
   const onSubmit = async (values: FormValues) => {
-    if (!endpoint || sending.current) return;
+    if (!endpoint || sending.current || isEditorPreview()) return;
     sending.current = true;
     setStatus("submitting");
     try {
@@ -98,9 +102,9 @@ export default function Contact() {
       <Grain opacity={0.05} />
       <Container className="relative max-w-2xl py-20 text-center md:py-28">
         <CheckCircle2 size={52} className="mx-auto text-brand-bright" aria-hidden="true" />
-        <h1 ref={successHeading} tabIndex={-1} className="mt-5 font-display text-h1 font-bold text-on-dark">Your message was sent</h1>
-        <p className="mx-auto mt-4 max-w-[58ch] text-body-lg leading-relaxed text-on-dark-brand">Our team will review your general question and contact you using the details you provided.</p>
-        <Button to="/" variant="ghost-dark" className="mt-8">Return home</Button>
+        <h1 ref={successHeading} tabIndex={-1} className="mt-5 font-display text-h1 font-bold text-on-dark">{text("form.your-message-was-sent")}</h1>
+        <p className="mx-auto mt-4 max-w-[58ch] text-body-lg leading-relaxed text-on-dark-brand">{text("form.our-team-will-review-your-general-question-and-contact-you-using-")}</p>
+        <Button to="/" variant="ghost-dark" className="mt-8">{text("form.return-home")}</Button>
       </Container>
     </section>;
   }
@@ -112,21 +116,21 @@ export default function Contact() {
       <Container wide className={`relative grid gap-10 py-12 md:py-16 lg:gap-14 ${showHero && showForm ? "lg:grid-cols-[0.82fr_1.18fr]" : "max-w-[820px]"}`}>
         {showHero && <div>
           {showIntro && <>
-          <Eyebrow onDark>Contact our team</Eyebrow>
-          <h1 className="mt-3 max-w-[15ch] font-display text-h1 font-bold text-on-dark">How can we help?</h1>
-          <p className="mt-4 max-w-[54ch] text-body leading-relaxed text-on-dark-brand">Send a general question about our products, services, or next steps. Please do not send medical records or personal health information.</p>
+          <Eyebrow onDark>{text("hero.eyebrow")}</Eyebrow>
+          <h1 className="mt-3 max-w-[15ch] font-display text-h1 font-bold text-on-dark">{text("hero.heading")}</h1>
+          <p className="mt-4 max-w-[54ch] text-body leading-relaxed text-on-dark-brand">{text("hero.body")}</p>
           </>}
 
           {showPrivacyCard && (
           <div className="mt-8 rounded-[20px] border border-on-dark-accent/25 bg-navy-raised/70 p-6">
-            <div className="flex items-start gap-3"><ShieldAlert size={21} className="mt-0.5 flex-none text-brand-bright" aria-hidden="true" /><div><h2 className="font-display text-body font-semibold text-on-dark">Keep your message general</h2><p className="mt-2 text-small leading-relaxed text-on-dark-brand">Do not include diagnoses, medications, glucose readings, insurance or Medicare numbers, Social Security numbers, medical documents, or images.</p></div></div>
+            <div className="flex items-start gap-3"><ShieldAlert size={21} className="mt-0.5 flex-none text-brand-bright" aria-hidden="true" /><div><h2 className="font-display text-body font-semibold text-on-dark">{text("hero.keep-your-message-general")}</h2><p className="mt-2 text-small leading-relaxed text-on-dark-brand">{text("hero.do-not-include-diagnoses-medications-glucose-readings-insurance")}</p></div></div>
           </div>
           )}
 
           {showPhoneCard && (
           <div className="mt-5 flex items-start gap-3 rounded-[20px] border border-on-dark-accent/25 bg-navy-raised/70 p-6">
             <PhoneCall size={20} className="mt-0.5 flex-none text-brand-bright" aria-hidden="true" />
-            <div><p className="text-small leading-relaxed text-on-dark-brand">Prefer to speak with someone?</p><a href={PHONE_TEL} className="mt-1 inline-block font-display text-body font-semibold text-on-dark underline underline-offset-4">Call {PHONE_DISPLAY}</a></div>
+            <div><p className="text-small leading-relaxed text-on-dark-brand">{text("hero.prefer-to-speak-with-someone")}</p><a href={PHONE_TEL} className="mt-1 inline-block font-display text-body font-semibold text-on-dark underline underline-offset-4">{text("hero.call")} {PHONE_DISPLAY}</a></div>
           </div>
           )}
         </div>}
@@ -135,40 +139,40 @@ export default function Contact() {
         <div className="rounded-[26px] bg-surface-raised p-6 shadow-overlay sm:p-9">
           <form onSubmit={handleSubmit(onSubmit)} noValidate aria-label="Contact form" aria-busy={status === "submitting"} className="space-y-5">
             {showFormHeading && (
-            <div><h2 className="font-display text-h3 font-bold text-ink">Send a general question</h2><p className="mt-1 text-small text-grey-dark">All fields are required.</p></div>
+            <div><h2 className="font-display text-h3 font-bold text-ink">{text("form.send-a-general-question")}</h2><p className="mt-1 text-small text-grey-dark">{text("form.all-fields-are-required")}</p></div>
             )}
             <fieldset disabled={noticeOpen || status === "submitting"} className="min-w-0 space-y-5 disabled:opacity-65">
-              <legend className="sr-only">Your contact information and question</legend>
+              <legend className="sr-only">{text("form.your-contact-information-and-question")}</legend>
               <div hidden aria-hidden="true"><label>Leave this blank<input {...register("website")} tabIndex={-1} autoComplete="off" /></label></div>
               {showFormFields && <>
               <div className="grid gap-5 sm:grid-cols-2">
-                <Field label="First Name" error={errors.firstName?.message}><input {...register("firstName")} required autoComplete="given-name" className={inputClass(!!errors.firstName)} /></Field>
-                <Field label="Last Name" error={errors.lastName?.message}><input {...register("lastName")} required autoComplete="family-name" className={inputClass(!!errors.lastName)} /></Field>
+                <Field label={text("form.first-name")} error={errors.firstName?.message}><input {...register("firstName")} required autoComplete="given-name" className={inputClass(!!errors.firstName)} /></Field>
+                <Field label={text("form.last-name")} error={errors.lastName?.message}><input {...register("lastName")} required autoComplete="family-name" className={inputClass(!!errors.lastName)} /></Field>
               </div>
-              <Field label="Email Address" error={errors.email?.message}><input {...register("email")} required type="email" autoComplete="email" inputMode="email" className={inputClass(!!errors.email)} /></Field>
-              <Field label="Phone Number" error={errors.phone?.message}><input {...register("phone")} required type="tel" autoComplete="tel" inputMode="tel" className={inputClass(!!errors.phone)} /></Field>
+              <Field label={text("form.email-address")} error={errors.email?.message}><input {...register("email")} required type="email" autoComplete="email" inputMode="email" className={inputClass(!!errors.email)} /></Field>
+              <Field label={text("form.phone-number")} error={errors.phone?.message}><input {...register("phone")} required type="tel" autoComplete="tel" inputMode="tel" className={inputClass(!!errors.phone)} /></Field>
               <div className="grid gap-5 sm:grid-cols-2">
-                <Field label="City" error={errors.city?.message}><input {...register("city")} required autoComplete="address-level2" className={inputClass(!!errors.city)} /></Field>
-                <Field label="State" error={errors.state?.message}><select {...register("state")} required autoComplete="address-level1" defaultValue="" className={inputClass(!!errors.state)}><option value="" disabled>Select your state</option>{US_STATES.map((state) => <option key={state} value={state}>{state}</option>)}</select></Field>
+                <Field label={text("form.city")} error={errors.city?.message}><input {...register("city")} required autoComplete="address-level2" className={inputClass(!!errors.city)} /></Field>
+                <Field label={text("form.state")} error={errors.state?.message}><select {...register("state")} required autoComplete="address-level1" defaultValue="" className={inputClass(!!errors.state)}><option value="" disabled>{text("form.select-your-state")}</option>{US_STATES.map((state) => <option key={state} value={state}>{state}</option>)}</select></Field>
               </div>
               </>}
               {showMessageField && (
-              <Field label="How can we help you?" error={errors.message?.message} help="Use this box only for general questions. Do not include medical or health information."><textarea {...register("message")} required rows={6} maxLength={1200} className={`${inputClass(!!errors.message)} resize-y`} /></Field>
+              <Field label={text("form.how-can-we-help-you")} error={errors.message?.message} help="Use this box only for general questions. Do not include medical or health information."><textarea {...register("message")} required rows={6} maxLength={1200} className={`${inputClass(!!errors.message)} resize-y`} /></Field>
               )}
 
               {showConsent && <>
               <label className="flex cursor-pointer items-start gap-3 rounded-md bg-grey-light p-4 text-caption leading-relaxed text-grey-muted">
                 <input type="checkbox" required {...register("privacyAccepted")} aria-invalid={!!errors.privacyAccepted} aria-describedby={errors.privacyAccepted ? "contact-privacy-error" : undefined} className="mt-0.5 h-5 w-5 flex-none accent-ink" />
-                <span>I confirm that this message contains only a general question and does not include medical records, health information, insurance identifiers, or other sensitive personal information.</span>
+                <span>{text("form.i-confirm-that-this-message-contains-only-a-general-question-and-")}</span>
               </label>
               {errors.privacyAccepted && <p id="contact-privacy-error" className="flex items-center gap-1 text-caption font-medium text-danger"><AlertCircle size={13} aria-hidden="true" /> {errors.privacyAccepted.message}</p>}
               </>}
 
-              {status === "error" && <div role="alert" className="flex items-start gap-3 rounded-md border border-danger/30 bg-danger/5 p-4"><AlertCircle size={18} className="mt-0.5 flex-none text-danger" aria-hidden="true" /><p className="m-0 text-small text-ink">Your message could not be sent. Please try again or call our team.</p></div>}
+              {status === "error" && <div role="alert" className="flex items-start gap-3 rounded-md border border-danger/30 bg-danger/5 p-4"><AlertCircle size={18} className="mt-0.5 flex-none text-danger" aria-hidden="true" /><p className="m-0 text-small text-ink">{text("form.your-message-could-not-be-sent-please-try-again-or-call-our-team")}</p></div>}
 
               {showSubmit && <>
-              <Button type="submit" variant="cta" disabled={status === "submitting"} className="w-full">{status === "submitting" ? "Sending your message" : "Send message"}</Button>
-              <p className="text-center text-caption leading-relaxed text-grey-muted">We handle your contact details according to our <Link to="/privacy-policy" className="font-semibold text-brand underline underline-offset-2">Privacy Policy</Link>.</p>
+              <Button type="submit" variant="cta" disabled={status === "submitting"} className="w-full">{status === "submitting" ? text("form.sending-your-message") : text("form.send-message")}</Button>
+              <p className="text-center text-caption leading-relaxed text-grey-muted">{text("form.we-handle-your-contact-details-according-to-our")} <Link to="/privacy-policy" className="font-semibold text-brand underline underline-offset-2">{text("form.privacy-policy")}</Link>.</p>
               </>}
             </fieldset>
           </form>
@@ -181,6 +185,8 @@ export default function Contact() {
 }
 
 function PrivacyNotice({ onContinue }: { onContinue: () => void }) {
+  const { PHONE_TEL } = useCompanyDetails();
+  const { text } = usePageText("contact");
   const buttonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -191,12 +197,12 @@ function PrivacyNotice({ onContinue }: { onContinue: () => void }) {
   return <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-ink/75 p-4 backdrop-blur-sm" role="presentation">
     <section role="dialog" aria-modal="true" aria-labelledby="privacy-notice-title" aria-describedby="privacy-notice-body" className="w-full max-w-[560px] rounded-[24px] bg-surface-raised p-6 shadow-sheet sm:p-9">
       <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-brand"><LockKeyhole size={23} aria-hidden="true" /></span>
-      <p className="mt-5 text-caption font-semibold uppercase tracking-[0.16em] text-brand">Before you continue</p>
-      <h2 id="privacy-notice-title" className="mt-2 font-display text-h2 font-bold text-ink">Please do not send health information</h2>
-      <div id="privacy-notice-body" className="mt-4 space-y-3 text-body leading-relaxed text-grey-dark"><p>Use this form only for general questions about Medville Diabetes products, services, or next steps.</p><p>Do not include medical records, diagnoses, medications, glucose readings, insurance or Medicare numbers, Social Security numbers, medical documents, or images.</p></div>
+      <p className="mt-5 text-caption font-semibold uppercase tracking-[0.16em] text-brand">{text("form.before-you-continue")}</p>
+      <h2 id="privacy-notice-title" className="mt-2 font-display text-h2 font-bold text-ink">{text("form.please-do-not-send-health-information")}</h2>
+      <div id="privacy-notice-body" className="mt-4 space-y-3 text-body leading-relaxed text-grey-dark"><p>{text("form.use-this-form-only-for-general-questions-about-medville-diabetes-")}</p><p>{text("form.do-not-include-medical-records-diagnoses-medications-glucose-rea")}</p></div>
       <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <button ref={buttonRef} type="button" onClick={onContinue} className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-full bg-brand-bright px-7 py-3 font-display text-small font-semibold text-ink shadow-cta transition-colors hover:bg-ink hover:text-on-dark"><MessageSquareText size={17} aria-hidden="true" /> Continue to form</button>
-        <a href={PHONE_TEL} className="inline-flex min-h-[46px] items-center justify-center rounded-full border border-ink/25 px-6 py-3 font-display text-small font-semibold text-ink hover:bg-grey-light">Call instead</a>
+        <button ref={buttonRef} type="button" onClick={onContinue} className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-full bg-brand-bright px-7 py-3 font-display text-small font-semibold text-ink shadow-cta transition-colors hover:bg-ink hover:text-on-dark"><MessageSquareText size={17} aria-hidden="true" /> {text("form.continue-to-form")}</button>
+        <a href={PHONE_TEL} className="inline-flex min-h-[46px] items-center justify-center rounded-full border border-ink/25 px-6 py-3 font-display text-small font-semibold text-ink hover:bg-grey-light">{text("form.call-instead")}</a>
       </div>
     </section>
   </div>;

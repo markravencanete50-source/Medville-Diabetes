@@ -20,7 +20,8 @@
   adminApi function and are never exposed to a browser without a token.
 */
 
-import { defaultsFor, type PageId, type PageValues, type SiteContent } from "../content/schema";
+import { defaultsFor, PAGE_FIELDS, type PageId, type PageValues, type SiteContent } from "../content/schema";
+import { validFieldValue } from "../content/validation";
 import { decodeBlocks, isPostTemplate, type Post } from "../data/blog";
 import { EDITORIAL_POSTS } from "../data/editorialPosts";
 import type { Product } from "../data/products";
@@ -325,6 +326,7 @@ export function clearCache() {
    wording compiled into the build. */
 export function resolveText(content: SiteContent, pageId: PageId, path: string): string {
   const saved = content[pageId]?.[path];
-  if (typeof saved === "string" && saved.trim() !== "") return saved;
+  const field = PAGE_FIELDS.get(pageId)?.get(path);
+  if (typeof saved === "string" && saved.trim() !== "" && field && validFieldValue(field, saved)) return saved;
   return defaultsFor(pageId)[path] ?? "";
 }

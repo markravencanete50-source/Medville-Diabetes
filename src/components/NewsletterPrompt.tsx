@@ -104,7 +104,7 @@ export default function NewsletterPrompt() {
             Learn with Medville Diabetes
           </h2>
           <p className="mt-3 text-small leading-relaxed text-grey-dark">
-            Get practical, easy-to-understand guidance on diabetes technology, everyday health, and living with confidence—delivered whenever we publish something new.
+            Get practical, easy-to-understand guidance on diabetes technology, everyday health, and living with confidence. Receive a new guide whenever we publish an article.
           </p>
           <form onSubmit={submit} className="mt-4 space-y-3">
             <div className="relative">
