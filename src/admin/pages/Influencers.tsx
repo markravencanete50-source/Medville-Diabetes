@@ -9,6 +9,7 @@ const PLATFORMS = ["Instagram", "TikTok", "Facebook", "Meta Ads", "YouTube", "Ot
 function referralUrl(item: Influencer) {
   const url = new URL("/qualify", window.location.origin);
   url.searchParams.set("ref", item.slug);
+  url.searchParams.set("standalone", "1");
   if (item.platform === "Meta Ads") {
     url.searchParams.set("utm_source", "meta");
     url.searchParams.set("utm_medium", "paid_social");

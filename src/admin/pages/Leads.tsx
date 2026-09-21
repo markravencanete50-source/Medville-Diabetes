@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Download, RefreshCw, RotateCcw, Search, Trash2, Upload } from "lucide-react";
 import {
   adminApi,
   AdminApiError,
@@ -25,6 +25,7 @@ import {
   useToast,
 } from "../ui";
 import { products as builtInProducts } from "../../data/products";
+import DateRangeFilter, { type DateRange } from "../DateRangeFilter";
 
 /*
   The enquiry list.
@@ -59,8 +60,11 @@ export default function Leads() {
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<LeadStatus | "all">("all");
   const [search, setSearch] = useState("");
+  const [range, setRange] = useState<DateRange>({ from: "", to: "" });
+  const [showTrash, setShowTrash] = useState(false);
   const [openLead, setOpenLead] = useState<Lead | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<Lead | null>(null);
+  const [pendingImport, setPendingImport] = useState<{ id: string; status: LeadStatus }[] | null>(null);
   const [saving, setSaving] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -76,20 +80,20 @@ export default function Leads() {
       return;
     }
     try {
-      const result = await adminApi.listLeads(getToken);
+      const result = await adminApi.listLeads(getToken, { ...range, deleted: showTrash });
       setLeads(result.leads);
       setNextCursor(result.nextCursor);
     } catch (problem) {
       setLeads([]);
       setError(problem instanceof AdminApiError ? problem.message : "That did not work.");
     }
-  }, [getToken, connected]);
+  }, [getToken, connected, range, showTrash]);
 
   const loadMore = async () => {
     if (!nextCursor || loadingMore) return;
     setLoadingMore(true);
     try {
-      const result = await adminApi.listLeads(getToken, undefined, nextCursor);
+      const result = await adminApi.listLeads(getToken, { ...range, deleted: showTrash, cursor: nextCursor });
       setLeads((current) => [...new Map([...(current ?? []), ...result.leads].map((lead) => [lead.id, lead])).values()]);
       setNextCursor(result.nextCursor);
     } catch { toast("The next page could not be loaded. Please try again.", "danger"); }
@@ -129,12 +133,62 @@ export default function Leads() {
       setLeads((current) => (current ?? []).filter((lead) => lead.id !== deleteCandidate.id));
       setOpenLead((current) => current?.id === deleteCandidate.id ? null : current);
       setDeleteCandidate(null);
-      toast("Enquiry deleted.");
+      toast("Enquiry moved to the Recycle Bin for seven days.");
     } catch (problem) {
       toast(problem instanceof AdminApiError ? problem.message : "The enquiry could not be deleted.", "danger");
     } finally {
       setSaving(false);
     }
+  };
+
+  const restoreLead = async (lead: Lead) => {
+    setSaving(true);
+    try {
+      await adminApi.restoreLead(getToken, lead.id);
+      setLeads((current) => (current ?? []).filter((item) => item.id !== lead.id));
+      toast("Enquiry restored.");
+    } catch (problem) {
+      toast(problem instanceof AdminApiError ? problem.message : "The enquiry could not be restored.", "danger");
+    } finally { setSaving(false); }
+  };
+
+  const downloadStatusTemplate = () => {
+    const rows = [["id", "status"], ...visible.map((lead) => [lead.id, lead.status])];
+    const csv = rows.map((row) => row.join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `medville-enquiry-statuses-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast("Status template downloaded. Only the status column should be changed.");
+  };
+
+  const readStatusImport = async (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > 200_000) return toast("The status file is too large.", "danger");
+    const lines = (await file.text()).replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
+    const header = lines.shift()?.split(",").map((cell) => cell.trim().toLowerCase());
+    if (!header || header[0] !== "id" || header[1] !== "status") return toast("Use a CSV with id and status as the first two columns.", "danger");
+    const items = lines.map((line) => {
+      const [id, status] = line.split(",").map((cell) => cell.trim());
+      return { id, status: status as LeadStatus };
+    });
+    if (!items.length || items.length > 50 || items.some((item) => !LEAD_STATUSES.includes(item.status))) return toast("The file must contain 1 to 50 rows with a valid status.", "danger");
+    setPendingImport(items);
+  };
+
+  const importStatuses = async () => {
+    if (!pendingImport) return;
+    setSaving(true);
+    try {
+      const result = await adminApi.importLeadStatuses(getToken, pendingImport);
+      setPendingImport(null);
+      toast(`${result.updated} enquiry ${result.updated === 1 ? "status" : "statuses"} updated.`);
+      await load();
+    } catch (problem) {
+      toast(problem instanceof AdminApiError ? problem.message : "The status import could not be applied.", "danger");
+    } finally { setSaving(false); }
   };
 
   useEffect(() => {
@@ -231,10 +285,17 @@ export default function Leads() {
             type="button"
             className="admin-btn admin-btn-quiet"
             onClick={() => void exportCsv()}
-            disabled={!visible.length || visible.length > 500}
+            disabled={showTrash || !visible.length || visible.length > 500}
           >
             <Download size={16} /> Export loaded enquiries
           </button>
+          <button type="button" className="admin-btn admin-btn-quiet" disabled={showTrash || !visible.length} onClick={downloadStatusTemplate}>
+            <Download size={16} /> Status template
+          </button>
+          <label className={`admin-btn admin-btn-quiet ${showTrash ? "pointer-events-none opacity-50" : "cursor-pointer"}`}>
+            <Upload size={16} /> Import statuses
+            <input type="file" accept=".csv,text/csv" className="sr-only" disabled={showTrash} onChange={(event) => { void readStatusImport(event.target.files?.[0]); event.currentTarget.value = ""; }} />
+          </label>
           </>
         }
       />
@@ -246,6 +307,11 @@ export default function Leads() {
       )}
 
       <Card className="mb-4">
+        <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Enquiry view">
+          <button type="button" className={`admin-btn ${!showTrash ? "admin-btn-primary" : "admin-btn-quiet"}`} onClick={() => { setShowTrash(false); setOpenLead(null); }}>Active enquiries</button>
+          <button type="button" className={`admin-btn ${showTrash ? "admin-btn-primary" : "admin-btn-quiet"}`} onClick={() => { setShowTrash(true); setOpenLead(null); }}><Trash2 size={16} /> Recycle Bin</button>
+        </div>
+        <div className="mb-4"><DateRangeFilter value={range} onChange={setRange} /></div>
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-0 flex-1 basis-[220px]">
             <Field label="Search" htmlFor="lead-search">
@@ -296,7 +362,7 @@ export default function Leads() {
               ? "Enquiries will appear here once the enquiry service is connected."
               : leads.length
                 ? "No enquiries match that search."
-                : "No enquiries have arrived yet."}
+                : showTrash ? "The Recycle Bin is empty." : "No enquiries have arrived yet."}
           </Empty>
         ) : (
           <div className="admin-table-wrap">
@@ -309,13 +375,15 @@ export default function Leads() {
                   <th scope="col">Enquiry</th>
                   <th scope="col">Influencer</th>
                   <th scope="col">Stage</th>
+                  {showTrash && <th scope="col">Removal</th>}
+                  {showTrash && <th scope="col"><span className="sr-only">Actions</span></th>}
                 </tr>
               </thead>
               <tbody>
                 {visible.map((lead) => (
                   <tr key={lead.id}>
                     <td data-label="Name">
-                      <button
+                      {showTrash ? <span className="font-semibold">{leadName(lead)}</span> : <button
                         type="button"
                         className="font-semibold underline underline-offset-2"
                         style={{ color: "var(--a-brand-text)" }}
@@ -323,7 +391,7 @@ export default function Leads() {
                         onClick={() => void open(lead.id)}
                       >
                         {leadName(lead)}
-                      </button>
+                      </button>}
                     </td>
                     <td data-label="Received" style={{ color: "var(--a-text-muted)" }}>
                       {formatDateTime(lead.createdAt)}
@@ -342,6 +410,8 @@ export default function Leads() {
                         {LEAD_STATUS_LABEL[lead.status] ?? lead.status}
                       </Badge>
                     </td>
+                    {showTrash && <td data-label="Removal" style={{ color: "var(--a-text-muted)" }}>{daysUntilRemoval(lead.purgeAt)}</td>}
+                    {showTrash && <td data-label="Actions"><button type="button" className="admin-btn admin-btn-quiet admin-btn-sm" disabled={saving} onClick={() => void restoreLead(lead)}><RotateCcw size={14} /> Restore</button></td>}
                   </tr>
                 ))}
               </tbody>
@@ -410,21 +480,30 @@ export default function Leads() {
 
             <div className="border-t pt-4" style={{ borderColor: "var(--a-line)" }}>
               <button type="button" className="admin-btn admin-btn-danger w-full" disabled={saving} onClick={() => setDeleteCandidate(openLead)}>
-                <Trash2 size={16} aria-hidden="true" /> Delete enquiry
+                <Trash2 size={16} aria-hidden="true" /> Move to Recycle Bin
               </button>
-              <p className="admin-help">Deleting removes this enquiry from the dashboard. The deletion remains recorded in the access log.</p>
+              <p className="admin-help">The enquiry can be restored for seven days. After that, AWS removes it automatically. The action remains recorded in the access log.</p>
             </div>
           </div>
         )}
       </Drawer>
       <ConfirmDialog
         open={Boolean(deleteCandidate)}
-        title="Delete this enquiry?"
-        body={<p>This action permanently removes the enquiry and cannot be undone. The access log will record who deleted it and when.</p>}
-        confirmLabel="Delete enquiry"
+        title="Move this enquiry to the Recycle Bin?"
+        body={<p>It will disappear from active enquiries and can be restored for seven days. The access log will record who moved it and when.</p>}
+        confirmLabel="Move to Recycle Bin"
         busy={saving}
         onCancel={() => setDeleteCandidate(null)}
         onConfirm={() => void deleteLead()}
+      />
+      <ConfirmDialog
+        open={Boolean(pendingImport)}
+        title="Apply imported status updates?"
+        body={<p>This will update only the status of {pendingImport?.length ?? 0} enquiries. Names, contact details, form answers, and notes will not change.</p>}
+        confirmLabel="Update statuses"
+        busy={saving}
+        onCancel={() => setPendingImport(null)}
+        onConfirm={() => void importStatuses()}
       />
     </>
   );
@@ -434,6 +513,12 @@ function emailStatusLabel(status: string) {
   if (status === "sent") return "Sent";
   if (status === "failed") return "Delivery failed";
   return "Pending delivery";
+}
+
+function daysUntilRemoval(purgeAt: number | null) {
+  if (!purgeAt) return "Within seven days";
+  const days = Math.max(0, Math.ceil((purgeAt * 1000 - Date.now()) / 86_400_000));
+  return days === 0 ? "Pending permanent removal" : `${days} ${days === 1 ? "day" : "days"} remaining`;
 }
 
 function Detail({ label, children }: { label: string; children: React.ReactNode }) {

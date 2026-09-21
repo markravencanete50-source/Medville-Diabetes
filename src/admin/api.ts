@@ -23,6 +23,8 @@ const AWS_ACTIONS = new Set([
   "leads.get",
   "leads.update",
   "leads.delete",
+  "leads.restore",
+  "leads.status.import",
   "leads.stats",
   "leads.notify",
   "leads.export",
@@ -57,6 +59,8 @@ export interface Lead {
   status: LeadStatus;
   note: string;
   createdAt: string | null;
+  deletedAt: string | null;
+  purgeAt: number | null;
 }
 
 export type LeadStatus = "new" | "contacted" | "qualified" | "not-qualified" | "closed";
@@ -172,8 +176,13 @@ async function call<T>(getToken: GetToken, action: string, payload: Record<strin
 export const adminApi = {
   signImageUpload: (getToken: GetToken, folder: string) =>
     call<{ cloudName: string; apiKey: string; signature: string; params: Record<string, string> }>(getToken, "images.signUpload", { folder }),
-  listLeads: (getToken: GetToken, status?: LeadStatus, cursor?: string) =>
-    call<{ leads: Lead[]; nextCursor: string | null }>(getToken, "leads.list", { ...(status ? { status } : {}), ...(cursor ? { cursor } : {}) }),
+  listLeads: (getToken: GetToken, options: {
+    status?: LeadStatus;
+    cursor?: string;
+    from?: string;
+    to?: string;
+    deleted?: boolean;
+  } = {}) => call<{ leads: Lead[]; nextCursor: string | null }>(getToken, "leads.list", options),
 
   retryNotification: (getToken: GetToken, id: string) => call<{
     ok: true;
@@ -190,7 +199,14 @@ export const adminApi = {
   deleteLead: (getToken: GetToken, id: string) =>
     call<{ ok: true }>(getToken, "leads.delete", { id }),
 
-  stats: (getToken: GetToken) => call<LeadStats>(getToken, "leads.stats"),
+  restoreLead: (getToken: GetToken, id: string) =>
+    call<{ ok: true }>(getToken, "leads.restore", { id }),
+
+  importLeadStatuses: (getToken: GetToken, items: { id: string; status: LeadStatus }[]) =>
+    call<{ ok: true; updated: number }>(getToken, "leads.status.import", { items }),
+
+  stats: (getToken: GetToken, range: { from?: string; to?: string } = {}) =>
+    call<LeadStats>(getToken, "leads.stats", range),
 
   listInfluencers: async (getToken: GetToken) => {
     const [result, counts] = await Promise.all([

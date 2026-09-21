@@ -6,7 +6,8 @@ const db=DynamoDBDocumentClient.from(new DynamoDBClient({}),{marshallOptions:{re
 const origins=new Set((process.env.ALLOWED_ORIGINS||'').split(',').map(x=>x.trim()).filter(Boolean));
 const statuses=new Set(['new','contacted','qualified','not-qualified','closed']);
 const validId=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(x);
-const features={'leads.list':'leads','leads.get':'leads','leads.update':'leads','leads.delete':'leads','leads.stats':'overview','leads.export':'leads','leads.notify':'leads','audit.list':'audit','influencers.counts':'influencers'};
+const validDay=x=>x===undefined||x===''||(typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(`${x}T00:00:00Z`)));
+const features={'leads.list':'leads','leads.get':'leads','leads.update':'leads','leads.delete':'leads','leads.restore':'leads','leads.status.import':'leads','leads.stats':'overview','leads.export':'leads','leads.notify':'leads','audit.list':'audit','influencers.counts':'influencers'};
 async function authenticate(header,origin){
  if(typeof header!=='string'||!header.startsWith('Bearer ')||header.length>10000)return null;
  // The identity service checks revocation, disabled accounts, session age and current claims.
@@ -20,8 +21,8 @@ async function authenticate(header,origin){
 }
 function response(statusCode,origin,body){return{statusCode,headers:{'Cache-Control':'no-store','Content-Type':'application/json','X-Content-Type-Options':'nosniff',Vary:'Origin',...(origin?{'Access-Control-Allow-Origin':origin}:{})},body:JSON.stringify(body)}}
 function lead(item){
- const fields=['id','firstName','lastName','email','phone','city','state','injectsInsulinDaily','productInterest','productName','referralCode','source','message','notificationStatus','customerConfirmationStatus','status','note','createdAt'];
- return Object.fromEntries(fields.map(k=>[k,typeof item[k]==='string'?item[k]:'']));
+ const fields=['id','firstName','lastName','email','phone','city','state','injectsInsulinDaily','productInterest','productName','referralCode','source','message','notificationStatus','customerConfirmationStatus','status','note'];
+ return{...Object.fromEntries(fields.map(k=>[k,typeof item[k]==='string'?item[k]:'' ])),createdAt:typeof item.createdAt==='string'?item.createdAt:null,deletedAt:typeof item.deletedAt==='string'?item.deletedAt:null,purgeAt:typeof item.purgeAt==='number'?item.purgeAt:null};
 }
 function cursor(value){
  if(value===undefined)return undefined;
@@ -36,18 +37,28 @@ function auditItem(actor,action,detail={}){
  return{id,gsi1pk:'AUDIT',gsi1sk:`${at}#${id}`,actorUid:actor.uid,actorEmail:actor.email||'',actorRole:actor.role,action,...detail,at};
 }
 async function audit(actor,action,detail={}){await db.send(new PutCommand({TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,action,detail),ConditionExpression:'attribute_not_exists(id)'}))}
+function applyRange(input,b){
+ if(!validDay(b.from)||!validDay(b.to)||(b.from&&b.to&&b.from>b.to))throw new Error('invalid range');
+ if(b.from&&b.to){input.KeyConditionExpression+=' AND gsi1sk BETWEEN :from AND :to';input.ExpressionAttributeValues[':from']=`${b.from}T00:00:00.000Z#`;input.ExpressionAttributeValues[':to']=`${b.to}T23:59:59.999Z#\uffff`;}
+ else if(b.from){input.KeyConditionExpression+=' AND gsi1sk >= :from';input.ExpressionAttributeValues[':from']=`${b.from}T00:00:00.000Z#`;}
+ else if(b.to){input.KeyConditionExpression+=' AND gsi1sk <= :to';input.ExpressionAttributeValues[':to']=`${b.to}T23:59:59.999Z#\uffff`;}
+}
 async function listLeads(actor,b){
  let key;try{key=cursor(b.cursor)}catch{return{error:'Invalid page.'}};
  const input={TableName:process.env.LEADS_TABLE,IndexName:'LeadTimeline',KeyConditionExpression:'gsi1pk=:pk',ExpressionAttributeValues:{':pk':'LEAD'},ScanIndexForward:false,Limit:50,ExclusiveStartKey:key};
- if(b.status){if(!statuses.has(b.status))return{error:'Invalid stage.'};input.FilterExpression='#status=:status';input.ExpressionAttributeNames={'#status':'status'};input.ExpressionAttributeValues[':status']=b.status;}
+ try{applyRange(input,b)}catch{return{error:'Invalid date range.'}};
+ const filters=[];input.ExpressionAttributeNames={};
+ if(b.status){if(!statuses.has(b.status))return{error:'Invalid stage.'};filters.push('#status=:status');input.ExpressionAttributeNames['#status']='status';input.ExpressionAttributeValues[':status']=b.status;}
+ filters.push(b.deleted===true?'attribute_exists(deletedAt)':'attribute_not_exists(deletedAt)');
+ input.FilterExpression=filters.join(' AND ');if(!Object.keys(input.ExpressionAttributeNames).length)delete input.ExpressionAttributeNames;
  const out=await db.send(new QueryCommand(input));
- await audit(actor,'leads.list',{count:out.Items?.length||0,leadIds:(out.Items||[]).map(x=>x.id)});
+ await audit(actor,b.deleted===true?'leads.trash.list':'leads.list',{count:out.Items?.length||0,leadIds:(out.Items||[]).map(x=>x.id)});
  return{leads:(out.Items||[]).map(lead),nextCursor:next(out.LastEvaluatedKey)};
 }
 async function getLead(actor,b){
  if(!validId(b.id))return{error:'Invalid enquiry.'};
  const out=await db.send(new GetCommand({TableName:process.env.LEADS_TABLE,Key:{id:b.id},ConsistentRead:true}));
- if(!out.Item)return{error:'Enquiry not found.',status:404};
+ if(!out.Item||out.Item.deletedAt)return{error:'Enquiry not found.',status:404};
  await audit(actor,'leads.read',{leadId:b.id});return{lead:lead(out.Item)};
 }
 async function updateLead(actor,b){
@@ -58,33 +69,50 @@ async function updateLead(actor,b){
  if(!sets.length)return{error:'Invalid update.'};
  try{
   // The change and its audit commit together. Audit failure cannot leave an unrecorded change.
-  await db.send(new TransactWriteCommand({TransactItems:[{Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:`SET ${sets.join(', ')}`,ExpressionAttributeNames:names,ExpressionAttributeValues:values,ConditionExpression:'attribute_exists(id)'}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.update',{leadId:b.id,fields:Object.keys(names).map(x=>names[x])}),ConditionExpression:'attribute_not_exists(id)'}}]}));
+  await db.send(new TransactWriteCommand({TransactItems:[{Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:`SET ${sets.join(', ')}`,ExpressionAttributeNames:names,ExpressionAttributeValues:values,ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt)'}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.update',{leadId:b.id,fields:Object.keys(names).map(x=>names[x])}),ConditionExpression:'attribute_not_exists(id)'}}]}));
  }catch(e){if(e?.CancellationReasons?.[0]?.Code==='ConditionalCheckFailed')return{error:'Enquiry not found.',status:404};throw e;}
  return{ok:true};
 }
 async function deleteLead(actor,b){
  if(!validId(b.id))return{error:'Invalid enquiry.'};
+ const deletedAt=new Date().toISOString(),purgeAt=Math.floor(Date.now()/1000)+(7*24*60*60);
  try{
-  await db.send(new TransactWriteCommand({TransactItems:[{Delete:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},ConditionExpression:'attribute_exists(id)'}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.delete',{leadId:b.id}),ConditionExpression:'attribute_not_exists(id)'}}]}));
+  await db.send(new TransactWriteCommand({TransactItems:[{Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:'SET deletedAt=:deletedAt, purgeAt=:purgeAt, deletedBy=:deletedBy',ExpressionAttributeValues:{':deletedAt':deletedAt,':purgeAt':purgeAt,':deletedBy':actor.uid},ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt)'}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.delete',{leadId:b.id,purgeAt}),ConditionExpression:'attribute_not_exists(id)'}}]}));
  }catch(e){if(e?.CancellationReasons?.[0]?.Code==='ConditionalCheckFailed')return{error:'Enquiry not found.',status:404};throw e;}
  return{ok:true};
+}
+async function restoreLead(actor,b){
+ if(!validId(b.id))return{error:'Invalid enquiry.'};
+ try{await db.send(new TransactWriteCommand({TransactItems:[{Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:'REMOVE deletedAt, purgeAt, deletedBy',ConditionExpression:'attribute_exists(id) AND attribute_exists(deletedAt)'}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.restore',{leadId:b.id}),ConditionExpression:'attribute_not_exists(id)'}}]}));}
+ catch(e){if(e?.CancellationReasons?.[0]?.Code==='ConditionalCheckFailed')return{error:'Deleted enquiry not found.',status:404};throw e;}
+ return{ok:true};
+}
+async function importStatuses(actor,b){
+ if(!Array.isArray(b.items)||!b.items.length||b.items.length>50)return{error:'Import must contain between 1 and 50 rows.'};
+ if(!b.items.every(x=>x&&typeof x==='object'&&validId(x.id)&&statuses.has(x.status))||new Set(b.items.map(x=>x.id)).size!==b.items.length)return{error:'Invalid status import.'};
+ const TransactItems=b.items.map(x=>({Update:{TableName:process.env.LEADS_TABLE,Key:{id:x.id},UpdateExpression:'SET #status=:status',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':status':x.status},ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt)'}}));
+ TransactItems.push({Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.status.import',{count:b.items.length,leadIds:b.items.map(x=>x.id)}),ConditionExpression:'attribute_not_exists(id)'}});
+ try{await db.send(new TransactWriteCommand({TransactItems}));}catch(e){if(e?.CancellationReasons?.some(x=>x?.Code==='ConditionalCheckFailed'))return{error:'The status import includes an enquiry that is missing or in the Recycle Bin.'};throw e;}
+ return{ok:true,updated:b.items.length};
 }
 async function retryConfirmation(actor,b){
  if(!validId(b.id))return{error:'Invalid enquiry.'};
  const out=await db.send(new GetCommand({TableName:process.env.LEADS_TABLE,Key:{id:b.id},ConsistentRead:true}));
- if(!out.Item)return{error:'Enquiry not found.',status:404};
+ if(!out.Item||out.Item.deletedAt)return{error:'Enquiry not found.',status:404};
  if(out.Item.customerConfirmationStatus==='sent')return{ok:true,notificationStatus:'not-configured',customerConfirmationStatus:'sent'};
  await audit(actor,'leads.confirmation.requested',{leadId:b.id});
  let status='failed';
  try{await sendSubmissionConfirmation(out.Item.email,out.Item.source==='contact'?'contact':'eligibility');status='sent'}catch{}
- await db.send(new UpdateCommand({TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:'SET customerConfirmationStatus=:status, customerConfirmationUpdatedAt=:at',ExpressionAttributeValues:{':status':status,':at':new Date().toISOString()},ConditionExpression:'attribute_exists(id)'}));
+ await db.send(new UpdateCommand({TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:'SET customerConfirmationStatus=:status, customerConfirmationUpdatedAt=:at',ExpressionAttributeValues:{':status':status,':at':new Date().toISOString()},ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt)'}));
  await audit(actor,'leads.confirmation.completed',{leadId:b.id,status});
  return{ok:true,notificationStatus:'not-configured',customerConfirmationStatus:status};
 }
-async function stats(actor,countsOnly=false){
+async function stats(actor,countsOnly=false,b={}){
  let key,total=0;const result={total:0,insulinYes:0,byStatus:{},byState:{},byProduct:{},byDay:{}};const counts={};
  do{
-  const out=await db.send(new QueryCommand({TableName:process.env.LEADS_TABLE,IndexName:'LeadTimeline',KeyConditionExpression:'gsi1pk=:pk',ExpressionAttributeValues:{':pk':'LEAD'},ProjectionExpression:countsOnly?'referralCode':'#status,#state,productName,injectsInsulinDaily,createdAt',...(countsOnly?{}:{ExpressionAttributeNames:{'#status':'status','#state':'state'}}),ExclusiveStartKey:key}));
+  const input={TableName:process.env.LEADS_TABLE,IndexName:'LeadTimeline',KeyConditionExpression:'gsi1pk=:pk',ExpressionAttributeValues:{':pk':'LEAD'},ProjectionExpression:countsOnly?'referralCode':'#status,#state,productName,injectsInsulinDaily,createdAt',FilterExpression:'attribute_not_exists(deletedAt)',...(countsOnly?{}:{ExpressionAttributeNames:{'#status':'status','#state':'state'}}),ExclusiveStartKey:key};
+  if(!countsOnly)try{applyRange(input,b)}catch{return{error:'Invalid date range.'}};
+  const out=await db.send(new QueryCommand(input));
   for(const x of out.Items||[]){total++;if(countsOnly){if(x.referralCode)counts[x.referralCode]=(counts[x.referralCode]||0)+1;continue;}if(x.injectsInsulinDaily==='yes')result.insulinYes++;for(const [map,k] of [[result.byStatus,x.status],[result.byState,x.state],[result.byProduct,x.productName]])if(k)map[k]=(map[k]||0)+1;const day=typeof x.createdAt==='string'?x.createdAt.slice(0,10):'';if(day)result.byDay[day]=(result.byDay[day]||0)+1;}
   key=out.LastEvaluatedKey;
  }while(key);
@@ -96,7 +124,9 @@ async function route(actor,b){
  if(b.action==='leads.get')return getLead(actor,b);
  if(b.action==='leads.update')return updateLead(actor,b);
  if(b.action==='leads.delete')return deleteLead(actor,b);
- if(b.action==='leads.stats')return stats(actor);
+ if(b.action==='leads.restore')return restoreLead(actor,b);
+ if(b.action==='leads.status.import')return importStatuses(actor,b);
+ if(b.action==='leads.stats')return stats(actor,false,b);
  if(b.action==='influencers.counts')return stats(actor,true);
  if(b.action==='leads.export'){
   if(!Array.isArray(b.ids)||!b.ids.length||b.ids.length>500||!b.ids.every(validId)||new Set(b.ids).size!==b.ids.length)return{error:'Invalid export.'};

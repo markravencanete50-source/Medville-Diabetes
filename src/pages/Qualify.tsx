@@ -114,7 +114,9 @@ export default function Qualify() {
   });
 
   const location = useLocation();
-  const referralCode = new URLSearchParams(location.search).get("ref")?.trim().toLowerCase() ?? "";
+  const searchParams = new URLSearchParams(location.search);
+  const standalone = searchParams.get("standalone") === "1";
+  const referralCode = searchParams.get("ref")?.trim().toLowerCase() ?? "";
   const validReferralCode = /^[a-z0-9][a-z0-9-]{0,39}$/.test(referralCode) ? referralCode : "";
   const insulinAnswer = watch("injectsInsulinDaily");
   const selectedProductSlug = watch("productInterest");
@@ -208,9 +210,9 @@ export default function Qualify() {
     <section ref={revealRef} aria-hidden={status !== "idle" || undefined} className="bg-wash relative overflow-hidden">
       <Blob tone="brand" strength={0.28} blur={40} size={420} duration="20s" className="-left-[120px] -top-[120px]" />
       <Grain opacity={0.06} />
-      <Container wide className="relative grid gap-10 py-12 md:py-16 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14">
+      <Container wide className={standalone ? "relative max-w-3xl py-8 md:py-12" : "relative grid gap-10 py-12 md:py-16 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14"}>
         {/* left: what happens, on the navy ground */}
-        <div>
+        {!standalone && <div>
           {showIntro && (
           <div data-reveal={0} className="reveal-settle">
           <Eyebrow onDark>{text("form.check-your-potential-eligibility")}</Eyebrow>
@@ -262,7 +264,7 @@ export default function Qualify() {
               >{text("form.privacy-policy")}</Link>{" "}{text("form.and-applicable-privacy-requirements")}</p>
           </div>
           )}
-        </div>
+        </div>}
 
         {/* right: the form remains visible while its server-side launch gate is closed */}
         <div

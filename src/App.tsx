@@ -52,6 +52,17 @@ export default function App() {
 export function PublicSite({ initialData }: { initialData?: SiteData } = {}) {
   return (
     <SiteDataProvider initialData={initialData}>
+      <PublicFrame />
+    </SiteDataProvider>
+  );
+}
+
+function PublicFrame() {
+  const location = useLocation();
+  const standaloneEligibility = location.pathname === "/qualify"
+    && new URLSearchParams(location.search).get("standalone") === "1";
+  return (
+    <>
       <ScrollToHash />
       <a
         href="#main"
@@ -59,7 +70,7 @@ export function PublicSite({ initialData }: { initialData?: SiteData } = {}) {
       >
         Skip to the main content
       </a>
-      <Header />
+      {!standaloneEligibility && <Header />}
       <main id="main" onSubmitCapture={isEditorPreview() ? (event) => { event.preventDefault(); event.stopPropagation(); } : undefined}>
         <Routes>
           <Route path="/" element={<PageGuard page="home"><Home /></PageGuard>} />
@@ -79,9 +90,9 @@ export function PublicSite({ initialData }: { initialData?: SiteData } = {}) {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      <Footer />
-      {!isEditorPreview() && <NewsletterPrompt />}
-    </SiteDataProvider>
+      {!standaloneEligibility && <Footer />}
+      {!standaloneEligibility && !isEditorPreview() && <NewsletterPrompt />}
+    </>
   );
 }
 

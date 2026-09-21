@@ -357,3 +357,19 @@ export function toTrendPoints(byDay: Record<string, number>, days = 30): TrendPo
   }
   return points;
 }
+
+export function toRangeTrendPoints(byDay: Record<string, number>, from: string, to: string): TrendPoint[] {
+  const start = new Date(`${from}T00:00:00`);
+  const end = new Date(`${to}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+    return toTrendPoints(byDay, 30);
+  }
+  const points: TrendPoint[] = [];
+  const cursor = new Date(start);
+  while (cursor <= end && points.length < 367) {
+    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
+    points.push({ day: key, count: byDay[key] ?? 0 });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return points;
+}
