@@ -251,6 +251,75 @@ export function Drawer({
   );
 }
 
+export function ConfirmDialog({
+  open,
+  title,
+  body,
+  confirmLabel,
+  busy = false,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  title: string;
+  body: React.ReactNode;
+  confirmLabel: string;
+  busy?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const dialogRef = useRef<HTMLElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const cancelCallback = useRef(onCancel);
+  cancelCallback.current = onCancel;
+
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    cancelRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) cancelCallback.current();
+      if (event.key !== "Tab") return;
+      const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled)") ?? []);
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (!first) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+      previous?.focus();
+    };
+  }, [busy, open]);
+
+  if (!open) return null;
+  return createPortal(
+    <>
+      <button type="button" className="admin-scrim" tabIndex={-1} aria-label="Cancel" disabled={busy} onClick={onCancel} />
+      <section ref={dialogRef} role="alertdialog" aria-modal="true" aria-labelledby="admin-confirm-title" aria-describedby="admin-confirm-body" className="admin-confirm-card">
+        <span className="admin-confirm-icon" aria-hidden="true"><AlertTriangle size={24} /></span>
+        <h2 id="admin-confirm-title" className="admin-page-title mt-4">{title}</h2>
+        <div id="admin-confirm-body" className="admin-confirm-body">{body}</div>
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button ref={cancelRef} type="button" className="admin-btn admin-btn-quiet" disabled={busy} onClick={onCancel}>Cancel</button>
+          <button type="button" className="admin-btn admin-btn-danger" disabled={busy} onClick={onConfirm}>{busy ? "Deleting" : confirmLabel}</button>
+        </div>
+      </section>
+    </>,
+    document.body,
+  );
+}
+
 /* ---- theme ---- */
 
 export type AdminTheme = "light" | "dark";

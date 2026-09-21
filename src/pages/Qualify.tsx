@@ -9,7 +9,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   AlertCircle,
-  CheckCircle2,
   ClipboardList,
   Headset,
   LockKeyhole,
@@ -22,6 +21,7 @@ import { usePageMeta } from "../lib/usePageMeta";
 import { metaFor } from "../data/pageMeta";
 import { useReveal } from "../lib/useReveal";
 import { isEditorPreview } from "../lib/editorPreview";
+import SubmissionStatusModal, { type SubmissionStatus } from "../components/SubmissionStatusModal";
 
 /*
   PHI NOTICE: read before changing this file.
@@ -67,8 +67,6 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-type Status = "idle" | "submitting" | "success" | "error";
-
 const STEPS = [
   {
     icon: ClipboardList,
@@ -98,14 +96,15 @@ export default function Qualify() {
   const showProduct = useElementVisible("qualify", "form", "product");
   const showConsent = useElementVisible("qualify", "form", "consent");
   const showButton = useElementVisible("qualify", "form", "button");
-  const [status, setStatus] = useState<Status>("idle");
+  const [status, setStatus] = useState<SubmissionStatus>("idle");
+  const [confirmationSent, setConfirmationSent] = useState(false);
   const submissionId = useRef(crypto.randomUUID());
   const sending = useRef(false);
-  const successHeading = useRef<HTMLHeadingElement>(null);
   const revealRef = useReveal<HTMLElement>();
   const {
     register,
     handleSubmit,
+    reset,
     setValue,
     watch,
     formState: { errors },
@@ -158,10 +157,6 @@ export default function Qualify() {
     }).catch(() => undefined);
   }, [validReferralCode]);
 
-  useEffect(() => {
-    if (status === "success") successHeading.current?.focus();
-  }, [status]);
-
   const onSubmit = async (values: FormValues) => {
     /*
       There is deliberately no path to the success screen without a server.
@@ -173,6 +168,7 @@ export default function Qualify() {
     */
     if (!endpoint || !intakeEnabled || sending.current || isEditorPreview()) return;
     sending.current = true;
+    setConfirmationSent(false);
     setStatus("submitting");
     try {
       const res = await fetch(endpoint, {
@@ -190,6 +186,9 @@ export default function Qualify() {
       // Only the explicit intake receipt is evidence of a saved submission.
       const receipt = await res.json();
       if (receipt?.ok !== true) throw new Error("Missing receipt");
+      setConfirmationSent(receipt.confirmationSent === true);
+      reset({ consentAccepted: false, productInterest: "" });
+      submissionId.current = crypto.randomUUID();
       setStatus("success");
     } catch {
       setStatus("error");
@@ -200,22 +199,13 @@ export default function Qualify() {
 
   if (!showForm) return null;
 
-  if (status === "success") {
-    return (
-      <section className="bg-wash relative overflow-hidden">
-        <Grain opacity={0.05} />
-        <Container className="relative max-w-2xl py-20 text-center md:py-28">
-          <CheckCircle2 size={52} className="mx-auto text-brand-bright" aria-hidden="true" />
-          <h1 ref={successHeading} tabIndex={-1} className="mt-5 font-display text-h1 font-bold text-on-dark">{text("form.thank-you-we-received-your-information")}</h1>
-          <p className="mx-auto mt-4 max-w-[60ch] text-body-lg leading-relaxed text-on-dark-brand">{text("form.our-team-will-review-the-information-you-submitted-and-contact-yo")}</p>
-          <Button to="/products" variant="ghost-dark" className="mt-8">{text("form.explore-products")}</Button>
-        </Container>
-      </section>
-    );
-  }
+  const closeStatus = () => {
+    if (status !== "submitting") setStatus("idle");
+  };
 
   return (
-    <section ref={revealRef} className="bg-wash relative overflow-hidden">
+    <>
+    <section ref={revealRef} aria-hidden={status !== "idle" || undefined} className="bg-wash relative overflow-hidden">
       <Blob tone="brand" strength={0.28} blur={40} size={420} duration="20s" className="-left-[120px] -top-[120px]" />
       <Grain opacity={0.06} />
       <Container wide className="relative grid gap-10 py-12 md:py-16 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14">
@@ -384,16 +374,6 @@ export default function Qualify() {
             </fieldset>
             ) : null}
 
-            {status === "error" && (
-              <div role="alert" className="flex items-start gap-3 rounded-md border border-danger/30 bg-danger/5 p-4">
-                <AlertCircle size={18} className="mt-0.5 flex-none text-danger" aria-hidden="true" />
-                {/* The client's copy document, section 6e. It does not name
-                    the phone number, and the header and footer both carry it
-                    on this page, so it is not repeated here. */}
-                <p className="m-0 text-small text-ink">{text("form.something-went-wrong-while-submitting-your-information-please-try")}</p>
-              </div>
-            )}
-
             {/*
               Consent language delivered by the client on 2026-08-26
               (Medville_Diabetes__Consent_Language.docx), updated on the
@@ -440,6 +420,8 @@ export default function Qualify() {
         </div>
       </Container>
     </section>
+    <SubmissionStatusModal status={status} kind="eligibility" confirmationSent={confirmationSent} onClose={closeStatus} />
+    </>
   );
 }
 

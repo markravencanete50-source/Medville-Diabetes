@@ -12,6 +12,8 @@ test("AWS PHI stack starts closed and protects retained records", () => {
   assert.match(template, /PointInTimeRecoveryEnabled: true/);
   assert.match(template, /SSEType: KMS/);
   assert.match(template, /EnableKeyRotation: true/);
+  assert.match(template, /AWS::SES::EmailIdentity/);
+  assert.match(template, /Action: ses:SendEmail/);
 });
 
 test("AWS PHI handlers do not log request bodies or patient fields", () => {

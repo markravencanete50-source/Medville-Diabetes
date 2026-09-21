@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, RefreshCw, Search } from "lucide-react";
+import { Download, RefreshCw, Search, Trash2 } from "lucide-react";
 import {
   adminApi,
   AdminApiError,
@@ -15,6 +15,7 @@ import {
   Badge,
   Banner,
   Card,
+  ConfirmDialog,
   Drawer,
   Empty,
   Field,
@@ -59,6 +60,7 @@ export default function Leads() {
   const [filter, setFilter] = useState<LeadStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [openLead, setOpenLead] = useState<Lead | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<Lead | null>(null);
   const [saving, setSaving] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -105,11 +107,34 @@ export default function Leads() {
     if (!openLead) return;
     setSaving(true);
     try {
-      await adminApi.retryNotification(getToken, openLead.id);
-      setOpenLead({ ...openLead, notificationStatus: "sent" });
-      toast("Notification sent.");
+      const result = await adminApi.retryNotification(getToken, openLead.id);
+      const updated = {
+        ...openLead,
+        notificationStatus: result.notificationStatus,
+        customerConfirmationStatus: result.customerConfirmationStatus,
+      };
+      setOpenLead(updated);
+      setLeads((current) => (current ?? []).map((lead) => lead.id === updated.id ? updated : lead));
+      if (result.customerConfirmationStatus === "sent") toast("Customer confirmation sent.");
+      else toast("The customer confirmation could not be sent. Please try again.", "danger");
     } catch { toast("The notification could not be sent. Contact the site administrator.", "danger"); }
     finally { setSaving(false); }
+  };
+
+  const deleteLead = async () => {
+    if (!deleteCandidate) return;
+    setSaving(true);
+    try {
+      await adminApi.deleteLead(getToken, deleteCandidate.id);
+      setLeads((current) => (current ?? []).filter((lead) => lead.id !== deleteCandidate.id));
+      setOpenLead((current) => current?.id === deleteCandidate.id ? null : current);
+      setDeleteCandidate(null);
+      toast("Enquiry deleted.");
+    } catch (problem) {
+      toast(problem instanceof AdminApiError ? problem.message : "The enquiry could not be deleted.", "danger");
+    } finally {
+      setSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -354,10 +379,11 @@ export default function Leads() {
                 <Detail label="Product">{openLead.productName || PRODUCT_NAME.get(openLead.productInterest) || openLead.productInterest || "Not sure yet"}</Detail>
                 <Detail label="Influencer">{openLead.referralCode ? `@${openLead.referralCode}` : "Direct"}</Detail>
               </>}
-              <Detail label="Email notification">{openLead.notificationStatus === "sent" ? "Sent" : openLead.notificationStatus === "failed" ? "Delivery failed" : "Not configured. Review enquiries here."}</Detail>
+              <Detail label="Company notification">Not configured. Review enquiries here.</Detail>
+              <Detail label="Customer confirmation">{emailStatusLabel(openLead.customerConfirmationStatus)}</Detail>
             </dl>
             {openLead.source === "contact" && <div className="rounded-lg p-4" style={{ background: "var(--a-brand-soft)" }}><p className="admin-label">Question</p><p className="mt-2 whitespace-pre-wrap text-[14px] leading-relaxed">{openLead.message}</p></div>}
-            {["failed", "retryable"].includes(openLead.notificationStatus) && <button type="button" className="admin-btn admin-btn-quiet" disabled={saving} onClick={() => void retryNotification()}>Retry company notification</button>}
+            {openLead.customerConfirmationStatus !== "sent" && <button type="button" className="admin-btn admin-btn-quiet" disabled={saving} onClick={() => void retryNotification()}>Retry customer confirmation</button>}
 
             <Field label="Stage" htmlFor="lead-status">
               <select
@@ -381,11 +407,33 @@ export default function Leads() {
               Opening and changing this record is recorded in the access log with your
               name and the time.
             </p>
+
+            <div className="border-t pt-4" style={{ borderColor: "var(--a-line)" }}>
+              <button type="button" className="admin-btn admin-btn-danger w-full" disabled={saving} onClick={() => setDeleteCandidate(openLead)}>
+                <Trash2 size={16} aria-hidden="true" /> Delete enquiry
+              </button>
+              <p className="admin-help">Deleting removes this enquiry from the dashboard. The deletion remains recorded in the access log.</p>
+            </div>
           </div>
         )}
       </Drawer>
+      <ConfirmDialog
+        open={Boolean(deleteCandidate)}
+        title="Delete this enquiry?"
+        body={<p>This action permanently removes the enquiry and cannot be undone. The access log will record who deleted it and when.</p>}
+        confirmLabel="Delete enquiry"
+        busy={saving}
+        onCancel={() => setDeleteCandidate(null)}
+        onConfirm={() => void deleteLead()}
+      />
     </>
   );
+}
+
+function emailStatusLabel(status: string) {
+  if (status === "sent") return "Sent";
+  if (status === "failed") return "Delivery failed";
+  return "Pending delivery";
 }
 
 function Detail({ label, children }: { label: string; children: React.ReactNode }) {

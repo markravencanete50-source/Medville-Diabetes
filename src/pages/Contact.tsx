@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AlertCircle, CheckCircle2, LockKeyhole, MessageSquareText, PhoneCall, ShieldAlert } from "lucide-react";
+import { AlertCircle, LockKeyhole, MessageSquareText, PhoneCall, ShieldAlert } from "lucide-react";
 import Container from "../components/Container";
 import Button from "../components/Button";
 import { Blob, Eyebrow, Grain } from "../components/Decor";
@@ -13,6 +13,7 @@ import { metaFor } from "../data/pageMeta";
 import { useCompanyDetails } from "../lib/useCompanyDetails";
 import { useElementVisible, useSectionVisible } from "../lib/useSiteData";
 import { isEditorPreview } from "../lib/editorPreview";
+import SubmissionStatusModal, { type SubmissionStatus } from "../components/SubmissionStatusModal";
 
 const US_STATES = [
   "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
@@ -42,8 +43,6 @@ const schema = z.object({
 });
 
 type FormValues = z.infer<typeof schema>;
-type Status = "idle" | "submitting" | "success" | "error";
-
 export default function Contact() {
   const { PHONE_DISPLAY, PHONE_TEL } = useCompanyDetails();
   const { text } = usePageText("contact");
@@ -59,11 +58,11 @@ export default function Contact() {
   const showConsent = useElementVisible("contact", "form", "consent");
   const showSubmit = useElementVisible("contact", "form", "button");
   const [noticeOpen, setNoticeOpen] = useState(showForm && !isEditorPreview());
-  const [status, setStatus] = useState<Status>("idle");
+  const [status, setStatus] = useState<SubmissionStatus>("idle");
+  const [confirmationSent, setConfirmationSent] = useState(false);
   const submissionId = useRef(crypto.randomUUID());
   const sending = useRef(false);
-  const successHeading = useRef<HTMLHeadingElement>(null);
-  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { privacyAccepted: false },
   });
@@ -72,13 +71,10 @@ export default function Contact() {
     || "";
   const intakeEnabled = Boolean(endpoint) && import.meta.env.VITE_INTAKE_ENABLED === "true";
 
-  useEffect(() => {
-    if (status === "success") successHeading.current?.focus();
-  }, [status]);
-
   const onSubmit = async (values: FormValues) => {
     if (!intakeEnabled || !endpoint || sending.current || isEditorPreview()) return;
     sending.current = true;
+    setConfirmationSent(false);
     setStatus("submitting");
     try {
       const response = await fetch(endpoint, {
@@ -91,6 +87,9 @@ export default function Contact() {
       if (!response.ok) throw new Error(String(response.status));
       const receipt = await response.json();
       if (receipt?.ok !== true) throw new Error("Missing receipt");
+      setConfirmationSent(receipt.confirmationSent === true);
+      reset({ privacyAccepted: false });
+      submissionId.current = crypto.randomUUID();
       setStatus("success");
     } catch {
       setStatus("error");
@@ -99,20 +98,12 @@ export default function Contact() {
     }
   };
 
-  if (status === "success") {
-    return <section className="bg-wash relative overflow-hidden">
-      <Grain opacity={0.05} />
-      <Container className="relative max-w-2xl py-20 text-center md:py-28">
-        <CheckCircle2 size={52} className="mx-auto text-brand-bright" aria-hidden="true" />
-        <h1 ref={successHeading} tabIndex={-1} className="mt-5 font-display text-h1 font-bold text-on-dark">{text("form.your-message-was-sent")}</h1>
-        <p className="mx-auto mt-4 max-w-[58ch] text-body-lg leading-relaxed text-on-dark-brand">{text("form.our-team-will-review-your-general-question-and-contact-you-using-")}</p>
-        <Button to="/" variant="ghost-dark" className="mt-8">{text("form.return-home")}</Button>
-      </Container>
-    </section>;
-  }
+  const closeStatus = () => {
+    if (status !== "submitting") setStatus("idle");
+  };
 
   return <>
-    <section aria-hidden={noticeOpen || undefined} className="bg-wash relative overflow-hidden">
+    <section aria-hidden={noticeOpen || status !== "idle" || undefined} className="bg-wash relative overflow-hidden">
       <Blob tone="brand" strength={0.28} blur={42} size={420} duration="20s" className="-left-[130px] -top-[120px]" />
       <Grain opacity={0.06} />
       <Container wide className={`relative grid gap-10 py-12 md:py-16 lg:gap-14 ${showHero && showForm ? "lg:grid-cols-[0.82fr_1.18fr]" : "max-w-[820px]"}`}>
@@ -170,8 +161,6 @@ export default function Contact() {
               {errors.privacyAccepted && <p id="contact-privacy-error" className="flex items-center gap-1 text-caption font-medium text-danger"><AlertCircle size={13} aria-hidden="true" /> {errors.privacyAccepted.message}</p>}
               </>}
 
-              {status === "error" && <div role="alert" className="flex items-start gap-3 rounded-md border border-danger/30 bg-danger/5 p-4"><AlertCircle size={18} className="mt-0.5 flex-none text-danger" aria-hidden="true" /><p className="m-0 text-small text-ink">{text("form.your-message-could-not-be-sent-please-try-again-or-call-our-team")}</p></div>}
-
               {showSubmit && <>
                {!intakeEnabled && <p role="status" className="text-small">Online submissions are not open yet. Please call our team.</p>}
               <Button type="submit" variant="cta" disabled={!intakeEnabled || status === "submitting"} className="w-full">{status === "submitting" ? text("form.sending-your-message") : text("form.send-message")}</Button>
@@ -184,6 +173,7 @@ export default function Contact() {
       </Container>
     </section>
     {showForm && noticeOpen && <PrivacyNotice onContinue={() => setNoticeOpen(false)} />}
+    <SubmissionStatusModal status={status} kind="contact" confirmationSent={confirmationSent} onClose={closeStatus} />
   </>;
 }
 

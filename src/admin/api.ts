@@ -22,6 +22,7 @@ const AWS_ACTIONS = new Set([
   "leads.list",
   "leads.get",
   "leads.update",
+  "leads.delete",
   "leads.stats",
   "leads.notify",
   "leads.export",
@@ -52,6 +53,7 @@ export interface Lead {
   source: string;
   message: string;
   notificationStatus: string;
+  customerConfirmationStatus: string;
   status: LeadStatus;
   note: string;
   createdAt: string | null;
@@ -173,13 +175,20 @@ export const adminApi = {
   listLeads: (getToken: GetToken, status?: LeadStatus, cursor?: string) =>
     call<{ leads: Lead[]; nextCursor: string | null }>(getToken, "leads.list", { ...(status ? { status } : {}), ...(cursor ? { cursor } : {}) }),
 
-  retryNotification: (getToken: GetToken, id: string) => call<{ ok: true }>(getToken, "leads.notify", { id }),
+  retryNotification: (getToken: GetToken, id: string) => call<{
+    ok: true;
+    notificationStatus: string;
+    customerConfirmationStatus: string;
+  }>(getToken, "leads.notify", { id }),
   auditExport: (getToken: GetToken, ids: string[]) => call<{ ok: true }>(getToken, "leads.export", { ids }),
 
   getLead: (getToken: GetToken, id: string) => call<{ lead: Lead }>(getToken, "leads.get", { id }),
 
   updateLead: (getToken: GetToken, id: string, patch: { status?: LeadStatus; note?: string }) =>
     call<{ ok: true }>(getToken, "leads.update", { id, ...patch }),
+
+  deleteLead: (getToken: GetToken, id: string) =>
+    call<{ ok: true }>(getToken, "leads.delete", { id }),
 
   stats: (getToken: GetToken) => call<LeadStats>(getToken, "leads.stats"),
 

@@ -299,6 +299,254 @@ h1, h2, h3, h4 {
 
 .fade-in { animation: fade-in 220ms both; }
 
+@keyframes submission-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes submission-card-in {
+  from { opacity: 0; transform: translateY(24px) scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes submission-orbit {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes submission-icon-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes submission-core-pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand-bright) 32%, transparent); }
+  50% { transform: translate(-50%, -50%) scale(1.05); box-shadow: 0 0 0 16px color-mix(in srgb, var(--color-brand-bright) 0%, transparent); }
+}
+
+@keyframes submission-check-in {
+  0% { opacity: 0; transform: scale(0.45) rotate(-14deg); }
+  70% { opacity: 1; transform: scale(1.12) rotate(2deg); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes submission-ray-in {
+  from { opacity: 0; transform: translate(-50%, -50%) rotate(var(--ray-angle)) translateY(-34px) scaleY(0); }
+  to { opacity: 1; transform: translate(-50%, -50%) rotate(var(--ray-angle)) translateY(-48px) scaleY(1); }
+}
+
+@keyframes submission-progress {
+  0% { transform: translateX(-110%); }
+  55% { transform: translateX(45%); }
+  100% { transform: translateX(220%); }
+}
+
+.submission-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: 20px;
+  background: color-mix(in srgb, var(--color-ink) 82%, transparent);
+  backdrop-filter: blur(10px);
+  animation: submission-backdrop-in 220ms ease-out both;
+}
+
+.submission-modal-card {
+  position: relative;
+  width: min(100%, 580px);
+  overflow: hidden;
+  border: 1px solid var(--color-line-brand);
+  border-radius: 28px;
+  padding: clamp(30px, 7vw, 52px);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-overlay);
+  color: var(--color-ink);
+  text-align: center;
+  animation: submission-card-in 420ms var(--ease-out-quart) both;
+}
+
+.submission-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--color-grey-muted);
+  transition: background-color var(--duration-micro), color var(--duration-micro);
+}
+
+.submission-modal-close:hover {
+  background: var(--color-grey-light);
+  color: var(--color-ink);
+}
+
+.submission-motion {
+  position: relative;
+  width: 126px;
+  height: 126px;
+  margin: 0 auto 24px;
+}
+
+.submission-motion-core,
+.submission-motion-orbit,
+.submission-motion-ray {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+}
+
+.submission-motion-core {
+  z-index: 2;
+  display: inline-flex;
+  width: 78px;
+  height: 78px;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: var(--color-ink);
+  color: var(--color-brand-bright);
+}
+
+.submission-motion-submitting .submission-motion-core {
+  animation: submission-core-pulse 1.7s ease-in-out infinite;
+}
+
+.submission-motion-submitting .submission-motion-core svg {
+  animation: submission-icon-spin 1.15s linear infinite;
+}
+
+.submission-motion-success .submission-motion-core {
+  background: var(--color-brand-bright);
+  color: var(--color-ink);
+}
+
+.submission-motion-success .submission-motion-core svg {
+  animation: submission-check-in 540ms var(--ease-out-quart) 120ms both;
+}
+
+.submission-motion-error .submission-motion-core {
+  background: var(--color-danger);
+  color: var(--color-surface-raised);
+}
+
+.submission-motion-orbit {
+  width: 112px;
+  height: 112px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+}
+
+.submission-motion-orbit-one {
+  border-top-color: var(--color-brand-bright);
+  border-right-color: color-mix(in srgb, var(--color-brand-bright) 26%, transparent);
+  animation: submission-orbit 1.45s linear infinite;
+}
+
+.submission-motion-orbit-two {
+  width: 96px;
+  height: 96px;
+  border-bottom-color: var(--color-brand);
+  animation: submission-orbit 2s linear infinite reverse;
+}
+
+.submission-motion-success .submission-motion-orbit,
+.submission-motion-error .submission-motion-orbit {
+  display: none;
+}
+
+.submission-motion-ray {
+  --ray-angle: 0deg;
+  width: 3px;
+  height: 13px;
+  border-radius: 999px;
+  background: var(--color-brand-bright);
+  transform-origin: center 48px;
+  animation: submission-ray-in 460ms var(--ease-out-quart) 250ms both;
+}
+
+.submission-motion-ray-two { --ray-angle: 90deg; animation-delay: 310ms; }
+.submission-motion-ray-three { --ray-angle: 180deg; animation-delay: 370ms; }
+.submission-motion-ray-four { --ray-angle: 270deg; animation-delay: 430ms; }
+
+.submission-modal-eyebrow {
+  margin: 0;
+  color: var(--color-brand);
+  font-size: var(--text-caption);
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.submission-modal-title {
+  max-width: 18ch;
+  margin: 10px auto 0;
+  color: var(--color-ink);
+  font-size: var(--text-h2);
+  line-height: 1.15;
+}
+
+.submission-modal-body {
+  max-width: 52ch;
+  margin: 16px auto 0;
+  color: var(--color-grey-dark);
+  font-size: var(--text-body);
+  line-height: 1.65;
+}
+
+.submission-modal-action {
+  display: inline-flex;
+  min-width: 148px;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 28px;
+  border-radius: 999px;
+  padding: 12px 24px;
+  background: var(--color-brand-bright);
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: var(--text-small);
+  font-weight: 700;
+  transition: background-color var(--duration-micro), color var(--duration-micro);
+}
+
+.submission-modal-action:hover {
+  background: var(--color-ink);
+  color: var(--color-on-dark);
+}
+
+.submission-progress {
+  width: min(100%, 280px);
+  height: 5px;
+  margin: 28px auto 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-grey-light);
+}
+
+.submission-progress span {
+  display: block;
+  width: 48%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-brand-bright);
+  animation: submission-progress 1.35s ease-in-out infinite;
+}
+
+@media (max-width: 480px) {
+  .submission-modal-backdrop { padding: 12px; }
+  .submission-modal-card { border-radius: 22px; }
+  .submission-motion { transform: scale(0.9); margin-bottom: 16px; }
+  .submission-modal-title { font-size: clamp(1.55rem, 8vw, 2rem); }
+}
+
 .wave-dot::after {
   content: "";
   position: absolute;

@@ -1,11 +1,12 @@
 const {DynamoDBClient}=require('@aws-sdk/client-dynamodb');
-const {DynamoDBDocumentClient,GetCommand,PutCommand,QueryCommand,TransactWriteCommand}=require('@aws-sdk/lib-dynamodb');
+const {DynamoDBDocumentClient,GetCommand,PutCommand,QueryCommand,TransactWriteCommand,UpdateCommand}=require('@aws-sdk/lib-dynamodb');
 const {randomUUID}=require('node:crypto');
+const {sendSubmissionConfirmation}=require('./email.cjs');
 const db=DynamoDBDocumentClient.from(new DynamoDBClient({}),{marshallOptions:{removeUndefinedValues:true}});
 const origins=new Set((process.env.ALLOWED_ORIGINS||'').split(',').map(x=>x.trim()).filter(Boolean));
 const statuses=new Set(['new','contacted','qualified','not-qualified','closed']);
 const validId=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(x);
-const features={'leads.list':'leads','leads.get':'leads','leads.update':'leads','leads.stats':'overview','leads.export':'leads','leads.notify':'leads','audit.list':'audit','influencers.counts':'influencers'};
+const features={'leads.list':'leads','leads.get':'leads','leads.update':'leads','leads.delete':'leads','leads.stats':'overview','leads.export':'leads','leads.notify':'leads','audit.list':'audit','influencers.counts':'influencers'};
 async function authenticate(header,origin){
  if(typeof header!=='string'||!header.startsWith('Bearer ')||header.length>10000)return null;
  // The identity service checks revocation, disabled accounts, session age and current claims.
@@ -19,7 +20,7 @@ async function authenticate(header,origin){
 }
 function response(statusCode,origin,body){return{statusCode,headers:{'Cache-Control':'no-store','Content-Type':'application/json','X-Content-Type-Options':'nosniff',Vary:'Origin',...(origin?{'Access-Control-Allow-Origin':origin}:{})},body:JSON.stringify(body)}}
 function lead(item){
- const fields=['id','firstName','lastName','email','phone','city','state','injectsInsulinDaily','productInterest','productName','referralCode','source','message','notificationStatus','status','note','createdAt'];
+ const fields=['id','firstName','lastName','email','phone','city','state','injectsInsulinDaily','productInterest','productName','referralCode','source','message','notificationStatus','customerConfirmationStatus','status','note','createdAt'];
  return Object.fromEntries(fields.map(k=>[k,typeof item[k]==='string'?item[k]:'']));
 }
 function cursor(value){
@@ -61,6 +62,25 @@ async function updateLead(actor,b){
  }catch(e){if(e?.CancellationReasons?.[0]?.Code==='ConditionalCheckFailed')return{error:'Enquiry not found.',status:404};throw e;}
  return{ok:true};
 }
+async function deleteLead(actor,b){
+ if(!validId(b.id))return{error:'Invalid enquiry.'};
+ try{
+  await db.send(new TransactWriteCommand({TransactItems:[{Delete:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},ConditionExpression:'attribute_exists(id)'}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.delete',{leadId:b.id}),ConditionExpression:'attribute_not_exists(id)'}}]}));
+ }catch(e){if(e?.CancellationReasons?.[0]?.Code==='ConditionalCheckFailed')return{error:'Enquiry not found.',status:404};throw e;}
+ return{ok:true};
+}
+async function retryConfirmation(actor,b){
+ if(!validId(b.id))return{error:'Invalid enquiry.'};
+ const out=await db.send(new GetCommand({TableName:process.env.LEADS_TABLE,Key:{id:b.id},ConsistentRead:true}));
+ if(!out.Item)return{error:'Enquiry not found.',status:404};
+ if(out.Item.customerConfirmationStatus==='sent')return{ok:true,notificationStatus:'not-configured',customerConfirmationStatus:'sent'};
+ await audit(actor,'leads.confirmation.requested',{leadId:b.id});
+ let status='failed';
+ try{await sendSubmissionConfirmation(out.Item.email,out.Item.source==='contact'?'contact':'eligibility');status='sent'}catch{}
+ await db.send(new UpdateCommand({TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:'SET customerConfirmationStatus=:status, customerConfirmationUpdatedAt=:at',ExpressionAttributeValues:{':status':status,':at':new Date().toISOString()},ConditionExpression:'attribute_exists(id)'}));
+ await audit(actor,'leads.confirmation.completed',{leadId:b.id,status});
+ return{ok:true,notificationStatus:'not-configured',customerConfirmationStatus:status};
+}
 async function stats(actor,countsOnly=false){
  let key,total=0;const result={total:0,insulinYes:0,byStatus:{},byState:{},byProduct:{},byDay:{}};const counts={};
  do{
@@ -75,13 +95,14 @@ async function route(actor,b){
  if(b.action==='leads.list')return listLeads(actor,b);
  if(b.action==='leads.get')return getLead(actor,b);
  if(b.action==='leads.update')return updateLead(actor,b);
+ if(b.action==='leads.delete')return deleteLead(actor,b);
  if(b.action==='leads.stats')return stats(actor);
  if(b.action==='influencers.counts')return stats(actor,true);
  if(b.action==='leads.export'){
   if(!Array.isArray(b.ids)||!b.ids.length||b.ids.length>500||!b.ids.every(validId)||new Set(b.ids).size!==b.ids.length)return{error:'Invalid export.'};
   await audit(actor,'leads.export',{count:b.ids.length,leadIds:b.ids});return{ok:true};
  }
- if(b.action==='leads.notify')return{error:'Email notifications are not configured. Review new enquiries in the dashboard.',status:503};
+ if(b.action==='leads.notify')return retryConfirmation(actor,b);
  if(b.action==='audit.list'){
   const out=await db.send(new QueryCommand({TableName:process.env.AUDIT_TABLE,IndexName:'AuditTimeline',KeyConditionExpression:'gsi1pk=:pk',ExpressionAttributeValues:{':pk':'AUDIT'},ScanIndexForward:false,Limit:200}));
   await audit(actor,'audit.list',{count:out.Items?.length||0});

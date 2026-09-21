@@ -12,8 +12,19 @@ Parameters:
     Type: String
     Default: "false"
     AllowedValues: ["true", "false"]
+  SenderEmail:
+    Type: String
+    Default: info@medvillediabetes.com
+  SenderDomain:
+    Type: String
+    Default: medvillediabetes.com
 
 Resources:
+  SenderEmailIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref SenderDomain
+
   PhiKey:
     Type: AWS::KMS::Key
     DeletionPolicy: Retain
@@ -160,6 +171,9 @@ Resources:
                   - kms:GenerateDataKey
                 Resource: !GetAtt PhiKey.Arn
               - Effect: Allow
+                Action: ses:SendEmail
+                Resource: "*"
+              - Effect: Allow
                 Action:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
@@ -180,7 +194,7 @@ Resources:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
-                Action: [dynamodb:GetItem, dynamodb:PutItem]
+                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem]
                 Resource: !GetAtt LeadsTable.Arn
               - Effect: Allow
                 Action: [dynamodb:UpdateItem]
@@ -188,6 +202,9 @@ Resources:
               - Effect: Allow
                 Action: [kms:Decrypt, kms:Encrypt, kms:GenerateDataKey]
                 Resource: !GetAtt PhiKey.Arn
+              - Effect: Allow
+                Action: ses:SendEmail
+                Resource: "*"
               - Effect: Allow
                 Action: [logs:CreateLogStream, logs:PutLogEvents]
                 Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/medville-phi-intake:*
@@ -213,6 +230,7 @@ Resources:
           LEADS_TABLE: !Ref LeadsTable
           RATE_TABLE: !Ref RateTable
           INTAKE_CONFIG_URL: https://us-central1-medville-diabetes.cloudfunctions.net/intakeConfig
+          SENDER_EMAIL: !Ref SenderEmail
       Code:
         ZipFile: |
           "use strict";
@@ -222,6 +240,9 @@ Resources:
           var __hasOwnProp = Object.prototype.hasOwnProperty;
           var __esm = (fn, res) => function __init() {
             return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+          };
+          var __commonJS = (cb, mod) => function __require() {
+            return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
           };
           var __export = (target, all) => {
             for (var name in all)
@@ -379,12 +400,54 @@ Resources:
             }
           });
 
+          // aws/src/email.cjs
+          var require_email = __commonJS({
+            "aws/src/email.cjs"(exports2, module2) {
+              "use strict";
+              var { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
+              var ses = new SESv2Client({});
+              function confirmationMessage(kind = "eligibility") {
+                const contact = kind === "contact";
+                const heading = contact ? "We received your message" : "We received your request";
+                const intro = contact ? "Your message was submitted successfully. Our team will review your question and contact you as soon as possible." : "Your information was submitted successfully. Our team will review your request and contact you as soon as possible.";
+                const note = contact ? "Please do not reply with medical records or sensitive health information." : "Submitting a request does not guarantee insurance coverage or qualification. Please do not reply with medical records or sensitive health information.";
+                return {
+                  subject: `${heading} | Medville Diabetes`,
+                  text: `${heading}
+
+          ${intro}
+
+          ${note}
+
+          If you did not submit this request, contact us at info@medvillediabetes.com or 800-394-3917.
+
+          Medville Diabetes
+          28863 Industry Dr
+          Valencia, CA 91355`,
+                  html: `<!doctype html><html><body style="margin:0;background:#eef8fb;font-family:Arial,sans-serif;color:#00293b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef8fb"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #c7eaf2;border-radius:16px;overflow:hidden"><tr><td style="background:#00293b;padding:24px 30px"><div style="font-size:22px;font-weight:700;line-height:1.2;color:#ffffff">Medville <span style="color:#18bada">Diabetes</span></div></td></tr><tr><td style="padding:32px 30px"><p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0a6d8a">Submission received</p><h1 style="margin:0 0 18px;font-size:26px;line-height:1.25;color:#00293b">${heading}</h1><p style="margin:0 0 18px;font-size:16px;line-height:1.65;color:#264f5f">${intro}</p><div style="margin:0;padding:18px;border-radius:10px;background:#eef8fb"><p style="margin:0;font-size:14px;line-height:1.6;color:#456b79">${note}</p></div><p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#456b79">If you did not submit this request, contact us at <a href="mailto:info@medvillediabetes.com" style="color:#006b87">info@medvillediabetes.com</a> or <a href="tel:+18003943917" style="color:#006b87">800-394-3917</a>.</p></td></tr><tr><td style="border-top:1px solid #d6edf3;padding:18px 30px;font-size:12px;line-height:1.6;color:#5b7883">Medville Diabetes<br>28863 Industry Dr<br>Valencia, CA 91355</td></tr></table></td></tr></table></body></html>`
+                };
+              }
+              async function sendSubmissionConfirmation2(email, kind = "eligibility") {
+                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL) throw new Error("email unavailable");
+                const message = confirmationMessage(kind);
+                await ses.send(new SendEmailCommand({
+                  FromEmailAddress: `Medville Diabetes <${process.env.SENDER_EMAIL}>`,
+                  ReplyToAddresses: [process.env.SENDER_EMAIL],
+                  Destination: { ToAddresses: [email] },
+                  Content: { Simple: { Subject: { Data: message.subject, Charset: "UTF-8" }, Body: { Text: { Data: message.text, Charset: "UTF-8" }, Html: { Data: message.html, Charset: "UTF-8" } } } }
+                }));
+              }
+              module2.exports = { confirmationMessage, sendSubmissionConfirmation: sendSubmissionConfirmation2 };
+            }
+          });
+
           // aws/src/intake.cjs
           var { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-          var { DynamoDBDocumentClient, GetCommand, TransactWriteCommand } = require("@aws-sdk/lib-dynamodb");
+          var { DynamoDBDocumentClient, GetCommand, TransactWriteCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
           var { createHash } = require("node:crypto");
           var { validateSubmission: validateSubmission2 } = (init_intake(), __toCommonJS(intake_exports));
           var { validateContactSubmission: validateContactSubmission2 } = (init_contact(), __toCommonJS(contact_exports));
+          var { sendSubmissionConfirmation } = require_email();
           var db = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
           var origins = new Set((process.env.ALLOWED_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean));
           function response(statusCode, origin, body, extra = {}) {
@@ -404,6 +467,20 @@ Resources:
             if (!existing) return null;
             const matches = existing.requestHash ? existing.requestHash === fingerprint(data) : Object.entries(data).every(([k, v]) => k === "submissionId" || existing[k] === v);
             return matches ? 200 : 409;
+          }
+          async function confirm(lead) {
+            let status = "failed";
+            try {
+              await sendSubmissionConfirmation(lead.email, lead.source === "contact" ? "contact" : "eligibility");
+              status = "sent";
+            } catch {
+            }
+            try {
+              await db.send(new UpdateCommand({ TableName: process.env.LEADS_TABLE, Key: { id: lead.id }, UpdateExpression: "SET customerConfirmationStatus=:status, customerConfirmationUpdatedAt=:at", ExpressionAttributeValues: { ":status": status, ":at": (/* @__PURE__ */ new Date()).toISOString() }, ConditionExpression: "attribute_exists(id)" }));
+            } catch {
+              console.error("confirmation status update failed");
+            }
+            return status === "sent";
           }
           exports.handler = async (event) => {
             const origin = event.headers?.origin || event.headers?.Origin || "";
@@ -425,10 +502,11 @@ Resources:
             if (!data) return response(400, origin, { error: "Please check the form fields." });
             data.submissionId = data.submissionId.toLowerCase();
             const get = () => db.send(new GetCommand({ TableName: process.env.LEADS_TABLE, Key: { id: data.submissionId }, ConsistentRead: true }));
-            const receipt = (code) => response(code, origin, code === 200 ? { ok: true } : { error: "This submission was already saved. Please refresh before sending a new enquiry." });
+            const receipt = (code, confirmationSent = false) => response(code, origin, code === 200 ? { ok: true, confirmationSent } : { error: "This submission was already saved. Please refresh before sending a new enquiry." });
             try {
-              const prior = duplicate((await get()).Item, data);
-              if (prior) return receipt(prior);
+              const existing = (await get()).Item;
+              const prior = duplicate(existing, data);
+              if (prior) return receipt(prior, existing?.customerConfirmationStatus === "sent");
               const catalog = contact ? {} : await config(data);
               if (!contact && (!catalog.product || typeof catalog.product.name !== "string")) return response(400, origin, { error: "Please choose an available product." });
               const createdAt = (/* @__PURE__ */ new Date()).toISOString(), now = Date.now(), bucket = Math.floor(now / 36e5);
@@ -437,10 +515,10 @@ Resources:
               const rateId = createHash("sha256").update(`${bucket}:${ip}`).digest("hex");
               const { submissionId, ...answers } = data;
               const referralCode = catalog.referralActive === true ? data.referralCode : "";
-              const lead = { id: submissionId, ...answers, referralCode, source: contact ? "contact" : referralCode ? "influencer" : "qualify", status: "new", note: "", message: contact ? data.message : "", productInterest: contact ? "" : data.productInterest, productName: contact ? "General question" : catalog.product.name, injectsInsulinDaily: contact ? "" : data.injectsInsulinDaily, consentVersion: "2026-08-26", consentAt: createdAt, createdAt, notificationStatus: "not-configured", requestHash: fingerprint(data), gsi1pk: "LEAD", gsi1sk: `${createdAt}#${submissionId}` };
+              const lead = { id: submissionId, ...answers, referralCode, source: contact ? "contact" : referralCode ? "influencer" : "qualify", status: "new", note: "", message: contact ? data.message : "", productInterest: contact ? "" : data.productInterest, productName: contact ? "General question" : catalog.product.name, injectsInsulinDaily: contact ? "" : data.injectsInsulinDaily, consentVersion: "2026-08-26", consentAt: createdAt, createdAt, notificationStatus: "not-configured", customerConfirmationStatus: "pending", requestHash: fingerprint(data), gsi1pk: "LEAD", gsi1sk: `${createdAt}#${submissionId}` };
               try {
                 await db.send(new TransactWriteCommand({ TransactItems: [{ Put: { TableName: process.env.LEADS_TABLE, Item: lead, ConditionExpression: "attribute_not_exists(id)" } }, { Update: { TableName: process.env.RATE_TABLE, Key: { id: rateId }, UpdateExpression: "SET expiresAt=:expiry ADD #count :one", ConditionExpression: "attribute_not_exists(#count) OR #count < :limit", ExpressionAttributeNames: { "#count": "count" }, ExpressionAttributeValues: { ":expiry": Math.floor(now / 1e3) + 7200, ":one": 1, ":limit": 10 } } }] }));
-                return receipt(200);
+                return receipt(200, await confirm(lead));
               } catch (error) {
                 const after = duplicate((await get()).Item, data);
                 if (after) return receipt(after);
@@ -474,19 +552,66 @@ Resources:
           LEADS_TABLE: !Ref LeadsTable
           AUDIT_TABLE: !Ref AuditTable
           IDENTITY_VERIFY_URL: https://us-central1-medville-diabetes.cloudfunctions.net/adminApi
+          SENDER_EMAIL: !Ref SenderEmail
       Code:
         ZipFile: |
           "use strict";
+          var __getOwnPropNames = Object.getOwnPropertyNames;
+          var __commonJS = (cb, mod) => function __require() {
+            return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+          };
+
+          // aws/src/email.cjs
+          var require_email = __commonJS({
+            "aws/src/email.cjs"(exports2, module2) {
+              "use strict";
+              var { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
+              var ses = new SESv2Client({});
+              function confirmationMessage(kind = "eligibility") {
+                const contact = kind === "contact";
+                const heading = contact ? "We received your message" : "We received your request";
+                const intro = contact ? "Your message was submitted successfully. Our team will review your question and contact you as soon as possible." : "Your information was submitted successfully. Our team will review your request and contact you as soon as possible.";
+                const note = contact ? "Please do not reply with medical records or sensitive health information." : "Submitting a request does not guarantee insurance coverage or qualification. Please do not reply with medical records or sensitive health information.";
+                return {
+                  subject: `${heading} | Medville Diabetes`,
+                  text: `${heading}
+
+          ${intro}
+
+          ${note}
+
+          If you did not submit this request, contact us at info@medvillediabetes.com or 800-394-3917.
+
+          Medville Diabetes
+          28863 Industry Dr
+          Valencia, CA 91355`,
+                  html: `<!doctype html><html><body style="margin:0;background:#eef8fb;font-family:Arial,sans-serif;color:#00293b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef8fb"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #c7eaf2;border-radius:16px;overflow:hidden"><tr><td style="background:#00293b;padding:24px 30px"><div style="font-size:22px;font-weight:700;line-height:1.2;color:#ffffff">Medville <span style="color:#18bada">Diabetes</span></div></td></tr><tr><td style="padding:32px 30px"><p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0a6d8a">Submission received</p><h1 style="margin:0 0 18px;font-size:26px;line-height:1.25;color:#00293b">${heading}</h1><p style="margin:0 0 18px;font-size:16px;line-height:1.65;color:#264f5f">${intro}</p><div style="margin:0;padding:18px;border-radius:10px;background:#eef8fb"><p style="margin:0;font-size:14px;line-height:1.6;color:#456b79">${note}</p></div><p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#456b79">If you did not submit this request, contact us at <a href="mailto:info@medvillediabetes.com" style="color:#006b87">info@medvillediabetes.com</a> or <a href="tel:+18003943917" style="color:#006b87">800-394-3917</a>.</p></td></tr><tr><td style="border-top:1px solid #d6edf3;padding:18px 30px;font-size:12px;line-height:1.6;color:#5b7883">Medville Diabetes<br>28863 Industry Dr<br>Valencia, CA 91355</td></tr></table></td></tr></table></body></html>`
+                };
+              }
+              async function sendSubmissionConfirmation2(email, kind = "eligibility") {
+                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL) throw new Error("email unavailable");
+                const message = confirmationMessage(kind);
+                await ses.send(new SendEmailCommand({
+                  FromEmailAddress: `Medville Diabetes <${process.env.SENDER_EMAIL}>`,
+                  ReplyToAddresses: [process.env.SENDER_EMAIL],
+                  Destination: { ToAddresses: [email] },
+                  Content: { Simple: { Subject: { Data: message.subject, Charset: "UTF-8" }, Body: { Text: { Data: message.text, Charset: "UTF-8" }, Html: { Data: message.html, Charset: "UTF-8" } } } }
+                }));
+              }
+              module2.exports = { confirmationMessage, sendSubmissionConfirmation: sendSubmissionConfirmation2 };
+            }
+          });
 
           // aws/src/admin.cjs
           var { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-          var { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, TransactWriteCommand } = require("@aws-sdk/lib-dynamodb");
+          var { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, TransactWriteCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
           var { randomUUID } = require("node:crypto");
+          var { sendSubmissionConfirmation } = require_email();
           var db = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
           var origins = new Set((process.env.ALLOWED_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean));
           var statuses = /* @__PURE__ */ new Set(["new", "contacted", "qualified", "not-qualified", "closed"]);
           var validId = (x) => typeof x === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(x);
-          var features = { "leads.list": "leads", "leads.get": "leads", "leads.update": "leads", "leads.stats": "overview", "leads.export": "leads", "leads.notify": "leads", "audit.list": "audit", "influencers.counts": "influencers" };
+          var features = { "leads.list": "leads", "leads.get": "leads", "leads.update": "leads", "leads.delete": "leads", "leads.stats": "overview", "leads.export": "leads", "leads.notify": "leads", "audit.list": "audit", "influencers.counts": "influencers" };
           async function authenticate(header, origin) {
             if (typeof header !== "string" || !header.startsWith("Bearer ") || header.length > 1e4) return null;
             const r = await fetch(process.env.IDENTITY_VERIFY_URL, { method: "POST", headers: { Authorization: header, "Content-Type": "application/json", Origin: origin }, body: JSON.stringify({ action: "auth.session" }), signal: AbortSignal.timeout(5e3) });
@@ -500,7 +625,7 @@ Resources:
             return { statusCode, headers: { "Cache-Control": "no-store", "Content-Type": "application/json", "X-Content-Type-Options": "nosniff", Vary: "Origin", ...origin ? { "Access-Control-Allow-Origin": origin } : {} }, body: JSON.stringify(body) };
           }
           function lead(item) {
-            const fields = ["id", "firstName", "lastName", "email", "phone", "city", "state", "injectsInsulinDaily", "productInterest", "productName", "referralCode", "source", "message", "notificationStatus", "status", "note", "createdAt"];
+            const fields = ["id", "firstName", "lastName", "email", "phone", "city", "state", "injectsInsulinDaily", "productInterest", "productName", "referralCode", "source", "message", "notificationStatus", "customerConfirmationStatus", "status", "note", "createdAt"];
             return Object.fromEntries(fields.map((k) => [k, typeof item[k] === "string" ? item[k] : ""]));
           }
           function cursor(value) {
@@ -568,6 +693,32 @@ Resources:
             }
             return { ok: true };
           }
+          async function deleteLead(actor, b) {
+            if (!validId(b.id)) return { error: "Invalid enquiry." };
+            try {
+              await db.send(new TransactWriteCommand({ TransactItems: [{ Delete: { TableName: process.env.LEADS_TABLE, Key: { id: b.id }, ConditionExpression: "attribute_exists(id)" } }, { Put: { TableName: process.env.AUDIT_TABLE, Item: auditItem(actor, "leads.delete", { leadId: b.id }), ConditionExpression: "attribute_not_exists(id)" } }] }));
+            } catch (e) {
+              if (e?.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed") return { error: "Enquiry not found.", status: 404 };
+              throw e;
+            }
+            return { ok: true };
+          }
+          async function retryConfirmation(actor, b) {
+            if (!validId(b.id)) return { error: "Invalid enquiry." };
+            const out = await db.send(new GetCommand({ TableName: process.env.LEADS_TABLE, Key: { id: b.id }, ConsistentRead: true }));
+            if (!out.Item) return { error: "Enquiry not found.", status: 404 };
+            if (out.Item.customerConfirmationStatus === "sent") return { ok: true, notificationStatus: "not-configured", customerConfirmationStatus: "sent" };
+            await audit(actor, "leads.confirmation.requested", { leadId: b.id });
+            let status = "failed";
+            try {
+              await sendSubmissionConfirmation(out.Item.email, out.Item.source === "contact" ? "contact" : "eligibility");
+              status = "sent";
+            } catch {
+            }
+            await db.send(new UpdateCommand({ TableName: process.env.LEADS_TABLE, Key: { id: b.id }, UpdateExpression: "SET customerConfirmationStatus=:status, customerConfirmationUpdatedAt=:at", ExpressionAttributeValues: { ":status": status, ":at": (/* @__PURE__ */ new Date()).toISOString() }, ConditionExpression: "attribute_exists(id)" }));
+            await audit(actor, "leads.confirmation.completed", { leadId: b.id, status });
+            return { ok: true, notificationStatus: "not-configured", customerConfirmationStatus: status };
+          }
           async function stats(actor, countsOnly = false) {
             let key, total = 0;
             const result = { total: 0, insulinYes: 0, byStatus: {}, byState: {}, byProduct: {}, byDay: {} };
@@ -595,6 +746,7 @@ Resources:
             if (b.action === "leads.list") return listLeads(actor, b);
             if (b.action === "leads.get") return getLead(actor, b);
             if (b.action === "leads.update") return updateLead(actor, b);
+            if (b.action === "leads.delete") return deleteLead(actor, b);
             if (b.action === "leads.stats") return stats(actor);
             if (b.action === "influencers.counts") return stats(actor, true);
             if (b.action === "leads.export") {
@@ -602,7 +754,7 @@ Resources:
               await audit(actor, "leads.export", { count: b.ids.length, leadIds: b.ids });
               return { ok: true };
             }
-            if (b.action === "leads.notify") return { error: "Email notifications are not configured. Review new enquiries in the dashboard.", status: 503 };
+            if (b.action === "leads.notify") return retryConfirmation(actor, b);
             if (b.action === "audit.list") {
               const out = await db.send(new QueryCommand({ TableName: process.env.AUDIT_TABLE, IndexName: "AuditTimeline", KeyConditionExpression: "gsi1pk=:pk", ExpressionAttributeValues: { ":pk": "AUDIT" }, ScanIndexForward: false, Limit: 200 }));
               await audit(actor, "audit.list", { count: out.Items?.length || 0 });
@@ -752,3 +904,15 @@ Outputs:
     Value: !Ref IntakeEnabled
   LeadsTableName:
     Value: !Ref LeadsTable
+  SesDkimName1:
+    Value: !GetAtt SenderEmailIdentity.DkimDNSTokenName1
+  SesDkimValue1:
+    Value: !GetAtt SenderEmailIdentity.DkimDNSTokenValue1
+  SesDkimName2:
+    Value: !GetAtt SenderEmailIdentity.DkimDNSTokenName2
+  SesDkimValue2:
+    Value: !GetAtt SenderEmailIdentity.DkimDNSTokenValue2
+  SesDkimName3:
+    Value: !GetAtt SenderEmailIdentity.DkimDNSTokenName3
+  SesDkimValue3:
+    Value: !GetAtt SenderEmailIdentity.DkimDNSTokenValue3
