@@ -11,7 +11,6 @@ import { Banner, Card, Empty, PageHeader, Spinner } from "../ui";
 import { BarList, ChartFrame, StatTile, TrendChart, toBarItems, toRangeTrendPoints } from "../charts";
 import DateRangeFilter, { rangeLabel, recentRange, type DateRange } from "../DateRangeFilter";
 import { products as builtInProducts, type Product } from "../../data/products";
-import { loadProducts } from "../data";
 
 const PRODUCT_NAME = new Map(builtInProducts.map((product) => [product.slug, product.name]));
 
@@ -25,7 +24,7 @@ export default function Overview() {
 
   useEffect(() => {
     let live = true;
-    loadProducts().then((saved) => {
+    import("../data").then(({ loadProducts }) => loadProducts()).then((saved) => {
       if (!live) return;
       const merged = new Map<string, Product>(builtInProducts.map((product) => [product.slug, product]));
       for (const [slug, patch] of Object.entries(saved)) {

@@ -1,5 +1,4 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { initializeApp, type FirebaseApp } from "firebase/app";
 import {
   browserSessionPersistence,
   getAuth,
@@ -11,8 +10,8 @@ import {
   type Auth,
   type User,
 } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
-import { getStorage, type FirebaseStorage } from "firebase/storage";
+import { clearAdminApiCache } from "./api";
+import { adminFirebaseApp } from "./firebaseApp";
 import { firebaseConfig } from "../lib/firebaseConfig";
 
 /*
@@ -84,42 +83,11 @@ export function isAdminConfigured() {
   return Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId);
 }
 
-let app: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
-let dbInstance: Firestore | null = null;
-let storageInstance: FirebaseStorage | null = null;
-
-function ensureApp() {
-  if (!app) app = initializeApp(firebaseConfig);
-  return app;
-}
 
 export function adminAuth() {
-  if (!authInstance) authInstance = getAuth(ensureApp());
+  if (!authInstance) authInstance = getAuth(adminFirebaseApp());
   return authInstance;
-}
-
-export function adminDb() {
-  if (!dbInstance) dbInstance = getFirestore(ensureApp());
-  return dbInstance;
-}
-
-export function adminStorage() {
-  if (!storageInstance) {
-    storageInstance = getStorage(ensureApp());
-    /*
-      A project on the free tier has no Cloud Storage bucket, because Firebase
-      only creates the default one on the Blaze plan. Uploading to a bucket
-      that does not exist fails in a way the SDK treats as retryable, so with
-      the stock two minute window the button sat on "Saving" for two minutes
-      before saying anything. Fifteen seconds is far longer than a real 5 MB
-      upload needs and short enough that a missing bucket is reported while
-      the person is still looking at the screen.
-    */
-    storageInstance.maxUploadRetryTime = 15_000;
-    storageInstance.maxOperationRetryTime = 15_000;
-  }
-  return storageInstance;
 }
 
 const ACTIVITY_EVENTS = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
@@ -135,6 +103,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOutNow = useCallback(
     async (reason = "") => {
+      clearAdminApiCache();
       setSignedOutReason(reason);
       setIdleWarning(false);
       if (configured) await signOut(adminAuth()).catch(() => undefined);
@@ -153,6 +122,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     setPersistence(auth, browserSessionPersistence).catch(() => undefined);
 
     return onIdTokenChanged(auth, async (user) => {
+      clearAdminApiCache();
       if (!user) {
         setSession(null);
         setPendingApproval(false);
@@ -223,6 +193,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         setIdleWarning(false);
       },
       signIn: async (email, password) => {
+        clearAdminApiCache();
         setSignedOutReason("");
         await setPersistence(adminAuth(), browserSessionPersistence);
         await signInWithEmailAndPassword(adminAuth(), email.trim(), password);

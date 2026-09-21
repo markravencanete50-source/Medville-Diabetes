@@ -6,17 +6,23 @@
 
   - Always POST. A lead identifier must never appear in a URL, because URLs
     reach browser history, proxy logs and referrer headers. Section 3.4(e).
-  - Always a fresh token in the Authorization header, so a revoked
-    administrator loses access on their next request rather than at some later
-    refresh.
-  - Never cached. The function sets no-store; this side asks for the same.
+  - Always a valid token in the Authorization header. Firebase refreshes an
+    expired token before it is used.
+  - Protected responses never enter the browser HTTP cache. A small in-memory
+    cache only deduplicates recent reads while this dashboard tab is open. It
+    is cleared on sign-out, token changes and every mutation.
   - Errors surface as plain sentences. The server never sends detail back and
     this never invents any.
 */
 
 const CONTENT_ENDPOINT = (import.meta.env.VITE_ADMIN_API as string | undefined)
   || "https://us-central1-medville-diabetes.cloudfunctions.net/adminApi";
-const LEAD_ENDPOINT = (import.meta.env.VITE_AWS_ADMIN_API as string | undefined) || "";
+/* The API address is public configuration, not a credential. Authentication
+   and role checks still happen for every request inside the Lambda function.
+   Keeping the deployed address as a fallback prevents a local hosting build
+   from silently shipping an unconnected dashboard. */
+const LEAD_ENDPOINT = (import.meta.env.VITE_AWS_ADMIN_API as string | undefined)
+  || "https://v7etel6u7f.execute-api.us-east-1.amazonaws.com/admin";
 
 const AWS_ACTIONS = new Set([
   "leads.list",
@@ -125,7 +131,75 @@ export class AdminApiError extends Error {}
 
 type GetToken = () => Promise<string | null>;
 
+const READ_TTL_MS: Record<string, number> = {
+  "leads.stats": 30_000,
+  "influencers.list": 30_000,
+  "influencers.counts": 30_000,
+};
+
+const CACHE_INVALIDATING_ACTIONS = new Set([
+  "leads.update",
+  "leads.delete",
+  "leads.restore",
+  "leads.status.import",
+  "leads.notify",
+  "influencers.create",
+  "influencers.setActive",
+  "influencers.setDeleted",
+  "admins.setRole",
+  "admins.delete",
+  "admins.invite",
+]);
+
+interface ReadCacheEntry {
+  expiresAt: number;
+  request: Promise<unknown>;
+}
+
+const readCache = new Map<string, ReadCacheEntry>();
+
+export function clearAdminApiCache() {
+  readCache.clear();
+}
+
+function readCacheKey(action: string, payload: Record<string, unknown>) {
+  return `${action}:${JSON.stringify(payload)}`;
+}
+
+function pruneReadCache(now: number) {
+  for (const [key, entry] of readCache) {
+    if (entry.expiresAt <= now) readCache.delete(key);
+  }
+  while (readCache.size >= 40) {
+    const oldest = readCache.keys().next().value as string | undefined;
+    if (!oldest) break;
+    readCache.delete(oldest);
+  }
+}
+
 async function call<T>(getToken: GetToken, action: string, payload: Record<string, unknown> = {}) {
+  const ttl = READ_TTL_MS[action] ?? 0;
+  const now = Date.now();
+  const key = ttl ? readCacheKey(action, payload) : "";
+  if (ttl) {
+    const cached = readCache.get(key);
+    if (cached && cached.expiresAt > now) return cached.request as Promise<T>;
+    pruneReadCache(now);
+  }
+
+  const request = callNetwork<T>(getToken, action, payload);
+  if (ttl) {
+    readCache.set(key, { expiresAt: now + ttl, request });
+    request.catch(() => {
+      if (readCache.get(key)?.request === request) readCache.delete(key);
+    });
+  } else if (CACHE_INVALIDATING_ACTIONS.has(action)) {
+    request.then(clearAdminApiCache, () => undefined);
+  }
+  return request;
+}
+
+async function callNetwork<T>(getToken: GetToken, action: string, payload: Record<string, unknown>) {
   const endpoint = endpointFor(action);
   if (!endpoint) {
     throw new AdminApiError(

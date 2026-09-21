@@ -67,18 +67,6 @@ function screen(load: () => Promise<{ default: React.ComponentType }>) {
   );
 }
 
-const Overview = screen(() => import("./pages/Overview"));
-const Leads = screen(() => import("./pages/Leads"));
-const Influencers = screen(() => import("./pages/Influencers"));
-const Products = screen(() => import("./pages/Products"));
-const Content = screen(() => import("./pages/Content"));
-const Blog = screen(() => import("./pages/Blog"));
-const Appearance = screen(() => import("./pages/Appearance"));
-const Faqs = screen(() => import("./pages/Faqs"));
-const Testimonials = screen(() => import("./pages/Testimonials"));
-const Team = screen(() => import("./pages/Team"));
-const Audit = screen(() => import("./pages/Audit"));
-
 type Section =
   | "overview"
   | "leads"
@@ -91,6 +79,38 @@ type Section =
   | "testimonials"
   | "team"
   | "audit";
+
+type ScreenModule = Promise<{ default: React.ComponentType }>;
+
+const SCREEN_LOADERS: Record<Section, () => ScreenModule> = {
+  overview: () => import("./pages/Overview"),
+  leads: () => import("./pages/Leads"),
+  influencers: () => import("./pages/Influencers"),
+  products: () => import("./pages/Products"),
+  content: () => import("./pages/Content"),
+  blog: () => import("./pages/Blog"),
+  appearance: () => import("./pages/Appearance"),
+  faqs: () => import("./pages/Faqs"),
+  testimonials: () => import("./pages/Testimonials"),
+  team: () => import("./pages/Team"),
+  audit: () => import("./pages/Audit"),
+};
+
+const Overview = screen(SCREEN_LOADERS.overview);
+const Leads = screen(SCREEN_LOADERS.leads);
+const Influencers = screen(SCREEN_LOADERS.influencers);
+const Products = screen(SCREEN_LOADERS.products);
+const Content = screen(SCREEN_LOADERS.content);
+const Blog = screen(SCREEN_LOADERS.blog);
+const Appearance = screen(SCREEN_LOADERS.appearance);
+const Faqs = screen(SCREEN_LOADERS.faqs);
+const Testimonials = screen(SCREEN_LOADERS.testimonials);
+const Team = screen(SCREEN_LOADERS.team);
+const Audit = screen(SCREEN_LOADERS.audit);
+
+function preloadScreen(section: Section) {
+  void SCREEN_LOADERS[section]().catch(() => undefined);
+}
 
 const NAV: { id: Section; label: string; icon: typeof BarChart3; group: string }[] = [
   { id: "overview", label: "Overview", icon: BarChart3, group: "Enquiries" },
@@ -303,6 +323,23 @@ function Shell() {
   const groups = [...new Set(visible.map((item) => item.group))];
   const current = NAV.find((item) => item.id === section);
 
+  /* Load the small page chunks after the signed-in shell is visible. This
+     keeps login lean while making the first switch to every allowed screen
+     immediate. Hover and keyboard focus below start the same preload sooner. */
+  useEffect(() => {
+    const preload = () => {
+      void Promise.allSettled(
+        NAV.filter((item) => canOpen(role, item.id, features)).map((item) => SCREEN_LOADERS[item.id]()),
+      );
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const idle = window.requestIdleCallback(preload, { timeout: 1500 });
+      return () => window.cancelIdleCallback(idle);
+    }
+    const timer = globalThis.setTimeout(preload, 1000);
+    return () => globalThis.clearTimeout(timer);
+  }, [role, features]);
+
   /* The phone footer holds the first four screens this role can open; the
      rest sit behind More, which is also where the theme and sign-out live. */
   const tabs = visible.slice(0, 4);
@@ -336,6 +373,8 @@ function Shell() {
                   type="button"
                   className="admin-nav-link w-full"
                   aria-current={section === item.id ? "page" : undefined}
+                  onPointerEnter={() => preloadScreen(item.id)}
+                  onFocus={() => preloadScreen(item.id)}
                   onClick={() => go(item.id)}
                 >
                   <Icon size={17} aria-hidden="true" />
@@ -476,6 +515,8 @@ function Shell() {
               type="button"
               className="admin-tab"
               aria-current={section === item.id ? "page" : undefined}
+              onPointerEnter={() => preloadScreen(item.id)}
+              onFocus={() => preloadScreen(item.id)}
               onClick={() => go(item.id)}
             >
               <Icon size={22} strokeWidth={1.9} aria-hidden="true" />

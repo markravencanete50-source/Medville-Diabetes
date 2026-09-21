@@ -4,9 +4,12 @@ import {
   doc,
   getDoc,
   getDocs,
+  getFirestore,
   setDoc,
+  type Firestore,
 } from "firebase/firestore";
-import { adminDb, adminAuth } from "./auth";
+import { adminAuth } from "./auth";
+import { adminFirebaseApp } from "./firebaseApp";
 import { adminApi } from "./api";
 import type { PageId, PageValues } from "../content/schema";
 import { pageValidationError } from "../content/validation";
@@ -87,11 +90,41 @@ export const THEME_DEFAULTS: ThemeRecord = {
   surface: "#d3ebf3",
 };
 
+let dbInstance: Firestore | null = null;
+
+function adminDb() {
+  if (!dbInstance) dbInstance = getFirestore(adminFirebaseApp());
+  return dbInstance;
+}
+
+const DATA_CACHE_MS = 60_000;
+const dataCache = new Map<string, { expiresAt: number; request: Promise<unknown> }>();
+
+function clearCachedData(key: string) {
+  dataCache.delete(key);
+}
+
+function cachedData<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const now = Date.now();
+  const cached = dataCache.get(key);
+  if (cached && cached.expiresAt > now) return cached.request as Promise<T>;
+  if (cached) dataCache.delete(key);
+
+  const request = load();
+  dataCache.set(key, { expiresAt: now + DATA_CACHE_MS, request });
+  request.catch(() => {
+    if (dataCache.get(key)?.request === request) dataCache.delete(key);
+  });
+  return request;
+}
+
 /* ---- page content ---- */
 
 export async function loadPage(pageId: PageId): Promise<PageValues> {
-  const snapshot = await getDoc(doc(adminDb(), "siteContent", pageId));
-  return snapshot.exists() ? Object.fromEntries(Object.entries(snapshot.data()).filter(([, value]) => typeof value === "string")) as PageValues : {};
+  return cachedData(`page:${pageId}`, async () => {
+    const snapshot = await getDoc(doc(adminDb(), "siteContent", pageId));
+    return snapshot.exists() ? Object.fromEntries(Object.entries(snapshot.data()).filter(([, value]) => typeof value === "string")) as PageValues : {};
+  });
 }
 
 export async function savePage(pageId: PageId, values: PageValues) {
@@ -104,28 +137,34 @@ export async function savePage(pageId: PageId, values: PageValues) {
     if (typeof value === "string" && value.trim() !== "") clean[key] = value.trim();
   }
   await setDoc(doc(adminDb(), "siteContent", pageId), clean);
+  clearCachedData(`page:${pageId}`);
 }
 
 /* ---- theme ---- */
 
 export async function loadTheme(): Promise<Partial<ThemeRecord>> {
-  const snapshot = await getDoc(doc(adminDb(), "siteTheme", "current"));
-  return snapshot.exists() ? (snapshot.data() as Partial<ThemeRecord>) : {};
+  return cachedData("theme", async () => {
+    const snapshot = await getDoc(doc(adminDb(), "siteTheme", "current"));
+    return snapshot.exists() ? (snapshot.data() as Partial<ThemeRecord>) : {};
+  });
 }
 
 export async function saveTheme(theme: Partial<ThemeRecord>) {
   await setDoc(doc(adminDb(), "siteTheme", "current"), theme);
+  clearCachedData("theme");
 }
 
 /* ---- products ---- */
 
 export async function loadProducts(): Promise<Record<string, Partial<Product>>> {
-  const snapshot = await getDocs(collection(adminDb(), "products"));
-  const out: Record<string, Partial<Product>> = {};
-  snapshot.forEach((entry) => {
-    out[entry.id] = entry.data() as Partial<Product>;
+  return cachedData("products", async () => {
+    const snapshot = await getDocs(collection(adminDb(), "products"));
+    const out: Record<string, Partial<Product>> = {};
+    snapshot.forEach((entry) => {
+      out[entry.id] = entry.data() as Partial<Product>;
+    });
+    return out;
   });
-  return out;
 }
 
 export async function saveProduct(slug: string, product: Partial<Product>) {
@@ -136,50 +175,61 @@ export async function saveProduct(slug: string, product: Partial<Product>) {
     Object.entries(product).filter(([, value]) => value !== undefined),
   );
   await setDoc(doc(adminDb(), "products", slug), clean, { merge: false });
+  clearCachedData("products");
 }
 
 export async function hideProduct(slug: string) {
   /* Built-in products cannot be deleted out of the code, so removing one is
      recorded as a tombstone the site knows to skip. */
   await setDoc(doc(adminDb(), "products", slug), { deleted: true });
+  clearCachedData("products");
 }
 
 export async function deleteProductDoc(slug: string) {
   await deleteDoc(doc(adminDb(), "products", slug));
+  clearCachedData("products");
 }
 
 /* ---- faqs and testimonials ---- */
 
 export async function loadFaqs(): Promise<FaqRecord[]> {
-  const snapshot = await getDocs(collection(adminDb(), "faqs"));
-  return snapshot.docs
-    .map((entry) => ({ id: entry.id, ...(entry.data() as Omit<FaqRecord, "id">) }))
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  return cachedData("faqs", async () => {
+    const snapshot = await getDocs(collection(adminDb(), "faqs"));
+    return snapshot.docs
+      .map((entry) => ({ id: entry.id, ...(entry.data() as Omit<FaqRecord, "id">) }))
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  });
 }
 
 export async function saveFaq(record: FaqRecord) {
   const { id, ...rest } = record;
   await setDoc(doc(adminDb(), "faqs", id), rest);
+  clearCachedData("faqs");
 }
 
 export async function deleteFaq(id: string) {
   await deleteDoc(doc(adminDb(), "faqs", id));
+  clearCachedData("faqs");
 }
 
 export async function loadTestimonials(): Promise<TestimonialRecord[]> {
-  const snapshot = await getDocs(collection(adminDb(), "testimonials"));
-  return snapshot.docs
-    .map((entry) => ({ id: entry.id, ...(entry.data() as Omit<TestimonialRecord, "id">) }))
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  return cachedData("testimonials", async () => {
+    const snapshot = await getDocs(collection(adminDb(), "testimonials"));
+    return snapshot.docs
+      .map((entry) => ({ id: entry.id, ...(entry.data() as Omit<TestimonialRecord, "id">) }))
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  });
 }
 
 export async function saveTestimonial(record: TestimonialRecord) {
   const { id, ...rest } = record;
   await setDoc(doc(adminDb(), "testimonials", id), rest);
+  clearCachedData("testimonials");
 }
 
 export async function deleteTestimonial(id: string) {
   await deleteDoc(doc(adminDb(), "testimonials", id));
+  clearCachedData("testimonials");
 }
 
 /* ---- images ---- */
@@ -245,30 +295,32 @@ export function newId() {
 /* ---- blog posts ---- */
 
 export async function loadPosts(): Promise<PostRecord[]> {
-  const snapshot = await getDocs(collection(adminDb(), "posts"));
-  const live = snapshot.docs
-    .map((entry) => {
-      const data = entry.data() as Record<string, unknown>;
-      return {
-        slug: entry.id,
-        title: typeof data.title === "string" ? data.title : "",
-        excerpt: typeof data.excerpt === "string" ? data.excerpt : "",
-        body: decodeBlocks(data.body),
-        image: typeof data.image === "string" ? data.image : "",
-        imageAlt: typeof data.imageAlt === "string" ? data.imageAlt : "",
-        author: typeof data.author === "string" ? data.author : "",
-        publishedAt: typeof data.publishedAt === "string" ? data.publishedAt : "",
-        published: data.published === true,
-        homeFeatured: data.homeFeatured === true,
-        template: isPostTemplate(data.template) ? data.template : DEFAULT_TEMPLATE,
-      };
-    })
-    /* Newest first, and drafts with no date yet sort to the top where the
-       author will see them. */
-    .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
-  const bySlug = new Map<string, PostRecord>(EDITORIAL_POSTS.map((post) => [post.slug, { ...post, homeFeatured: post.homeFeatured ?? false, template: post.template ?? DEFAULT_TEMPLATE }]));
-  for (const post of live) bySlug.set(post.slug, post);
-  return [...bySlug.values()].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  return cachedData("posts", async () => {
+    const snapshot = await getDocs(collection(adminDb(), "posts"));
+    const live = snapshot.docs
+      .map((entry) => {
+        const data = entry.data() as Record<string, unknown>;
+        return {
+          slug: entry.id,
+          title: typeof data.title === "string" ? data.title : "",
+          excerpt: typeof data.excerpt === "string" ? data.excerpt : "",
+          body: decodeBlocks(data.body),
+          image: typeof data.image === "string" ? data.image : "",
+          imageAlt: typeof data.imageAlt === "string" ? data.imageAlt : "",
+          author: typeof data.author === "string" ? data.author : "",
+          publishedAt: typeof data.publishedAt === "string" ? data.publishedAt : "",
+          published: data.published === true,
+          homeFeatured: data.homeFeatured === true,
+          template: isPostTemplate(data.template) ? data.template : DEFAULT_TEMPLATE,
+        };
+      })
+      /* Newest first, and drafts with no date yet sort to the top where the
+         author will see them. */
+      .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
+    const bySlug = new Map<string, PostRecord>(EDITORIAL_POSTS.map((post) => [post.slug, { ...post, homeFeatured: post.homeFeatured ?? false, template: post.template ?? DEFAULT_TEMPLATE }]));
+    for (const post of live) bySlug.set(post.slug, post);
+    return [...bySlug.values()].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  });
 }
 
 /* Firestore rejects undefined anywhere in a document, so every optional field
@@ -289,10 +341,12 @@ function stripUndefined<T>(value: T): T {
 export async function savePost(record: PostRecord) {
   const { slug, ...rest } = record;
   await setDoc(doc(adminDb(), "posts", slug), stripUndefined(rest), { merge: false });
+  clearCachedData("posts");
 }
 
 export async function deletePost(slug: string) {
   await deleteDoc(doc(adminDb(), "posts", slug));
+  clearCachedData("posts");
 }
 
 export async function postSlugExists(slug: string) {

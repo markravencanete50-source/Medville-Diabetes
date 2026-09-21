@@ -9,7 +9,7 @@ const bundle = await build({
     import React from 'react';
     import { renderToStaticMarkup } from 'react-dom/server';
     import { MemoryRouter } from 'react-router-dom';
-    import { PublicSite } from './src/App';
+    import PublicSite from './src/PublicSite';
     import { EMPTY_SITE_DATA, resolveText } from './src/lib/siteContent';
     export { PAGES, defaultsFor } from './src/content/schema';
     export { safeContentUrl, pageValidationError } from './src/content/validation';
