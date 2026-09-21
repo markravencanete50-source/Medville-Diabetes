@@ -28,6 +28,9 @@ guarantee the absence of every defect or certify HIPAA compliance.
 - Contact and newsletter prompts no longer open together on the contact page.
   Contact markup no longer nests main landmarks; phone checks agree with the server.
   Newsletter success requires a valid server receipt.
+- The mobile eligibility link now closes the navigation drawer. The shared Button
+  component passes click handlers to links as well as native buttons. The original
+  obstruction was reproduced live, fixed and verified on the deployed release.
 - The dashboard now accurately says enquiry email notifications are not configured.
 
 ## Verification evidence
@@ -43,6 +46,9 @@ guarantee the absence of every defect or certify HIPAA compliance.
 | Dependency audits: root, functions, functions/admin | 0 reported vulnerabilities in each |
 | Live eligibility form | Empty-field errors, receipt, dashboard record, saved note and Contacted stage verified |
 | Live contact form | Receipt and separate dashboard record verified |
+| Mobile contact and eligibility layouts | 390px viewport, no horizontal overflow; menu-to-eligibility transition verified |
+| Synthetic data cleanup | Both exact test records conditionally deleted; consistent reads confirm absence |
+| Live audit history | Synthetic list, read, two updates and two cleanup entries verified in DynamoDB |
 | Browser console before export attempt | No captured errors or warnings on tested form/dashboard pages |
 | Legacy Google qualifyIntake and contactEnquiry | Both returned HTTP 503 after retirement |
 | AWS API rejection checks | Invalid form payloads rejected; unauthenticated admin request rejected |
@@ -55,12 +61,13 @@ export IDs, product validation, duplicate submissions and datastore failures.
 ## Remaining checks and operating limits
 
 - Chrome's automation connection failed during the native CSV export confirmation.
-  Actual CSV download, final mobile layout checks and the live audit-log screen
-  have not been confirmed in this sweep. Automated export/audit tests passed.
-- Two synthetic records remain pending cleanup after browser reconnection:
-  `Synthetic Sweep Eligibility` and `Synthetic Sweep Contact`, both using
-  `medville-sweep@example.com`, submitted around 10:35–10:37 Asia/Singapore on
-  September 21. Delete only these exact test records and retain their audit history.
+  Actual CSV download and the live audit-log screen have not been confirmed in
+  this sweep. Automated export/audit tests passed, and persisted audit entries were
+  checked directly through CloudShell. Fresh browser tabs restored access for
+  responsive checks and cleanup; the fresh dashboard requires a new sign-in.
+- The two clearly labelled synthetic enquiries were removed using transactions
+  that checked their UUID, email, name and creation timestamp. Each deletion wrote
+  a cleanup audit entry; the original verification audit records were retained.
 - Automatic enquiry email notifications are not configured in AWS. Staff must
   review the Enquiries dashboard; email delivery is not a verified part of intake.
 - Flexible siteContent/siteTheme documents and nested content lists do not have
@@ -78,7 +85,7 @@ export IDs, product validation, duplicate submissions and datastore failures.
   `https://v7etel6u7f.execute-api.us-east-1.amazonaws.com`.
 - Google `adminApi` and new `intakeConfig` deployed before the AWS update.
 - Google `qualifyIntake`/`contactEnquiry` retired; Firestore/Storage rules deployed.
-- Final Hosting release includes the contact/newsletter fix. Production intake
+- Final Hosting release includes the contact/newsletter and mobile menu fixes. Production intake
   is enabled; GitHub's `VITE_INTAKE_ENABLED` variable was verified as `true`.
 
 Reproduction and operations guidance is in `LAUNCH-STATUS.md`. No real patient

@@ -61,8 +61,8 @@ export default function Button({
     "inline-flex min-h-[46px] items-center justify-center gap-2.5 rounded-full px-7 py-3 font-display text-small font-semibold transition-all duration-(--duration-base) ease-(--ease-out-quart) disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 " +
     `${styles[variant]} ${className}`;
 
-  if (to) return <Link to={to} state={state} className={base}>{children}</Link>;
-  if (href) return <a href={href} className={base}>{children}</a>;
+  if (to) return <Link to={to} state={state} onClick={onClick} className={base}>{children}</Link>;
+  if (href) return <a href={href} onClick={onClick} className={base}>{children}</a>;
   return (
     <button type={type ?? "button"} disabled={disabled} onClick={onClick} className={base}>
       {children}

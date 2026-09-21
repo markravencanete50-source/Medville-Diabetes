@@ -138,7 +138,7 @@ export default function Header() {
             </nav>
             <div className="mt-auto space-y-3 border-t border-line-brand p-5">
               {eligibilityVisible && (
-                <Button to="/qualify" variant="cta" className="w-full">
+                <Button to="/qualify" variant="cta" className="w-full" onClick={() => setOpen(false)}>
                   Check Eligibility
                 </Button>
               )}
