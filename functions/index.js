@@ -6,6 +6,7 @@ import { createHash, createHmac, randomUUID } from "node:crypto";
 import { createIntakeHandler } from "./intake.js";
 import { createAttributionHandler } from "./attribution.js";
 import { createContactHandler } from "./contact.js";
+import { createIntakeConfigHandler } from "./intake-config.js";
 import { sendNotification } from "./notification.js";
 import { createNewsletterHandler, sendBlogUpdate, sendNewsletterWelcome } from "./newsletter.js";
 import { readFileSync } from "node:fs";
@@ -18,8 +19,8 @@ const resendApiKey = defineSecret("RESEND_API_KEY");
 const PUBLIC_SITE_URL = (process.env.PUBLIC_SITE_URL || "https://www.medvillediabetes.com").replace(/\/$/, "");
 
 const handler = createIntakeHandler({
-  enabled: process.env.INTAKE_ENABLED === "true" && Boolean(process.env.RATE_LIMIT_SECRET)
-    && Boolean(process.env.RESEND_API_KEY) && Boolean(process.env.NOTIFICATION_FROM),
+  // Patient intake has moved to AWS. Environment flags cannot reopen this legacy writer.
+  enabled: false,
   origins: (process.env.ALLOWED_ORIGIN || DEFAULT_ORIGINS).split(",").map((s) => s.trim()).filter(Boolean),
   resolveProduct: async (slug) => {
     const saved = await db.collection("products").doc(slug).get();
@@ -76,7 +77,7 @@ export const qualifyIntake = onRequest({
 }, handler);
 
 const contactHandler = createContactHandler({
-  enabled: () => Boolean(referralRateLimitSecret.value()),
+  enabled: false,
   origins: (process.env.ALLOWED_ORIGIN || DEFAULT_ORIGINS).split(",").map((s) => s.trim()).filter(Boolean),
   save: async (data, ip) => {
     const reference = db.collection("leads").doc(data.submissionId);
@@ -126,6 +127,22 @@ export const contactEnquiry = onRequest({
   region: "us-central1", cors: false, maxInstances: 2,
   memory: "256MiB", timeoutSeconds: 30, secrets: [referralRateLimitSecret, resendApiKey],
 }, contactHandler);
+
+export const intakeConfig = onRequest({
+  region: 'us-central1', cors: false, maxInstances: 2, memory: '256MiB', timeoutSeconds: 10,
+}, createIntakeConfigHandler({
+  origins: (process.env.ALLOWED_ORIGIN || DEFAULT_ORIGINS).split(',').map(s => s.trim()).filter(Boolean),
+  resolveProduct: async slug => {
+    const saved = await db.collection('products').doc(slug).get();
+    const product = { ...catalog[slug], ...(saved.exists ? saved.data() : {}) };
+    return product.deleted || (product.status && product.status !== 'available') || typeof product.name !== 'string'
+      ? null : { name: product.name.slice(0, 160) };
+  },
+  resolveReferral: async slug => {
+    const saved = await db.collection('influencers').doc(slug).get();
+    return saved.exists && saved.data().active === true && saved.data().deleted !== true;
+  },
+}));
 
 const newsletterHandler = createNewsletterHandler({
   origins: (process.env.ALLOWED_ORIGIN || DEFAULT_ORIGINS).split(",").map((s) => s.trim()).filter(Boolean),

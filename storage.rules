@@ -21,12 +21,14 @@ service firebase.storage {
       return request.auth != null ? request.auth.token.get('role', '') : '';
     }
 
-    function canEditContent() {
-      return role() == 'owner' || role() == 'marketing' || role() == 'editor';
-    }
-
-    function canEditProducts() {
-      return canEditContent() || role() == 'sales' || role() == 'agent';
+    function hasFeature(feature) {
+      let features = request.auth != null ? request.auth.token.get('features', null) : null;
+      let marketing = role() == 'marketing' || role() == 'editor';
+      let sales = role() == 'sales' || role() == 'agent';
+      return role() == 'owner' || ((marketing || sales) && (
+        (features is list && feature in features)
+        || (features == null && (marketing || (sales && feature == 'products')))
+      ));
     }
 
     function isValidImage() {
@@ -34,16 +36,10 @@ service firebase.storage {
         && request.resource.contentType.matches('image/(jpeg|png|webp|gif|avif)');
     }
 
-    match /site/products/{allPaths=**} {
+    match /site/{area}/{allPaths=**} {
       allow read: if true;
-      allow write: if canEditProducts() && isValidImage();
-      allow delete: if canEditProducts();
-    }
-
-    match /site/{allPaths=**} {
-      allow read: if true;
-      allow write: if canEditContent() && isValidImage();
-      allow delete: if canEditContent();
+      allow create, update: if hasFeature(area == 'products' ? 'products' : area == 'blog' ? 'blog' : 'content') && isValidImage();
+      allow delete: if hasFeature(area == 'products' ? 'products' : area == 'blog' ? 'blog' : 'content');
     }
 
     match /{allPaths=**} {

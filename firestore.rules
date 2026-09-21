@@ -9,12 +9,10 @@ rules_version = '2';
      The public website reads these directly. They contain no personal data of
      any kind. Only a signed-in administrator with a content role may write.
 
-  2. Protected Health Information (leads, auditLog). No client, signed in or
-     not, may touch these. They are reachable only through the adminApi Cloud
-     Run function, which runs with the Admin SDK, verifies the caller's token
-     and role, and records an auditLog entry for every access. Section 3.4(c)
-     of the agreement requires an audit trail of who accessed PHI and when,
-     and a direct browser read could never be audited reliably.
+  2. Legacy private collections (leads, auditLog). No browser client may
+     access these. Current enquiries and their audit history are in AWS
+     DynamoDB, accessible only through the audited AWS admin API. The Google
+     admin service supplies workforce identity and public content only.
 
   Roles live in Identity Platform custom claims, not in documents, so a role
   cannot be escalated by writing to Firestore:
@@ -52,16 +50,48 @@ service cloud.firestore {
     function hasFeature(feature) {
       let hasCustomFeatures = signedIn() && request.auth.token.keys().hasAny(['features']);
       let features = hasCustomFeatures ? request.auth.token.features : [];
-      return isOwner()
+      return (isOwner() || isMarketing() || isSales()) && (isOwner()
         || (features is list && feature in features)
         || (!hasCustomFeatures && (
           (isMarketing() && feature in ['overview', 'leads', 'influencers', 'products', 'content', 'blog', 'appearance', 'faqs', 'testimonials'])
           || (isSales() && feature in ['leads', 'products'])
-        ));
+        )));
     }
 
     function canEditContent(feature) {
       return hasFeature(feature);
+    }
+
+    function textField(d, key, limit) {
+      return !(key in d) || (d[key] is string && d[key].size() <= limit);
+    }
+    function boolField(d, key) {
+      return !(key in d) || d[key] is bool;
+    }
+    function listField(d, key, limit) {
+      return !(key in d) || (d[key] is list && d[key].size() <= limit);
+    }
+    function orderField(d) {
+      return !('order' in d) || (d.order is number && d.order >= -100000 && d.order <= 100000);
+    }
+    function validProduct(d) {
+      return d.keys().hasOnly(['slug','name','brand','line','category','shortDescription','description','keyFacts','imageFront','imageBack','featured','status','price','deleted'])
+        && textField(d,'slug',60) && textField(d,'name',160)
+        && textField(d,'shortDescription',2000) && textField(d,'imageFront',2048) && textField(d,'imageBack',2048)
+        && listField(d,'description',50) && listField(d,'keyFacts',50)
+        && boolField(d,'featured') && boolField(d,'deleted')
+        && (!('brand' in d) || d.brand in ['FreeStyle Libre','Dexcom','Tandem'])
+        && (!('line' in d) || d.line in ['cgm','insulin-pump'])
+        && (!('category' in d) || d.category in ['System','Sensor','Accessory'])
+        && (!('status' in d) || d.status in ['available','coming-soon','sold'])
+        && (!('price' in d) || (d.price is number && d.price >= 0 && d.price <= 1000000));
+    }
+    function validPost(d) {
+      return d.keys().hasOnly(['title','excerpt','body','image','imageAlt','author','publishedAt','published','homeFeatured','template'])
+        && textField(d,'title',500) && textField(d,'excerpt',3000)
+        && textField(d,'image',2048) && textField(d,'imageAlt',1000)
+        && textField(d,'author',160) && textField(d,'publishedAt',40) && textField(d,'template',40)
+        && boolField(d,'published') && boolField(d,'homeFeatured') && listField(d,'body',200);
     }
 
     /* ---- public marketing content ---- */
@@ -78,23 +108,34 @@ service cloud.firestore {
 
     match /products/{slug} {
       allow read: if true;
-      allow write: if hasFeature('products');
+      allow create, update: if hasFeature('products') && validProduct(request.resource.data);
+      allow delete: if hasFeature('products');
     }
 
     match /faqs/{id} {
       allow read: if true;
-      allow write: if canEditContent('faqs');
+      allow create, update: if canEditContent('faqs')
+        && request.resource.data.keys().hasOnly(['question','answer','order'])
+        && textField(request.resource.data,'question',1000)
+        && textField(request.resource.data,'answer',10000) && orderField(request.resource.data);
+      allow delete: if canEditContent('faqs');
     }
 
     match /testimonials/{id} {
       allow read: if canEditContent('testimonials') || resource.data.published == true;
-      allow write: if canEditContent('testimonials');
+      allow create, update: if canEditContent('testimonials')
+        && request.resource.data.keys().hasOnly(['quote','name','location','order','published'])
+        && textField(request.resource.data,'quote',5000) && textField(request.resource.data,'name',160)
+        && textField(request.resource.data,'location',160) && boolField(request.resource.data,'published')
+        && orderField(request.resource.data);
+      allow delete: if canEditContent('testimonials');
     }
 
     /* Drafts are private. Filtering only in the browser exposes unpublished copy. */
     match /posts/{slug} {
       allow read: if canEditContent('blog') || resource.data.published == true;
-      allow write: if canEditContent('blog');
+      allow create, update: if canEditContent('blog') && validPost(request.resource.data);
+      allow delete: if canEditContent('blog');
     }
 
     /* ---- Protected Health Information ---- */
@@ -141,7 +182,7 @@ service cloud.firestore {
        function is the only thing that can set it. */
 
     match /adminUsers/{uid} {
-      allow read: if hasFeature('team');
+      allow read: if isOwner();
       allow write: if false;
     }
 

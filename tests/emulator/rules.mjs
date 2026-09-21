@@ -52,3 +52,24 @@ test("a custom feature claim grants only its matching content area", async () =>
   await assertFails(setDoc(doc(db, "products/custom-feature"), { name: "Denied" }));
   await assertFails(setDoc(doc(db, "siteContent/home"), { title: "Denied" }));
 });
+test("custom features without an approved role cannot grant content access", async () => {
+  const db = env.authenticatedContext("test-roleless", { features: ["blog", "team"] }).firestore();
+  await assertFails(setDoc(doc(db, "posts/roleless"), { title: "Denied", published: false }));
+  await assertFails(getDoc(doc(db, "adminUsers/test")));
+});
+test("custom team feature cannot disclose the owner-only roster", async () => {
+  const db = env.authenticatedContext("test-marketing-team", { role: "marketing", features: ["team"] }).firestore();
+  await assertFails(getDoc(doc(db, "adminUsers/test")));
+});
+test("content schema limits cannot be bypassed by updating an existing record", async () => {
+  const db=env.authenticatedContext("test-schema",{role:"owner"}).firestore();
+  const product=doc(db,"products/schema");
+  await assertSucceeds(setDoc(product,{name:"Valid product"}));
+  await assertFails(setDoc(product,{name:42},{merge:true}));
+  await assertFails(setDoc(product,{price:-1},{merge:true}));
+  await assertFails(setDoc(product,{name:"x".repeat(161)},{merge:true}));
+  await assertFails(setDoc(product,{privateData:"not allowed"},{merge:true}));
+  await assertFails(setDoc(doc(db,"posts/schema"),{title:"Valid",published:"true"}));
+  await assertFails(setDoc(doc(db,"faqs/schema"),{question:[],answer:"text"}));
+  await assertFails(setDoc(doc(db,"testimonials/schema"),{quote:"text",published:1}));
+});

@@ -45,7 +45,7 @@ jobs:
           VITE_AWS_ADMIN_API: https://v7etel6u7f.execute-api.us-east-1.amazonaws.com/admin
           VITE_QUALIFY_ENDPOINT: https://v7etel6u7f.execute-api.us-east-1.amazonaws.com/intake
           VITE_ATTRIBUTION_ENDPOINT: ${{ secrets.VITE_ATTRIBUTION_ENDPOINT }}
-          VITE_CONTACT_ENDPOINT: ${{ secrets.VITE_CONTACT_ENDPOINT }}
+          VITE_CONTACT_ENDPOINT: https://v7etel6u7f.execute-api.us-east-1.amazonaws.com/contact
           VITE_INTAKE_ENABLED: ${{ vars.VITE_INTAKE_ENABLED || 'false' }}
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:

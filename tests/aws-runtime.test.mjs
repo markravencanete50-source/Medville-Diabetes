@@ -1,0 +1,48 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import crypto from 'node:crypto';
+const origin='https://www.medvillediabetes.com';
+const template=readFileSync('aws/medville-phi-stack.yaml','utf8');
+const id='10000000-0000-4000-8000-000000000001';
+function runtime(name,{send=async()=>({}),identity={uid:'synthetic-admin',email:'admin@example.com',role:'owner',features:[]},fetchImpl}={}){
+ const start=template.indexOf('        ZipFile: |',template.indexOf(`  ${name}Function:`));
+ const end=start+template.slice(start).search(/\n  [A-Za-z]\w*:\n/);
+ const code=template.slice(start+'        ZipFile: |'.length,end).trimEnd().split('\n').slice(1).map(x=>x.slice(10)).join('\n');
+ const calls=[],fetches=[];
+ const commands=Object.fromEntries(['GetCommand','PutCommand','QueryCommand','TransactWriteCommand'].map(name=>[name,class{constructor(input){this.input=input;this.kind=name}}]));
+ const module={exports:{}};
+ const context={module,exports:module.exports,Buffer,AbortSignal,console:{error(){}},process:{env:{ALLOWED_ORIGINS:origin,INTAKE_ENABLED:'true',LEADS_TABLE:'leads',AUDIT_TABLE:'audit',RATE_TABLE:'rate',IDENTITY_VERIFY_URL:'https://identity.example.test',INTAKE_CONFIG_URL:'https://catalog.example.test'}},require(name){if(name==='node:crypto')return crypto;if(name==='@aws-sdk/client-dynamodb')return{DynamoDBClient:class{}};if(name==='@aws-sdk/lib-dynamodb')return{...commands,DynamoDBDocumentClient:{from:()=>({send:async command=>{calls.push(command);return send(command)}})}};throw new Error(name);},fetch:async(url,options)=>{fetches.push({url,options});return fetchImpl?fetchImpl(url,options):{ok:true,status:200,json:async()=>url.includes('identity')?{actor:identity}:{product:{name:'Dexcom G7'},referralActive:false}}}};
+ vm.runInNewContext(code,context);
+ const request=async(body,extra={})=>{const r=await module.exports.handler({rawPath:name==='Intake'?'/intake':'/admin',headers:{origin,'content-type':'application/json',authorization:'Bearer synthetic-token'},requestContext:{http:{method:'POST',sourceIp:'192.0.2.1'},requestId:'synthetic'},body:JSON.stringify(body),...extra});return{...r,json:JSON.parse(r.body)}};
+ return{request,calls,fetches};
+}
+const valid={submissionId:id,firstName:'Synthetic',lastName:'Verification',email:'synthetic@example.com',phone:'2025550142',city:'Test City',state:'California',injectsInsulinDaily:'no',productInterest:'dexcom-g7',consentAccepted:true,website:''};
+for(const action of ['leads.list','leads.get','leads.update','leads.stats','leads.export','leads.notify','audit.list','influencers.counts'])test(`AWS denies ungranted feature: ${action}`,async()=>{
+ const r=runtime('Admin',{identity:{uid:'test',role:'marketing',features:['blog']}});assert.equal((await r.request({action,id})).statusCode,403);assert.equal(r.calls.length,1);assert.equal(r.calls[0].input.TableName,'audit');
+});
+test('AWS rejects revoked/disabled identity and never forwards patient data to identity',async()=>{
+ const r=runtime('Admin',{fetchImpl:async()=>({status:401,ok:false})});assert.equal((await r.request({action:'leads.get',id,note:'private'})).statusCode,401);assert.equal(r.calls.length,0);assert.deepEqual(JSON.parse(r.fetches[0].options.body),{action:'auth.session'});
+});
+test('AWS identity outage fails closed',async()=>{const r=runtime('Admin',{fetchImpl:async()=>{throw new Error('private')}});assert.equal((await r.request({action:'leads.list'})).statusCode,503);assert.equal(r.calls.length,0);});
+test('AWS rejects malformed bodies, inherited action names and invalid IDs',async()=>{for(const body of [null,[],42,'text',{action:'constructor'},{action:'leads.get',id:'../x'}])assert.equal((await runtime('Admin').request(body)).statusCode,400);});
+test('AWS owner can read; sensitive internals are not returned; audit names the record',async()=>{
+ const r=runtime('Admin',{send:async c=>c.kind==='GetCommand'?{Item:{...valid,id,requestHash:'secret',gsi1pk:'LEAD'}}:{}});
+ const out=await r.request({action:'leads.get',id});assert.equal(out.statusCode,200);assert.equal(out.json.lead.requestHash,undefined);assert.equal(out.json.lead.message,'');assert.equal(r.calls[0].input.ConsistentRead,true);assert.equal(r.calls[1].input.Item.leadId,id);assert.equal(out.headers['Cache-Control'],'no-store');
+});
+test('AWS audit failure cannot disclose a record',async()=>{const r=runtime('Admin',{send:async c=>{if(c.kind==='PutCommand')throw Error('audit unavailable');return{Item:{...valid,id}}}});const out=await r.request({action:'leads.get',id});assert.equal(out.statusCode,503);assert.equal(out.json.lead,undefined);});
+test('AWS update and audit use one transaction, with no PHI in audit',async()=>{
+ const r=runtime('Admin');assert.equal((await r.request({action:'leads.update',id,status:'contacted',note:'Synthetic private note'})).statusCode,200);assert.equal(r.calls.length,1);const tx=r.calls[0];assert.equal(tx.kind,'TransactWriteCommand');assert.equal(tx.input.TransactItems.length,2);assert.equal(JSON.stringify(tx.input.TransactItems[1]).includes('Synthetic private note'),false);
+});
+test('AWS update failure returns no success and no separate mutation',async()=>{const r=runtime('Admin',{send:async()=>{throw Error('write unavailable')}});assert.equal((await r.request({action:'leads.update',id,status:'contacted'})).statusCode,503);assert.equal(r.calls.length,1);});
+test('AWS export records exact record IDs and rejects duplicates',async()=>{const r=runtime('Admin');assert.equal((await r.request({action:'leads.export',ids:[id,id]})).statusCode,400);assert.equal((await r.request({action:'leads.export',ids:[id]})).statusCode,200);assert.deepEqual([...r.calls[0].input.Item.leadIds],[id]);});
+test('AWS invalid page cursor is rejected',async()=>{assert.equal((await runtime('Admin').request({action:'leads.list',cursor:Buffer.from(JSON.stringify({id,gsi1pk:'OTHER',gsi1sk:'x'})).toString('base64url')})).statusCode,400)});
+test('AWS list returns cursor and audits every returned ID',async()=>{const r=runtime('Admin',{send:async c=>c.kind==='QueryCommand'?{Items:[{id}],LastEvaluatedKey:{id,gsi1pk:'LEAD',gsi1sk:'x'}}:{}});const out=await r.request({action:'leads.list'});assert.equal(out.statusCode,200);assert.ok(out.json.nextCursor);assert.deepEqual([...r.calls[1].input.Item.leadIds],[id]);});
+test('AWS intake validates unknown/prototype products through catalog, not object inheritance',async()=>{const r=runtime('Intake',{fetchImpl:async()=>({ok:true,json:async()=>({product:null})})});assert.equal((await r.request({...valid,productInterest:'constructor'})).statusCode,400);assert.equal(r.calls.length,1);});
+test('AWS intake only sends public catalog fields to Google and saves validated referral',async()=>{const r=runtime('Intake');assert.equal((await r.request({...valid,referralCode:'fake-campaign'})).statusCode,200);assert.deepEqual(JSON.parse(r.fetches[0].options.body),{productInterest:'dexcom-g7',referralCode:'fake-campaign'});const lead=r.calls[1].input.TransactItems[0].Put.Item;assert.equal(lead.referralCode,'');assert.equal(lead.source,'qualify');assert.equal(lead.notificationStatus,'not-configured');});
+test('AWS identical retries return success without a second write; changed answers conflict',async()=>{const existing={...valid,id,referralCode:""};const r=runtime('Intake',{send:async()=>({Item:existing})});assert.equal((await r.request(valid)).statusCode,200);assert.equal((await r.request({...valid,firstName:'Changed'})).statusCode,409);assert.equal(r.calls.every(c=>c.kind==='GetCommand'),true);});
+test('AWS database read errors produce generic JSON rather than an unhandled exception',async()=>{const r=runtime('Intake',{send:async()=>{throw Error('private data')}});const out=await r.request(valid);assert.equal(out.statusCode,503);assert.equal(out.body.includes('private data'),false);});
+test('AWS rate condition and transaction infrastructure failures are distinguished',async()=>{for(const [Code,status]of [['ConditionalCheckFailed',429],['TransactionConflict',503]]){const r=runtime('Intake',{send:async c=>{if(c.kind==='TransactWriteCommand')throw{CancellationReasons:[{Code:'None'},{Code}]};return{}}});assert.equal((await r.request(valid)).statusCode,status)}});
+test('AWS contact messages use the protected table and never the metadata service',async()=>{const r=runtime('Intake');const out=await r.request({...valid,message:'Synthetic contact question.',privacyAccepted:true},{rawPath:'/contact'});assert.equal(out.statusCode,200);assert.equal(r.fetches.length,0);const lead=r.calls[1].input.TransactItems[0].Put.Item;assert.equal(lead.source,'contact');assert.equal(lead.message,'Synthetic contact question.');assert.equal(lead.injectsInsulinDaily,'');});
+test('AWS origin, method, media type and size checks precede data access',async()=>{for(const extra of [{headers:{origin:'https://evil.test'}},{requestContext:{http:{method:'GET'}}},{headers:{origin,'content-type':'text/plain'}},{body:'x'.repeat(20000)}]){const r=runtime('Intake');assert.ok((await r.request(valid,extra)).statusCode>=400);assert.equal(r.calls.length,0)}});

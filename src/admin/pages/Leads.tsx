@@ -354,10 +354,10 @@ export default function Leads() {
                 <Detail label="Product">{openLead.productName || PRODUCT_NAME.get(openLead.productInterest) || openLead.productInterest || "Not sure yet"}</Detail>
                 <Detail label="Influencer">{openLead.referralCode ? `@${openLead.referralCode}` : "Direct"}</Detail>
               </>}
-              <Detail label="Email notification">{openLead.notificationStatus === "sent" ? "Sent" : openLead.notificationStatus === "failed" ? "Delivery failed" : "Pending setup or delivery"}</Detail>
+              <Detail label="Email notification">{openLead.notificationStatus === "sent" ? "Sent" : openLead.notificationStatus === "failed" ? "Delivery failed" : "Not configured. Review enquiries here."}</Detail>
             </dl>
             {openLead.source === "contact" && <div className="rounded-lg p-4" style={{ background: "var(--a-brand-soft)" }}><p className="admin-label">Question</p><p className="mt-2 whitespace-pre-wrap text-[14px] leading-relaxed">{openLead.message}</p></div>}
-            {openLead.notificationStatus !== "sent" && <button type="button" className="admin-btn admin-btn-quiet" disabled={saving} onClick={() => void retryNotification()}>Retry company notification</button>}
+            {["failed", "retryable"].includes(openLead.notificationStatus) && <button type="button" className="admin-btn admin-btn-quiet" disabled={saving} onClick={() => void retryNotification()}>Retry company notification</button>}
 
             <Field label="Stage" htmlFor="lead-status">
               <select

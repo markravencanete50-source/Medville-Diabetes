@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/*.test.mjs",
+    "test": "node scripts/build-aws.mjs --check && node --test tests/*.test.mjs",
     "test:seo": "node scripts/audit-seo.mjs",
-    "test:rules": "node --test tests/emulator/rules.mjs",
+    "test:rules": "node --test tests/emulator/*.mjs",
     "build:intake": "node scripts/build-intake-catalog.mjs",
     "dev": "vite",
     "build": "npm run build:intake && tsc -b && vite build && node scripts/prerender.mjs && node scripts/cloudinary-build.mjs && npm run test:seo",
@@ -15,7 +15,8 @@
     "optimize:services": "node scripts/optimize-services-photos.mjs",
     "build:og": "node scripts/build-og-image.mjs",
     "grant:owner": "node scripts/grant-owner.mjs",
-    "prerender": "node scripts/prerender.mjs"
+    "prerender": "node scripts/prerender.mjs",
+    "build:aws": "node scripts/build-aws.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

@@ -89,13 +89,15 @@ async function authenticate(req) {
     const decoded = await auth.verifyIdToken(header.slice(7), true);
     const issuedSecondsAgo = Math.floor(Date.now() / 1000) - decoded.auth_time;
     if (!Number.isFinite(issuedSecondsAgo) || issuedSecondsAgo < -60 || issuedSecondsAgo > MAX_TOKEN_AGE_SECONDS) return null;
-    const role = normalizeRole(decoded.role);
+    const currentUser = await auth.getUser(decoded.uid);
+    if (currentUser.disabled) return null;
+    const role = normalizeRole(currentUser.customClaims?.role);
     if (!role) return null;
     return {
       uid: decoded.uid,
       email: decoded.email || "",
       role,
-      features: normalizeFeatures(decoded.features, role),
+      features: normalizeFeatures(currentUser.customClaims?.features, role),
     };
   } catch {
     /* Never log the token or the reason. */
@@ -568,6 +570,8 @@ async function deleteAdmin(actor, body) {
 /* ---- routing ---- */
 
 const ROUTES = {
+  // Workforce identity only. No patient fields or identifiers cross this boundary.
+  "auth.session": { roles: ADMIN_ROLES, run: async (actor) => ({ actor }) },
   "images.signUpload": { roles: ADMIN_ROLES, run: async (actor, body) => {
     const result = imageUploadSignature(actor, body, {
       secret: cloudinarySecret.value(), apiKey: process.env.CLOUDINARY_API_KEY,
@@ -611,4 +615,9 @@ const ROUTES = {
 export const adminApi = onRequest({
   region: "us-central1", cors: false, maxInstances: 2,
   memory: "256MiB", timeoutSeconds: 30, secrets: [resendApiKey, cloudinarySecret],
-}, createAdminHandler({ authenticate, audit, routes: ROUTES, origins: ALLOWED_ORIGINS }));
+}, createAdminHandler({
+  authenticate, audit,
+  // This deployment is workforce identity and public-content management only.
+  routes: Object.fromEntries(Object.entries(ROUTES).filter(([action]) => !action.startsWith('leads.') && action !== 'audit.list')),
+  origins: ALLOWED_ORIGINS,
+}));

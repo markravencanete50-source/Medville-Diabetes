@@ -26,14 +26,15 @@ const AWS_ACTIONS = new Set([
   "leads.notify",
   "leads.export",
   "audit.list",
+  "influencers.counts",
 ]);
 
-const endpointFor = (action: string) => AWS_ACTIONS.has(action) && LEAD_ENDPOINT
+const endpointFor = (action: string) => AWS_ACTIONS.has(action)
   ? LEAD_ENDPOINT
   : CONTENT_ENDPOINT;
 
 export function isAdminApiConfigured() {
-  return Boolean(LEAD_ENDPOINT || CONTENT_ENDPOINT);
+  return Boolean(LEAD_ENDPOINT);
 }
 
 export interface Lead {
@@ -182,8 +183,13 @@ export const adminApi = {
 
   stats: (getToken: GetToken) => call<LeadStats>(getToken, "leads.stats"),
 
-  listInfluencers: (getToken: GetToken) =>
-    call<{ influencers: Influencer[] }>(getToken, "influencers.list"),
+  listInfluencers: async (getToken: GetToken) => {
+    const [result, counts] = await Promise.all([
+      call<{ influencers: Influencer[] }>(getToken, "influencers.list"),
+      call<{ counts: Record<string, number> }>(getToken, "influencers.counts"),
+    ]);
+    return { influencers: result.influencers.map((item) => ({ ...item, leads: counts.counts[item.slug] || 0 })) };
+  },
 
   createInfluencer: (getToken: GetToken, input: { name: string; handle: string; platform: string }) =>
     call<{ ok: true; influencer: Influencer }>(getToken, "influencers.create", input),

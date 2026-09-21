@@ -20,7 +20,7 @@ export default function NewsletterPrompt() {
     || "https://us-central1-medville-diabetes.cloudfunctions.net/blogSubscribe";
 
   useEffect(() => {
-    if (pathname.startsWith("/qualify") || pathname.startsWith("/admin")) { setOpen(false); return; }
+    if (["/qualify", "/contact", "/admin"].some(path => pathname.startsWith(path))) { setOpen(false); return; }
     if (shownThisVisit.current) return;
     shownThisVisit.current = true;
     setOpen(true);
@@ -53,6 +53,8 @@ export default function NewsletterPrompt() {
         body: JSON.stringify({ email: email.trim(), consent, website }),
       });
       if (!response.ok) throw new Error(String(response.status));
+      const receipt = await response.json();
+      if (receipt?.ok !== true) throw new Error("Missing receipt");
       setStatus("success");
     } catch {
       setStatus("error");

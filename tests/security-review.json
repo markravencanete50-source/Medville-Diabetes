@@ -1,12 +1,12 @@
 {
   "score": 4,
-  "summary": "Private collections and privilege boundaries are denied to browser clients; draft publication filtering and role access pass emulator tests. Storage MIME restrictions were reviewed statically, not emulator-tested. This is a targeted rules review, not certification.",
+  "summary": "2026-09-21: All 11 Firestore/Storage emulator tests pass. Private collections and owner-only roster are denied to unauthorized clients; feature-scoped storage writes, MIME/size limits, draft filtering and content schema create/update checks are tested. AWS authorization, audit and intake regressions are covered separately in the 82-test application suite. This is a targeted engineering review, not certification.",
   "findings": [
     {
       "check": "Storage Abuse and Type Safety",
       "severity": "minor",
-      "issue": "Trusted owner/marketing writes and sales product writes lack comprehensive field type and size validation on both create and update. They can damage public content within their assigned scope, but cannot escalate claims or access patient records through rules.",
-      "recommendation": "Add a versioned marketing schema with compatible create/update validation, payload bounds and emulator regression tests."
+      "issue": "Content collections now enforce top-level keys, primitive types and size limits, but nested product/article lists and the flexible siteContent/siteTheme documents do not have exhaustive per-field rule schemas. Authorized content editors can still damage content within their assigned area; these permissions cannot grant patient or role access.",
+      "recommendation": "Version the flexible content documents before introducing exhaustive nested rules; preserve the tested feature boundaries and client content decoding."
     }
   ]
 }

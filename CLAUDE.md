@@ -3,9 +3,9 @@
 Read this file completely before making any change.
 
 Current launch status and activation requirements are in `LAUNCH-STATUS.md`.
-That file supersedes older operational statements here: live intake remains
-disabled pending billing activation, client review and approved email sending.
-The current function runtime target is Node.js 22.
+That file supersedes older operational statements here. Production eligibility and
+contact intake are enabled on AWS. Enquiry email notifications are not configured;
+staff review the protected dashboard. The function runtime target is Node.js 22.
 
 ## What this project is
 
@@ -35,8 +35,7 @@ commercial client work, and the agreement names Firebase Hosting.
 
 The qualify form asks whether the visitor injects insulin daily, next to
 name, email, phone, city, and state. That combination is Protected Health
-Information (PHI). The PHI pathway is: Qualify page -> Cloud Run function ->
-Firestore `leads` collection. Rules that must survive every future change:
+Information (PHI). The PHI pathway is: Qualify page -> AWS API Gateway -> Lambda -> DynamoDB. Rules that must survive every future change:
 
 1. AWS account `214161651605` has an active AWS Business Associate Addendum,
    effective 2026-09-21. The downloaded agreement is held by the client.
@@ -362,27 +361,8 @@ only change made to their wording.
 3. Replace placeholder product art with real supplier photos (front and back
    per product) once the client provides them. Keep the same file paths or
    update `src/data/products.ts`.
-4. Client accepts the Google Cloud BAA on the dedicated project (Blaze plan).
-5. Deploy the intake function (from `functions/`):
-   ```
-   gcloud functions deploy qualifyIntake \
-     --gen2 --runtime=nodejs20 --region=us-central1 \
-     --source=. --entry-point=qualifyIntake \
-     --trigger-http --allow-unauthenticated \
-     --set-env-vars=^|^ALLOWED_ORIGIN=https://medville-diabetes.web.app,https://www.medvillediabetes.com
-   ```
-   Put the resulting URL in `.env` as `VITE_QUALIFY_ENDPOINT` (this variable
-   is safe to expose; it is only a URL).
-6. Deploy Firestore rules: `firebase deploy --only firestore:rules`.
-7. Enable Data Access audit logs for Firestore in the console, and turn on
-   point-in-time recovery for the database. Both are off by default; the
-   commands are in ADMIN-SETUP.md, step 3.
-8. Build and deploy hosting: `npm run build && firebase deploy --only hosting`.
-9. Set a Google Cloud budget alert (10 USD) on the project, per Section 7.3
-   of the agreement.
-10. Later milestone: admin dashboard for reading leads, authenticated with
-    Identity Platform and an `admin` custom claim, audit-logging every view
-    (write an `auditLog` entry per read; see firestore.rules comments).
+4. Follow the current AWS and Firebase deployment procedure in LAUNCH-STATUS.md.
+   The old Google patient-intake deployment instructions have been retired.
 
 ## Contract facts that shape decisions
 

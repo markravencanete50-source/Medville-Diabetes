@@ -30,7 +30,8 @@ const schema = z.object({
   lastName: z.string().trim().min(1, "Please enter your last name.").max(80),
   email: z.string().trim().email("Please enter a valid email address.").max(160),
   phone: z.string().trim().min(7, "Please enter your phone number.").max(25)
-    .regex(/^[0-9+()\-.\s]+$/, "Please enter a valid phone number."),
+    .regex(/^[0-9+() .-]+$/, "Please enter a valid phone number.")
+    .refine(value => value.replace(/\D/g, "").length >= 7, "Please enter at least seven digits."),
   city: z.string().trim().min(1, "Please enter your city.").max(80),
   state: z.string().min(1, "Please select your state."),
   message: z.string().trim().min(10, "Please tell us how we can help.").max(1200, "Please keep your message under 1,200 characters."),
@@ -68,14 +69,15 @@ export default function Contact() {
   });
 
   const endpoint = (import.meta.env.VITE_CONTACT_ENDPOINT as string | undefined)
-    || "https://us-central1-medville-diabetes.cloudfunctions.net/contactEnquiry";
+    || "";
+  const intakeEnabled = Boolean(endpoint) && import.meta.env.VITE_INTAKE_ENABLED === "true";
 
   useEffect(() => {
     if (status === "success") successHeading.current?.focus();
   }, [status]);
 
   const onSubmit = async (values: FormValues) => {
-    if (!endpoint || sending.current || isEditorPreview()) return;
+    if (!intakeEnabled || !endpoint || sending.current || isEditorPreview()) return;
     sending.current = true;
     setStatus("submitting");
     try {
@@ -110,7 +112,7 @@ export default function Contact() {
   }
 
   return <>
-    <main aria-hidden={noticeOpen || undefined} className="bg-wash relative overflow-hidden">
+    <section aria-hidden={noticeOpen || undefined} className="bg-wash relative overflow-hidden">
       <Blob tone="brand" strength={0.28} blur={42} size={420} duration="20s" className="-left-[130px] -top-[120px]" />
       <Grain opacity={0.06} />
       <Container wide className={`relative grid gap-10 py-12 md:py-16 lg:gap-14 ${showHero && showForm ? "lg:grid-cols-[0.82fr_1.18fr]" : "max-w-[820px]"}`}>
@@ -171,7 +173,8 @@ export default function Contact() {
               {status === "error" && <div role="alert" className="flex items-start gap-3 rounded-md border border-danger/30 bg-danger/5 p-4"><AlertCircle size={18} className="mt-0.5 flex-none text-danger" aria-hidden="true" /><p className="m-0 text-small text-ink">{text("form.your-message-could-not-be-sent-please-try-again-or-call-our-team")}</p></div>}
 
               {showSubmit && <>
-              <Button type="submit" variant="cta" disabled={status === "submitting"} className="w-full">{status === "submitting" ? text("form.sending-your-message") : text("form.send-message")}</Button>
+               {!intakeEnabled && <p role="status" className="text-small">Online submissions are not open yet. Please call our team.</p>}
+              <Button type="submit" variant="cta" disabled={!intakeEnabled || status === "submitting"} className="w-full">{status === "submitting" ? text("form.sending-your-message") : text("form.send-message")}</Button>
               <p className="text-center text-caption leading-relaxed text-grey-muted">{text("form.we-handle-your-contact-details-according-to-our")} <Link to="/privacy-policy" className="font-semibold text-brand underline underline-offset-2">{text("form.privacy-policy")}</Link>.</p>
               </>}
             </fieldset>
@@ -179,7 +182,7 @@ export default function Contact() {
         </div>
         )}
       </Container>
-    </main>
+    </section>
     {showForm && noticeOpen && <PrivacyNotice onContinue={() => setNoticeOpen(false)} />}
   </>;
 }

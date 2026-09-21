@@ -18,7 +18,7 @@ test("AWS PHI handlers do not log request bodies or patient fields", () => {
   const calls = [...template.matchAll(/console\.(?:log|error)\(([^)]*)\)/g)].map((match) => match[1]);
   assert.ok(calls.length > 0);
   for (const call of calls) assert.doesNotMatch(call, /event\.body|firstName|lastName|email|phone/);
-  assert.match(template, /"Cache-Control":"no-store"/);
+  assert.match(template, /"Cache-Control":\s*"no-store"/);
   assert.match(template, /ThrottlingBurstLimit: 20/);
   assert.match(template, /ThrottlingRateLimit: 10/);
 });

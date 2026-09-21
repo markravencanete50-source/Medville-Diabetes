@@ -51,7 +51,8 @@ const schema = z.object({
   lastName: z.string().trim().min(1, "Please enter your last name.").max(80),
   email: z.string().trim().email("Please enter your email address.").max(160),
   phone: z.string().trim().min(7, "Please enter your phone number.").max(25)
-    .regex(/^[0-9+()\-.\s]+$/, "Please enter your phone number."),
+    .regex(/^[0-9+() .-]+$/, "Please enter your phone number.")
+    .refine(value => value.replace(/\D/g, "").length >= 7, "Please enter at least seven digits."),
   city: z.string().trim().min(1, "Please enter your city.").max(80),
   state: z.string().min(1, "Please select your state."),
   injectsInsulinDaily: z.enum(["yes", "no"], { message: "Please select an answer." }),
