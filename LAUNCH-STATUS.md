@@ -39,9 +39,15 @@ Every lead view, list, summary and export is audited before data is returned.
 Updates and their audit entries commit together. Export logs identify the exact
 records. Browser requests use POST and no-store, and patient IDs stay out of URLs.
 
-**Automatic enquiry email notifications are not configured in AWS.** Staff must
-review the Enquiries dashboard. The interface reports this explicitly and does
-not offer a retry button that cannot work. Inbox delivery has not been verified.
+Customer receipt emails are implemented in AWS SES and are sent from
+`Medville Diabetes <info@medvillediabetes.com>`. The message contains no submitted
+answers or other form details. Delivery status is stored on the lead, shown in the
+Enquiries dashboard and can be retried by an authorized administrator.
+
+The SES domain identity is deployed but remains pending until its three DKIM CNAME
+records are published in GoDaddy. The SES account also remains in the sandbox until
+AWS grants production access. Until both gates are complete, submissions are saved
+normally and the website reports that the confirmation email could not be delivered.
 Existing newsletter and administrator-invitation email services are separate.
 
 The frontend requires all displayed fields and consent. The server validates again,
