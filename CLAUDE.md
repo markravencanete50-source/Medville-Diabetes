@@ -14,18 +14,19 @@ United States supplier of continuous glucose monitors (CGMs). The client is
 Kryll Ann Amarante. The site is modeled on questhealthsolutions.com (about 70
 percent of the content substance, rewritten) with an original, better design.
 
-The signed agreement commits to a specific stack and to HIPAA-compliant
-handling of the qualification form. Both are contractual, not preferences.
+The client representative approved the AWS PHI pathway on 2026-09-21 after
+Google could not make its BAA acceptance control available. HIPAA-compliant
+handling of the qualification form remains contractual.
 
 ## The agreed stack (contractual, do not substitute)
 
 | Layer | Product | Why |
 |---|---|---|
 | Marketing site + shop hosting | Firebase Hosting | Free, allows commercial use |
-| Form intake | Cloud Run function (`functions/index.js`) | On Google's HIPAA covered list |
-| Database | Cloud Firestore, `leads` collection | Covered |
-| Admin login (later milestone) | Identity Platform, NOT plain Firebase Auth | Covered; plain Firebase Auth is not |
-| Plan | Blaze (pay as you go) | Required for functions and for the BAA |
+| Form intake | AWS API Gateway and Lambda | Covered by the active AWS BAA |
+| Lead database | Amazon DynamoDB with customer-managed KMS encryption | Covered by the active AWS BAA |
+| Admin login | Identity Platform for workforce identity only | No patient data is stored in the identity service |
+| Non-PHI content | Cloud Firestore and the existing Google functions | Patient records must never enter these services |
 
 Do not deploy this site to Vercel. Vercel's free tier does not permit
 commercial client work, and the agreement names Firebase Hosting.
@@ -37,13 +38,12 @@ name, email, phone, city, and state. That combination is Protected Health
 Information (PHI). The PHI pathway is: Qualify page -> Cloud Run function ->
 Firestore `leads` collection. Rules that must survive every future change:
 
-1. A dedicated Google Cloud project for this site, in the client's account.
-   The client must accept the Google Cloud BAA on it before launch:
-   https://cloud.google.com/security/compliance/hipaa (covered products list)
-   https://support.google.com/cloud/answer/6329727 (how to accept the BAA)
-2. Only BAA-covered products may touch PHI: Firestore, Cloud Run functions,
-   Identity Platform, Cloud Storage. Nothing Firebase-branded beyond Hosting
-   (which never sees PHI), and nothing in Preview or Beta.
+1. AWS account `214161651605` has an active AWS Business Associate Addendum,
+   effective 2026-09-21. The downloaded agreement is held by the client.
+2. Only BAA-covered AWS products may touch PHI. The approved pathway is API
+   Gateway, Lambda, DynamoDB and KMS. Firebase Hosting serves static files and
+   must never receive a form submission. The legacy Cloud Run and Firestore
+   lead pathway must stay disabled.
 3. Never add Google Analytics, Meta Pixel, Hotjar, chat widgets, session
    recording, or any third-party script to /qualify or its success state.
    Ideally add none of these anywhere without a compliance review.
@@ -52,8 +52,9 @@ Firestore `leads` collection. Rules that must survive every future change:
    (responses that return lead data must be Cache-Control: no-store),
    email notifications (a notification may say a new lead exists; it must
    never contain the answers), or test fixtures (invent test data).
-5. Data Access audit logs must be enabled for Firestore in the Google Cloud
-   console (they are off by default). Admin Activity logs are on by default.
+5. Every AWS lead read, update, export and dashboard summary must write an
+   audit record. DynamoDB point-in-time recovery and deletion protection must
+   remain enabled for the lead and audit tables.
 6. The form POSTs JSON. Never convert it to GET. Never echo submitted values
    in error messages.
 7. At handover, produce a one-page record: where PHI is stored, what is

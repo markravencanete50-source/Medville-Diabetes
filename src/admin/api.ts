@@ -1,5 +1,5 @@
 /*
-  Client for the adminApi Cloud Run function.
+  Client for the protected administration APIs.
 
   Everything that touches Protected Health Information goes through here, and
   the shape of these calls is deliberate:
@@ -14,11 +14,26 @@
     this never invents any.
 */
 
-const ENDPOINT = (import.meta.env.VITE_ADMIN_API as string | undefined)
+const CONTENT_ENDPOINT = (import.meta.env.VITE_ADMIN_API as string | undefined)
   || "https://us-central1-medville-diabetes.cloudfunctions.net/adminApi";
+const LEAD_ENDPOINT = (import.meta.env.VITE_AWS_ADMIN_API as string | undefined) || "";
+
+const AWS_ACTIONS = new Set([
+  "leads.list",
+  "leads.get",
+  "leads.update",
+  "leads.stats",
+  "leads.notify",
+  "leads.export",
+  "audit.list",
+]);
+
+const endpointFor = (action: string) => AWS_ACTIONS.has(action) && LEAD_ENDPOINT
+  ? LEAD_ENDPOINT
+  : CONTENT_ENDPOINT;
 
 export function isAdminApiConfigured() {
-  return Boolean(ENDPOINT);
+  return Boolean(LEAD_ENDPOINT || CONTENT_ENDPOINT);
 }
 
 export interface Lead {
@@ -104,7 +119,8 @@ export class AdminApiError extends Error {}
 type GetToken = () => Promise<string | null>;
 
 async function call<T>(getToken: GetToken, action: string, payload: Record<string, unknown> = {}) {
-  if (!ENDPOINT) {
+  const endpoint = endpointFor(action);
+  if (!endpoint) {
     throw new AdminApiError(
       "The lead service is not connected yet. See ADMIN-SETUP.md for the deploy step.",
     );
@@ -114,7 +130,7 @@ async function call<T>(getToken: GetToken, action: string, payload: Record<strin
 
   let res: Response;
   try {
-    res = await fetch(ENDPOINT, {
+    res = await fetch(endpoint, {
       signal: AbortSignal.timeout(20000),
       method: "POST",
       cache: "no-store",

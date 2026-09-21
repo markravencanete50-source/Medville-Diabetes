@@ -1,0 +1,339 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Medville Diabetes HIPAA intake and lead administration
+
+Parameters:
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Default: https://www.medvillediabetes.com,https://medvillediabetes.com,https://medville-diabetes.web.app
+  FirebaseProjectId:
+    Type: String
+    Default: medville-diabetes
+  IntakeEnabled:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+
+Resources:
+  PhiKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Encrypts Medville eligibility and access records
+      EnableKeyRotation: true
+      PendingWindowInDays: 30
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: RootAdministration
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: "*"
+
+  PhiKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/medville-phi
+      TargetKeyId: !Ref PhiKey
+
+  LeadsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: medville-phi-leads
+      BillingMode: PAY_PER_REQUEST
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !GetAtt PhiKey.Arn
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: gsi1pk
+          AttributeType: S
+        - AttributeName: gsi1sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: LeadTimeline
+          KeySchema:
+            - AttributeName: gsi1pk
+              KeyType: HASH
+            - AttributeName: gsi1sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  AuditTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: medville-phi-audit
+      BillingMode: PAY_PER_REQUEST
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !GetAtt PhiKey.Arn
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: gsi1pk
+          AttributeType: S
+        - AttributeName: gsi1sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: AuditTimeline
+          KeySchema:
+            - AttributeName: gsi1pk
+              KeyType: HASH
+            - AttributeName: gsi1sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  RateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: medville-intake-limits
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !GetAtt PhiKey.Arn
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: medville-phi-api-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: medville-phi-table-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:TransactWriteItems
+                Resource:
+                  - !GetAtt LeadsTable.Arn
+                  - !Sub ${LeadsTable.Arn}/index/*
+                  - !GetAtt AuditTable.Arn
+                  - !Sub ${AuditTable.Arn}/index/*
+                  - !GetAtt RateTable.Arn
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:Encrypt
+                  - kms:GenerateDataKey
+                Resource: !GetAtt PhiKey.Arn
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/medville-phi-*:*
+
+  IntakeFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: medville-phi-intake
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Role: !GetAtt LambdaRole.Arn
+      Timeout: 15
+      MemorySize: 256
+      ReservedConcurrentExecutions: 2
+      KmsKeyArn: !GetAtt PhiKey.Arn
+      LoggingConfig:
+        ApplicationLogLevel: ERROR
+        SystemLogLevel: WARN
+        LogFormat: JSON
+      Environment:
+        Variables:
+          ALLOWED_ORIGINS: !Join [",", !Ref AllowedOrigins]
+          INTAKE_ENABLED: !Ref IntakeEnabled
+          LEADS_TABLE: !Ref LeadsTable
+          RATE_TABLE: !Ref RateTable
+      Code:
+        ZipFile: |
+          const {DynamoDBClient}=require("@aws-sdk/client-dynamodb");
+          const {DynamoDBDocumentClient,GetCommand,TransactWriteCommand}=require("@aws-sdk/lib-dynamodb");
+          const {createHash,randomUUID}=require("node:crypto");
+          const db=DynamoDBDocumentClient.from(new DynamoDBClient({}),{marshallOptions:{removeUndefinedValues:true}});
+          const origins=new Set((process.env.ALLOWED_ORIGINS||"").split(",").map(x=>x.trim()).filter(Boolean));
+          const states=new Set("Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|District of Columbia|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|Wisconsin|Wyoming".split("|"));
+          const products={"freestyle-libre-3":"FreeStyle Libre 3","freestyle-libre-2":"FreeStyle Libre 2","freestyle-libre-14-day":"FreeStyle Libre 14 Day","freestyle-libre-3-sensor":"FreeStyle Libre 3 Sensor (Box of 1)","freestyle-libre-2-sensor":"FreeStyle Libre 2 Sensor (Box of 1)","freestyle-libre-14-day-sensor":"FreeStyle Libre 14 Day Sensor (Box of 1)","stelo-by-dexcom":"Stelo by Dexcom","dexcom-g7":"Dexcom G7","dexcom-g6":"Dexcom G6","dexcom-g6-sensors-applicator":"Dexcom G6 Sensors and Applicator (3 Sensors Per Box)","dexcom-g6-transmitter":"Dexcom G6 Transmitter","tandem-tslim-x2":"Tandem t:slim X2 Insulin Pump"};
+          const plain=(v,n)=>typeof v==="string"&&v.trim().length>0&&v.trim().length<=n&&!/[\u0000-\u001f\u007f]/.test(v);
+          function validate(b){if(!b||typeof b!=="object"||Array.isArray(b)||!plain(b.firstName,80)||!plain(b.lastName,80)||!plain(b.city,80)||!plain(b.email,160)||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email.trim())||!plain(b.phone,25)||!/^[0-9+() .-]+$/.test(b.phone)||b.phone.replace(/\D/g,"").length<7||!states.has(b.state)||!["yes","no"].includes(b.injectsInsulinDaily)||typeof b.submissionId!=="string"||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(b.submissionId)||!products[b.productInterest]||b.consentAccepted!==true||(b.referralCode!==undefined&&(typeof b.referralCode!=="string"||!/^[a-z0-9][a-z0-9-]{0,39}$/.test(b.referralCode)))||(b.website!==undefined&&b.website!==""))return null;return{firstName:b.firstName.trim(),lastName:b.lastName.trim(),email:b.email.trim().toLowerCase(),phone:b.phone.trim(),city:b.city.trim(),state:b.state,injectsInsulinDaily:b.injectsInsulinDaily,productInterest:b.productInterest,productName:products[b.productInterest],consentAccepted:true,referralCode:b.referralCode||"",submissionId:b.submissionId}}
+          function response(code,origin,body,extra={}){return{statusCode:code,headers:{"Cache-Control":"no-store","Content-Type":"application/json","X-Content-Type-Options":"nosniff","Vary":"Origin",...(origin?{"Access-Control-Allow-Origin":origin}:{}),...extra},body:body?JSON.stringify(body):""}}
+          exports.handler=async(event)=>{const origin=event.headers?.origin||event.headers?.Origin||"";if(!origins.has(origin))return response(403,"",{error:"Request not allowed."});if(event.requestContext?.http?.method!=="POST")return response(405,origin,{error:"Method not allowed."});if(process.env.INTAKE_ENABLED!=="true")return response(503,origin,{error:"Online submissions are not open yet."});const type=event.headers?.["content-type"]||event.headers?.["Content-Type"]||"";if(!type.toLowerCase().startsWith("application/json"))return response(415,origin,{error:"JSON required."});let raw=event.body||"";if(event.isBase64Encoded)raw=Buffer.from(raw,"base64").toString("utf8");if(Buffer.byteLength(raw)>8192)return response(413,origin,{error:"Request too large."});let parsed;try{parsed=JSON.parse(raw)}catch{return response(400,origin,{error:"Please check the form fields."})}const data=validate(parsed);if(!data)return response(400,origin,{error:"Please check the form fields."});const existing=await db.send(new GetCommand({TableName:process.env.LEADS_TABLE,Key:{id:data.submissionId}}));if(existing.Item)return response(200,origin,{ok:true});const now=new Date(),createdAt=now.toISOString(),ip=event.requestContext?.http?.sourceIp||"unknown",bucket=Math.floor(now.getTime()/3600000),rateId=createHash("sha256").update(`${bucket}:${ip}`).digest("hex");const {submissionId,...answers}=data;const lead={id:submissionId,...answers,source:data.referralCode?"influencer":"qualify",status:"new",note:"",consentVersion:"2026-08-26",consentAt:createdAt,createdAt,notificationStatus:"pending",gsi1pk:"LEAD",gsi1sk:`${createdAt}#${submissionId}`};try{await db.send(new TransactWriteCommand({TransactItems:[{Put:{TableName:process.env.LEADS_TABLE,Item:lead,ConditionExpression:"attribute_not_exists(id)"}},{Update:{TableName:process.env.RATE_TABLE,Key:{id:rateId},UpdateExpression:"SET expiresAt=:expiry ADD #count :one",ConditionExpression:"attribute_not_exists(#count) OR #count < :limit",ExpressionAttributeNames:{"#count":"count"},ExpressionAttributeValues:{":expiry":Math.floor(now.getTime()/1000)+7200,":one":1,":limit":10}}}]}));return response(200,origin,{ok:true})}catch(error){const after=await db.send(new GetCommand({TableName:process.env.LEADS_TABLE,Key:{id:data.submissionId}}));if(after.Item)return response(200,origin,{ok:true});if(error?.name==="TransactionCanceledException")return response(429,origin,{error:"Please try again later or call our team."},{"Retry-After":"3600"});console.error("intake failure",{requestId:event.requestContext?.requestId});return response(503,origin,{error:"The submission could not be saved. Please try again."})}};
+
+  AdminFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: medville-phi-admin
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Role: !GetAtt LambdaRole.Arn
+      Timeout: 20
+      MemorySize: 384
+      ReservedConcurrentExecutions: 2
+      KmsKeyArn: !GetAtt PhiKey.Arn
+      LoggingConfig:
+        ApplicationLogLevel: ERROR
+        SystemLogLevel: WARN
+        LogFormat: JSON
+      Environment:
+        Variables:
+          ALLOWED_ORIGINS: !Join [",", !Ref AllowedOrigins]
+          FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
+          LEADS_TABLE: !Ref LeadsTable
+          AUDIT_TABLE: !Ref AuditTable
+      Code:
+        ZipFile: |
+          const {DynamoDBClient}=require("@aws-sdk/client-dynamodb");
+          const {DynamoDBDocumentClient,GetCommand,PutCommand,QueryCommand,UpdateCommand}=require("@aws-sdk/lib-dynamodb");
+          const {createPublicKey,verify,randomUUID}=require("node:crypto");
+          const db=DynamoDBDocumentClient.from(new DynamoDBClient({}),{marshallOptions:{removeUndefinedValues:true}}),origins=new Set((process.env.ALLOWED_ORIGINS||"").split(",").map(x=>x.trim()).filter(Boolean)),statuses=new Set(["new","contacted","qualified","not-qualified","closed"]),project=process.env.FIREBASE_PROJECT_ID;
+          let certs={value:null,expires:0};
+          const decode=x=>JSON.parse(Buffer.from(x.replace(/-/g,"+").replace(/_/g,"/"),"base64").toString("utf8"));
+          async function authenticate(header){if(!header?.startsWith("Bearer "))return null;const token=header.slice(7),parts=token.split(".");if(parts.length!==3)return null;let head,payload;try{head=decode(parts[0]);payload=decode(parts[1])}catch{return null}if(head.alg!=="RS256"||!head.kid)return null;if(Date.now()>certs.expires){const r=await fetch("https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com");if(!r.ok)throw new Error("identity certificates unavailable");const max=Number((r.headers.get("cache-control")||"").match(/max-age=(\d+)/)?.[1]||300);certs={value:await r.json(),expires:Date.now()+max*1000}}const cert=certs.value?.[head.kid];if(!cert)return null;const signature=Buffer.from(parts[2].replace(/-/g,"+").replace(/_/g,"/"),"base64"),valid=verify("RSA-SHA256",Buffer.from(`${parts[0]}.${parts[1]}`),createPublicKey(cert),signature),now=Math.floor(Date.now()/1000);if(!valid||payload.aud!==project||payload.iss!==`https://securetoken.google.com/${project}`||!payload.sub||payload.exp<=now||payload.iat>now)return null;const mapped=payload.role==="editor"?"marketing":payload.role==="agent"?"sales":payload.role;if(!["owner","marketing","sales"].includes(mapped))return null;return{uid:payload.sub,email:typeof payload.email==="string"?payload.email:"",role:mapped,features:Array.isArray(payload.features)?payload.features:[]}}
+          function response(code,origin,body){return{statusCode:code,headers:{"Cache-Control":"no-store","Content-Type":"application/json","X-Content-Type-Options":"nosniff","Vary":"Origin",...(origin?{"Access-Control-Allow-Origin":origin}:{})},body:JSON.stringify(body)}}
+          function lead(item){if(!item)return null;const {gsi1pk,gsi1sk,...safe}=item;return safe}
+          function cursor(value){if(!value)return undefined;try{const out=JSON.parse(Buffer.from(value,"base64url").toString("utf8"));return out&&typeof out.id==="string"?out:undefined}catch{return undefined}}
+          function next(value){return value?Buffer.from(JSON.stringify(value)).toString("base64url"):null}
+          async function audit(actor,action,detail={}){const at=new Date().toISOString(),id=randomUUID();await db.send(new PutCommand({TableName:process.env.AUDIT_TABLE,Item:{id,gsi1pk:"AUDIT",gsi1sk:`${at}#${id}`,actorEmail:actor.email,actorRole:actor.role,action,leadId:detail.leadId||"",count:Number.isInteger(detail.count)?detail.count:null,at}}))}
+          async function listLeads(actor,b){const input={TableName:process.env.LEADS_TABLE,IndexName:"LeadTimeline",KeyConditionExpression:"gsi1pk=:pk",ExpressionAttributeValues:{":pk":"LEAD"},ScanIndexForward:false,Limit:50,ExclusiveStartKey:cursor(b.cursor)};if(b.status){if(!statuses.has(b.status))return{error:"Invalid stage."};input.FilterExpression="#status=:status";input.ExpressionAttributeNames={"#status":"status"};input.ExpressionAttributeValues[":status"]=b.status}const out=await db.send(new QueryCommand(input));await audit(actor,"leads.list",{count:out.Count||0});return{leads:(out.Items||[]).map(lead),nextCursor:next(out.LastEvaluatedKey)}}
+          async function getLead(actor,b){if(typeof b.id!=="string")return{error:"Invalid enquiry."};const out=await db.send(new GetCommand({TableName:process.env.LEADS_TABLE,Key:{id:b.id}}));if(!out.Item)return{error:"Enquiry not found."};await audit(actor,"leads.read",{leadId:b.id});return{lead:lead(out.Item)}}
+          async function updateLead(actor,b){if(typeof b.id!=="string"||(!statuses.has(b.status)&&typeof b.note!=="string"))return{error:"Invalid update."};const names={},values={},sets=[];if(b.status!==undefined){if(!statuses.has(b.status))return{error:"Invalid stage."};names["#status"]="status";values[":status"]=b.status;sets.push("#status=:status")}if(b.note!==undefined){if(typeof b.note!=="string"||b.note.length>4000)return{error:"Invalid note."};names["#note"]="note";values[":note"]=b.note;sets.push("#note=:note")}if(!sets.length)return{error:"Invalid update."};try{await db.send(new UpdateCommand({TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:`SET ${sets.join(", ")}`,ExpressionAttributeNames:names,ExpressionAttributeValues:values,ConditionExpression:"attribute_exists(id)"}))}catch(error){if(error?.name==="ConditionalCheckFailedException")return{error:"Enquiry not found."};throw error}await audit(actor,"leads.update",{leadId:b.id});return{ok:true}}
+          async function stats(actor){let key,items=[];do{const out=await db.send(new QueryCommand({TableName:process.env.LEADS_TABLE,IndexName:"LeadTimeline",KeyConditionExpression:"gsi1pk=:pk",ExpressionAttributeValues:{":pk":"LEAD"},ProjectionExpression:"#status,#state,productName,injectsInsulinDaily,createdAt,gsi1pk,gsi1sk,id",ExpressionAttributeNames:{"#status":"status","#state":"state"},ExclusiveStartKey:key}));items.push(...(out.Items||[]));key=out.LastEvaluatedKey}while(key);const result={total:items.length,insulinYes:0,byStatus:{},byState:{},byProduct:{},byDay:{}};for(const x of items){if(x.injectsInsulinDaily==="yes")result.insulinYes++;for(const [map,k] of [[result.byStatus,x.status],[result.byState,x.state],[result.byProduct,x.productName]])if(k)map[k]=(map[k]||0)+1;const day=typeof x.createdAt==="string"?x.createdAt.slice(0,10):"";if(day)result.byDay[day]=(result.byDay[day]||0)+1}await audit(actor,"leads.stats",{count:items.length});return result}
+          async function listAudit(actor){if(actor.role!=="owner")return{error:"Forbidden.",status:403};const out=await db.send(new QueryCommand({TableName:process.env.AUDIT_TABLE,IndexName:"AuditTimeline",KeyConditionExpression:"gsi1pk=:pk",ExpressionAttributeValues:{":pk":"AUDIT"},ScanIndexForward:false,Limit:200}));return{entries:(out.Items||[]).map(x=>({id:x.id,actorEmail:x.actorEmail,actorRole:x.actorRole,action:x.action,leadId:x.leadId,count:x.count,at:x.at}))}}
+          async function route(actor,b){if(b.action==="leads.list")return listLeads(actor,b);if(b.action==="leads.get")return getLead(actor,b);if(b.action==="leads.update")return updateLead(actor,b);if(b.action==="leads.stats")return stats(actor);if(b.action==="leads.export"){if(!Array.isArray(b.ids)||b.ids.length>500||!b.ids.every(x=>typeof x==="string"))return{error:"Invalid export."};await audit(actor,"leads.export",{count:b.ids.length});return{ok:true}}if(b.action==="leads.notify")return{error:"Email notification is not configured yet.",status:503};if(b.action==="audit.list")return listAudit(actor);return{error:"Unknown action.",status:400}}
+          exports.handler=async(event)=>{const origin=event.headers?.origin||event.headers?.Origin||"";if(!origins.has(origin))return response(403,"",{error:"Request not allowed."});if(event.requestContext?.http?.method!=="POST")return response(405,origin,{error:"Method not allowed."});let actor;try{actor=await authenticate(event.headers?.authorization||event.headers?.Authorization)}catch{console.error("authentication service failure",{requestId:event.requestContext?.requestId});return response(503,origin,{error:"The enquiry service is temporarily unavailable."})}if(!actor)return response(401,origin,{error:"Your session has expired. Please sign in again."});let raw=event.body||"";if(event.isBase64Encoded)raw=Buffer.from(raw,"base64").toString("utf8");if(Buffer.byteLength(raw)>16384)return response(413,origin,{error:"Request too large."});let body;try{body=JSON.parse(raw)}catch{return response(400,origin,{error:"Invalid request."})}try{const result=await route(actor,body);return response(result.status||("error" in result?400:200),origin,result)}catch{console.error("admin failure",{requestId:event.requestContext?.requestId});return response(500,origin,{error:"That did not work. Please try again."})}};
+
+  IntakeLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: /aws/lambda/medville-phi-intake
+      RetentionInDays: 30
+
+  AdminLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: /aws/lambda/medville-phi-admin
+      RetentionInDays: 30
+
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: medville-phi-api
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowCredentials: false
+        AllowHeaders: [Authorization, Content-Type]
+        AllowMethods: [POST, OPTIONS]
+        AllowOrigins: !Ref AllowedOrigins
+        MaxAge: 3600
+
+  IntakeIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt IntakeFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  AdminIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt AdminFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  IntakeRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /intake
+      Target: !Sub integrations/${IntakeIntegration}
+
+  AdminRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /admin
+      Target: !Sub integrations/${AdminIntegration}
+
+  DefaultStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: $default
+      AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 10
+
+  IntakePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref IntakeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/POST/intake
+
+  AdminPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref AdminFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/POST/admin
+
+Outputs:
+  IntakeEndpoint:
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/intake
+  AdminEndpoint:
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/admin
+  IntakeState:
+    Value: !Ref IntakeEnabled
+  LeadsTableName:
+    Value: !Ref LeadsTable

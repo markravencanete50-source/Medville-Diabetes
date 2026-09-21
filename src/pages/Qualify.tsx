@@ -27,7 +27,7 @@ import { isEditorPreview } from "../lib/editorPreview";
   PHI NOTICE: read before changing this file.
   The insulin answer combined with the contact fields is Protected Health
   Information. The rules for this page:
-  1. Submissions POST as JSON to the covered Cloud Run endpoint only
+  1. Submissions POST as JSON to the covered intake endpoint only
      (VITE_QUALIFY_ENDPOINT). Never a GET, never query-string data.
   2. Never write form values to console, localStorage, analytics, or logs.
   3. No analytics, pixels, chat widgets, or session recording may load on
@@ -137,8 +137,7 @@ export default function Qualify() {
     }
   }, [arrivedFrom, products, setValue]);
 
-  const endpoint = (import.meta.env.VITE_QUALIFY_ENDPOINT as string | undefined)
-    || "https://us-central1-medville-diabetes.cloudfunctions.net/qualifyIntake";
+  const endpoint = import.meta.env.VITE_QUALIFY_ENDPOINT as string | undefined;
   const intakeEnabled = Boolean(endpoint) && import.meta.env.VITE_INTAKE_ENABLED === "true";
 
   useEffect(() => {

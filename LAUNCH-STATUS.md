@@ -1,5 +1,22 @@
 # Medville launch handoff — 2026-09-12
 
+## AWS BAA transition - 2026-09-21
+
+The client representative approved moving the PHI pathway from Google Cloud to
+AWS because the Google BAA acceptance control remained unavailable. AWS account
+`214161651605` now shows the AWS Business Associate Addendum as Active, effective
+2026-09-21.
+
+The deployable stack is `aws/medville-phi-stack.yaml`. It creates an HTTPS intake
+API, an authenticated lead administration API, KMS-encrypted DynamoDB lead and
+audit tables, point-in-time recovery, deletion protection, strict production
+origins, throttling and low Lambda concurrency. Intake defaults to closed.
+
+Firebase Hosting and the non-PHI content tools remain in place. The form must use
+the AWS intake URL through `VITE_QUALIFY_ENDPOINT`. Lead dashboard actions must use
+the AWS administration URL through `VITE_AWS_ADMIN_API`. The legacy Google lead
+functions and Firestore `leads` collection must not receive new submissions.
+
 ## Release scope
 
 The original eligibility questions are preserved. Visitors can review and interact
@@ -28,12 +45,10 @@ conversion. Referral URLs contain only a campaign code, never patient details.
 
 ## Blockers — do not enable real patient intake yet
 
-1. **Client compliance review:** BAA acceptance is deferred to the client. Confirm
-   covered services, Identity Platform, access ownership, audit configuration,
-   backups, retention and operations before receiving real patient data. A plan
-   upgrade or this code review is not a HIPAA certificate. See
-   [Google's HIPAA guidance](https://cloud.google.com/security/compliance/hipaa)
-   and [Identity Platform guidance](https://cloud.google.com/security/compliance/hipaa/identity-platform).
+1. **AWS deployment and synthetic review:** Deploy the AWS stack with intake set
+   to `false`. Verify encryption, deletion protection, point-in-time recovery,
+   administrator token checks, audit writes and a synthetic submission before
+   enabling real patient intake. An active BAA is not by itself HIPAA compliance.
 2. **Email sender:** The Medville domain is verified in Resend and the restricted
    sending key is stored in Secret Manager. Eligibility and contact notifications
    contain no submitted personal details. Administrator invitation and password
