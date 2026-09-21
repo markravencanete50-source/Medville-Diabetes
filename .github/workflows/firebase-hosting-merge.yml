@@ -29,16 +29,11 @@ jobs:
           ref: main
       # The dashboard and public forms call Cloud Run functions. Their
       # addresses are read at build time, so a build with these unset ships a
-      # bundle with nowhere to send anything, and the dashboard's Enquiries
-      # screen fails with no way to tell why. They are addresses, not secrets,
-      # but they live in repository settings because they differ per
-      # environment and are not known until the functions are deployed.
-      # An unset secret is an empty string, which the app already treats as
-      # "not configured" and says so on screen.
+      # bundle with nowhere to send anything. Public API addresses are kept in
+      # this workflow; credentials remain in repository secrets.
       #
       # Repository settings -> Secrets and variables -> Actions:
       #   VITE_ADMIN_API         the adminApi function URL
-      #   VITE_QUALIFY_ENDPOINT  the qualifyIntake function URL
       #   VITE_CONTACT_ENDPOINT  the contactEnquiry function URL
       - uses: actions/setup-node@v4
         with:
@@ -47,7 +42,8 @@ jobs:
       - run: npm ci && npm test && npm run build
         env:
           VITE_ADMIN_API: ${{ secrets.VITE_ADMIN_API }}
-          VITE_QUALIFY_ENDPOINT: ${{ secrets.VITE_QUALIFY_ENDPOINT }}
+          VITE_AWS_ADMIN_API: https://v7etel6u7f.execute-api.us-east-1.amazonaws.com/admin
+          VITE_QUALIFY_ENDPOINT: https://v7etel6u7f.execute-api.us-east-1.amazonaws.com/intake
           VITE_ATTRIBUTION_ENDPOINT: ${{ secrets.VITE_ATTRIBUTION_ENDPOINT }}
           VITE_CONTACT_ENDPOINT: ${{ secrets.VITE_CONTACT_ENDPOINT }}
           VITE_INTAKE_ENABLED: ${{ vars.VITE_INTAKE_ENABLED || 'false' }}

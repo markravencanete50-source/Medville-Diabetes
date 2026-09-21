@@ -175,7 +175,6 @@ Resources:
       Role: !GetAtt LambdaRole.Arn
       Timeout: 15
       MemorySize: 256
-      ReservedConcurrentExecutions: 2
       KmsKeyArn: !GetAtt PhiKey.Arn
       LoggingConfig:
         ApplicationLogLevel: ERROR
@@ -210,7 +209,6 @@ Resources:
       Role: !GetAtt LambdaRole.Arn
       Timeout: 20
       MemorySize: 384
-      ReservedConcurrentExecutions: 2
       KmsKeyArn: !GetAtt PhiKey.Arn
       LoggingConfig:
         ApplicationLogLevel: ERROR

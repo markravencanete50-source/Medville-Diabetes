@@ -19,7 +19,8 @@ test("AWS PHI handlers do not log request bodies or patient fields", () => {
   assert.ok(calls.length > 0);
   for (const call of calls) assert.doesNotMatch(call, /event\.body|firstName|lastName|email|phone/);
   assert.match(template, /"Cache-Control":"no-store"/);
-  assert.match(template, /ReservedConcurrentExecutions: 2/);
+  assert.match(template, /ThrottlingBurstLimit: 20/);
+  assert.match(template, /ThrottlingRateLimit: 10/);
 });
 
 test("the website cannot silently fall back to the legacy Google intake", () => {

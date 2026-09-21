@@ -10,7 +10,14 @@ AWS because the Google BAA acceptance control remained unavailable. AWS account
 The deployable stack is `aws/medville-phi-stack.yaml`. It creates an HTTPS intake
 API, an authenticated lead administration API, KMS-encrypted DynamoDB lead and
 audit tables, point-in-time recovery, deletion protection, strict production
-origins, throttling and low Lambda concurrency. Intake defaults to closed.
+origins and API Gateway throttling. Intake defaults to closed.
+
+The production AWS stack `medville-phi` is active in `us-east-1`. Its intake
+endpoint is `https://v7etel6u7f.execute-api.us-east-1.amazonaws.com/intake` and
+its authenticated admin endpoint is
+`https://v7etel6u7f.execute-api.us-east-1.amazonaws.com/admin`. The deployed
+stack parameter `IntakeEnabled` remains `false` until the website build and
+synthetic end-to-end checks are complete.
 
 Firebase Hosting and the non-PHI content tools remain in place. The form must use
 the AWS intake URL through `VITE_QUALIFY_ENDPOINT`. Lead dashboard actions must use
