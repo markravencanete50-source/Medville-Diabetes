@@ -26,7 +26,7 @@ function duplicate(existing,data){
 }
 async function confirm(lead){
  let status='failed';
- try{await sendSubmissionConfirmation(lead.email,lead.source==='contact'?'contact':'eligibility');status='sent'}catch{}
+ try{await sendSubmissionConfirmation(lead.email,lead.source==='contact'?'contact':'eligibility',lead.id);status='sent'}catch{}
  try{await db.send(new UpdateCommand({TableName:process.env.LEADS_TABLE,Key:{id:lead.id},UpdateExpression:'SET customerConfirmationStatus=:status, customerConfirmationUpdatedAt=:at',ExpressionAttributeValues:{':status':status,':at':new Date().toISOString()},ConditionExpression:'attribute_exists(id)'}))}catch{console.error('confirmation status update failed')}
  return status==='sent';
 }

@@ -15,6 +15,10 @@ Parameters:
   SenderEmail:
     Type: String
     Default: info@medvillediabetes.com
+  ResendApiKey:
+    Type: String
+    NoEcho: true
+    Default: ""
   SenderDomain:
     Type: String
     Default: medvillediabetes.com
@@ -234,6 +238,7 @@ Resources:
           RATE_TABLE: !Ref RateTable
           INTAKE_CONFIG_URL: https://us-central1-medville-diabetes.cloudfunctions.net/intakeConfig
           SENDER_EMAIL: !Ref SenderEmail
+          RESEND_API_KEY: !Ref ResendApiKey
       Code:
         ZipFile: |
           "use strict";
@@ -407,8 +412,6 @@ Resources:
           var require_email = __commonJS({
             "aws/src/email.cjs"(exports2, module2) {
               "use strict";
-              var { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
-              var ses = new SESv2Client({});
               function confirmationMessage(kind = "eligibility") {
                 const contact = kind === "contact";
                 const heading = contact ? "We received your message" : "We received your request";
@@ -430,15 +433,15 @@ Resources:
                   html: `<!doctype html><html><body style="margin:0;background:#eef8fb;font-family:Arial,sans-serif;color:#00293b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef8fb"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #c7eaf2;border-radius:16px;overflow:hidden"><tr><td style="background:#00293b;padding:24px 30px"><div style="font-size:22px;font-weight:700;line-height:1.2;color:#ffffff">Medville <span style="color:#18bada">Diabetes</span></div></td></tr><tr><td style="padding:32px 30px"><p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0a6d8a">Submission received</p><h1 style="margin:0 0 18px;font-size:26px;line-height:1.25;color:#00293b">${heading}</h1><p style="margin:0 0 18px;font-size:16px;line-height:1.65;color:#264f5f">${intro}</p><div style="margin:0;padding:18px;border-radius:10px;background:#eef8fb"><p style="margin:0;font-size:14px;line-height:1.6;color:#456b79">${note}</p></div><p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#456b79">If you did not submit this request, contact us at <a href="mailto:info@medvillediabetes.com" style="color:#006b87">info@medvillediabetes.com</a> or <a href="tel:+18003943917" style="color:#006b87">800-394-3917</a>.</p></td></tr><tr><td style="border-top:1px solid #d6edf3;padding:18px 30px;font-size:12px;line-height:1.6;color:#5b7883">Medville Diabetes<br>28863 Industry Dr<br>Valencia, CA 91355</td></tr></table></td></tr></table></body></html>`
                 };
               }
-              async function sendSubmissionConfirmation2(email, kind = "eligibility") {
-                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL) throw new Error("email unavailable");
+              async function sendSubmissionConfirmation2(email, kind = "eligibility", submissionId = "", fetcher = fetch) {
+                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL || !process.env.RESEND_API_KEY) throw new Error("email unavailable");
                 const message = confirmationMessage(kind);
-                await ses.send(new SendEmailCommand({
-                  FromEmailAddress: `Medville Diabetes <${process.env.SENDER_EMAIL}>`,
-                  ReplyToAddresses: [process.env.SENDER_EMAIL],
-                  Destination: { ToAddresses: [email] },
-                  Content: { Simple: { Subject: { Data: message.subject, Charset: "UTF-8" }, Body: { Text: { Data: message.text, Charset: "UTF-8" }, Html: { Data: message.html, Charset: "UTF-8" } } } }
-                }));
+                const result = await fetcher("https://api.resend.com/emails", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json", ...submissionId ? { "Idempotency-Key": `medville-confirmation-${submissionId}` } : {} },
+                  body: JSON.stringify({ from: `Medville Diabetes <${process.env.SENDER_EMAIL}>`, to: [email], reply_to: [process.env.SENDER_EMAIL], subject: message.subject, text: message.text, html: message.html })
+                });
+                if (!result?.ok) throw new Error("email unavailable");
               }
               module2.exports = { confirmationMessage, sendSubmissionConfirmation: sendSubmissionConfirmation2 };
             }
@@ -474,7 +477,7 @@ Resources:
           async function confirm(lead) {
             let status = "failed";
             try {
-              await sendSubmissionConfirmation(lead.email, lead.source === "contact" ? "contact" : "eligibility");
+              await sendSubmissionConfirmation(lead.email, lead.source === "contact" ? "contact" : "eligibility", lead.id);
               status = "sent";
             } catch {
             }
@@ -556,6 +559,7 @@ Resources:
           AUDIT_TABLE: !Ref AuditTable
           IDENTITY_VERIFY_URL: https://us-central1-medville-diabetes.cloudfunctions.net/adminApi
           SENDER_EMAIL: !Ref SenderEmail
+          RESEND_API_KEY: !Ref ResendApiKey
       Code:
         ZipFile: |
           "use strict";
@@ -568,8 +572,6 @@ Resources:
           var require_email = __commonJS({
             "aws/src/email.cjs"(exports2, module2) {
               "use strict";
-              var { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
-              var ses = new SESv2Client({});
               function confirmationMessage(kind = "eligibility") {
                 const contact = kind === "contact";
                 const heading = contact ? "We received your message" : "We received your request";
@@ -591,15 +593,15 @@ Resources:
                   html: `<!doctype html><html><body style="margin:0;background:#eef8fb;font-family:Arial,sans-serif;color:#00293b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef8fb"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #c7eaf2;border-radius:16px;overflow:hidden"><tr><td style="background:#00293b;padding:24px 30px"><div style="font-size:22px;font-weight:700;line-height:1.2;color:#ffffff">Medville <span style="color:#18bada">Diabetes</span></div></td></tr><tr><td style="padding:32px 30px"><p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0a6d8a">Submission received</p><h1 style="margin:0 0 18px;font-size:26px;line-height:1.25;color:#00293b">${heading}</h1><p style="margin:0 0 18px;font-size:16px;line-height:1.65;color:#264f5f">${intro}</p><div style="margin:0;padding:18px;border-radius:10px;background:#eef8fb"><p style="margin:0;font-size:14px;line-height:1.6;color:#456b79">${note}</p></div><p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#456b79">If you did not submit this request, contact us at <a href="mailto:info@medvillediabetes.com" style="color:#006b87">info@medvillediabetes.com</a> or <a href="tel:+18003943917" style="color:#006b87">800-394-3917</a>.</p></td></tr><tr><td style="border-top:1px solid #d6edf3;padding:18px 30px;font-size:12px;line-height:1.6;color:#5b7883">Medville Diabetes<br>28863 Industry Dr<br>Valencia, CA 91355</td></tr></table></td></tr></table></body></html>`
                 };
               }
-              async function sendSubmissionConfirmation2(email, kind = "eligibility") {
-                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL) throw new Error("email unavailable");
+              async function sendSubmissionConfirmation2(email, kind = "eligibility", submissionId = "", fetcher = fetch) {
+                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL || !process.env.RESEND_API_KEY) throw new Error("email unavailable");
                 const message = confirmationMessage(kind);
-                await ses.send(new SendEmailCommand({
-                  FromEmailAddress: `Medville Diabetes <${process.env.SENDER_EMAIL}>`,
-                  ReplyToAddresses: [process.env.SENDER_EMAIL],
-                  Destination: { ToAddresses: [email] },
-                  Content: { Simple: { Subject: { Data: message.subject, Charset: "UTF-8" }, Body: { Text: { Data: message.text, Charset: "UTF-8" }, Html: { Data: message.html, Charset: "UTF-8" } } } }
-                }));
+                const result = await fetcher("https://api.resend.com/emails", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json", ...submissionId ? { "Idempotency-Key": `medville-confirmation-${submissionId}` } : {} },
+                  body: JSON.stringify({ from: `Medville Diabetes <${process.env.SENDER_EMAIL}>`, to: [email], reply_to: [process.env.SENDER_EMAIL], subject: message.subject, text: message.text, html: message.html })
+                });
+                if (!result?.ok) throw new Error("email unavailable");
               }
               module2.exports = { confirmationMessage, sendSubmissionConfirmation: sendSubmissionConfirmation2 };
             }
@@ -764,7 +766,7 @@ Resources:
             await audit(actor, "leads.confirmation.requested", { leadId: b.id });
             let status = "failed";
             try {
-              await sendSubmissionConfirmation(out.Item.email, out.Item.source === "contact" ? "contact" : "eligibility");
+              await sendSubmissionConfirmation(out.Item.email, out.Item.source === "contact" ? "contact" : "eligibility", out.Item.id);
               status = "sent";
             } catch {
             }
