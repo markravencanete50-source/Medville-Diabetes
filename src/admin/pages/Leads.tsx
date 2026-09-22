@@ -26,6 +26,7 @@ import {
 } from "../ui";
 import { products as builtInProducts } from "../../data/products";
 import DateRangeFilter, { type DateRange } from "../DateRangeFilter";
+import { parseStatusImport, StatusCsvError } from "../statusCsv";
 
 /*
   The enquiry list.
@@ -167,15 +168,11 @@ export default function Leads() {
   const readStatusImport = async (file: File | undefined) => {
     if (!file) return;
     if (file.size > 200_000) return toast("The status file is too large.", "danger");
-    const lines = (await file.text()).replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
-    const header = lines.shift()?.split(",").map((cell) => cell.trim().toLowerCase());
-    if (!header || header[0] !== "id" || header[1] !== "status") return toast("Use a CSV with id and status as the first two columns.", "danger");
-    const items = lines.map((line) => {
-      const [id, status] = line.split(",").map((cell) => cell.trim());
-      return { id, status: status as LeadStatus };
-    });
-    if (!items.length || items.length > 50 || items.some((item) => !LEAD_STATUSES.includes(item.status))) return toast("The file must contain 1 to 50 rows with a valid status.", "danger");
-    setPendingImport(items);
+    try {
+      setPendingImport(parseStatusImport(await file.text(), leads ?? []));
+    } catch (problem) {
+      toast(problem instanceof StatusCsvError ? problem.message : "The status CSV could not be read.", "danger");
+    }
   };
 
   const importStatuses = async () => {
@@ -237,8 +234,9 @@ export default function Leads() {
     try { await adminApi.auditExport(getToken, visible.map((lead) => lead.id)); }
     catch { toast("The export could not be recorded. Please try again.", "danger"); return; }
     const rows = [
-      ["Received", "Source", "First name", "Last name", "Email", "Phone", "City", "State", "Insulin daily", "Product", "Influencer", "Question", "Stage", "Internal note"],
+      ["ID", "Received", "Source", "First name", "Last name", "Email", "Phone", "City", "State", "Insulin daily", "Product", "Influencer", "Question", "Stage", "Internal note"],
       ...visible.map((lead) => [
+        lead.id,
         lead.createdAt ?? "",
         lead.source === "contact" ? "Contact form" : "Eligibility form",
         lead.firstName,
