@@ -377,7 +377,7 @@ export const PAGES: PageDef[] = [
             key: "image",
             label: "Banner photograph",
             kind: "image",
-            fallback: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678466/medville/migrated/9930f18999fde5a3b299dde0.webp",
+            fallback: "/photography/cgm-phone.webp",
           },
           {
             key: "imageAlt",
@@ -725,7 +725,7 @@ export const PAGES: PageDef[] = [
         { id: "cards", label: "Three referral steps", kind: "content" },
         { id: "button", label: "Download button", kind: "action" },
       ] },
-      { id: "video", label: "Referral video", fields: [], elements: [
+      { id: "video", label: "See how it works video", fields: [], elements: [
         { id: "copy", label: "Heading and introduction", kind: "copy" },
         { id: "player", label: "Video or placeholder", kind: "picture" },
       ] },
@@ -764,7 +764,7 @@ export const PAGE_FIELDS = new Map(PAGES.map((page) => [page.id,
 ]));
 
 export function fieldPath(blockId: string, fieldKey: string) {
-  return `${blockId}.${fieldKey}`;
+  return fieldKey.startsWith(`${blockId}.`) ? fieldKey : `${blockId}.${fieldKey}`;
 }
 
 /* Every fallback, flattened, so a page can resolve a value without walking

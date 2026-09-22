@@ -33,10 +33,10 @@ const useBrowserLayoutEffect = typeof window === "undefined" ? useEffect : useLa
 const CareCycle3D = lazy(() => import("../components/CareCycle3D"));
 
 const IMAGES = {
-  hero: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678466/medville/migrated/9930f18999fde5a3b299dde0.webp",
-  start: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678467/medville/migrated/ae2ee892ea4486576ba0c1de.webp",
-  approve: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678469/medville/migrated/ecac64179b08172654d46658.webp",
-  deliver: "https://res.cloudinary.com/zixjwbqv/image/upload/f_auto,q_auto,c_limit,w_1920/v1789678470/medville/migrated/c230690d42cb5175fcc59880.webp",
+  hero: "/photography/cgm-phone.webp",
+  start: "/photography/woman-phone-home.webp",
+  approve: "/photography/doctor-documents.webp",
+  deliver: "/photography/home-delivery.webp",
 };
 
 const STAGES = [
@@ -48,7 +48,7 @@ const STAGES = [
     label: "Your first conversation",
     icon: ClipboardList,
     image: IMAGES.start,
-    alt: "A woman at home begins a phone conversation about her CGM supplies.",
+    alt: "A woman at home checks information on her phone.",
     steps: [
       {
         number: "01",
@@ -65,7 +65,7 @@ const STAGES = [
     label: "Coverage and eligibility",
     icon: Headset,
     image: IMAGES.approve,
-    alt: "A coordinator verifies insurance information for continuous glucose monitor coverage.",
+    alt: "A healthcare professional reviews documents.",
     steps: [
       {
         number: "02",
@@ -102,7 +102,7 @@ const STAGES = [
     label: "Delivery and ongoing support",
     icon: PhoneCall,
     image: IMAGES.deliver,
-    alt: "A CGM supply kit is carefully prepared in a white box.",
+    alt: "A customer receives a package at home.",
     steps: [
       {
         number: "07",

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { createRequire } from "node:module";
 import { build } from "esbuild";
 import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
 
 const bundle = await build({
   stdin: { contents: `
@@ -72,4 +73,38 @@ test("section visibility changes affect the real public render", () => {
   const html = renderPage("/refer-a-patient", "refer", { "__visibility.section.hero": "hidden" });
   assert.ok(!html.includes("A Simpler Way to Refer Patients for Diabetes Supplies"));
   assert.ok(html.includes("Refer in Three Simple Steps"));
+});
+
+test("the referral walkthrough has an explicit editor control and can be hidden", () => {
+  const refer = PAGES.find(page => page.id === "refer");
+  const video = refer.blocks.find(block => block.id === "video");
+  assert.equal(video.label, "See how it works video");
+  assert.ok(video.elements.some(element => element.id === "player"));
+
+  const html = renderPage("/refer-a-patient", "refer", { "__visibility.section.video": "hidden" });
+  assert.ok(!html.includes("Referral Process in Under a Minute"));
+  assert.ok(html.includes("Refer in Three Simple Steps"));
+});
+
+test("both supplied referral PDFs are shipped with the website", () => {
+  const root = fileURLToPath(new URL("..", import.meta.url));
+  assert.ok(existsSync(`${root}/public/forms/medville-libre-rx-order-form.pdf`));
+  assert.ok(existsSync(`${root}/public/forms/medville-dexcom-g7-rx-order-form.pdf`));
+});
+
+test("identified synthetic page artwork uses local real photography", () => {
+  const checks = [
+    ["home", "whyCgm.section-photograph"],
+    ["services", "hero.image"],
+    ["services", "stages.0.image"],
+    ["services", "stages.1.image"],
+    ["services", "stages.2.image"],
+    ["refer", "hero.section-photograph"],
+    ["about", "promises.cards.0.image"],
+    ["about", "promises.cards.1.image"],
+    ["about", "promises.cards.2.image"],
+  ];
+  for (const [page, key] of checks) {
+    assert.match(defaultsFor(page)[key], /^\/photography\//, `${page}:${key}`);
+  }
 });

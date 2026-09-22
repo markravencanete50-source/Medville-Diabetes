@@ -66,6 +66,8 @@ export default function Leads() {
   const [openLead, setOpenLead] = useState<Lead | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<Lead | null>(null);
   const [pendingImport, setPendingImport] = useState<{ id: string; status: LeadStatus }[] | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -230,9 +232,14 @@ export default function Leads() {
     hosting provides, so the client should have to mean it.
   */
   const exportCsv = async () => {
-    if (!window.confirm("This downloads patient details to this device. Continue only if you can store the file securely.")) return;
+    setExporting(true);
     try { await adminApi.auditExport(getToken, visible.map((lead) => lead.id)); }
-    catch { toast("The export could not be recorded. Please try again.", "danger"); return; }
+    catch {
+      setExporting(false);
+      setExportOpen(false);
+      toast("The export could not be recorded. Please try again.", "danger");
+      return;
+    }
     const rows = [
       ["ID", "Received", "Source", "First name", "Last name", "Email", "Phone", "City", "State", "Insulin daily", "Product", "Influencer", "Question", "Stage", "Internal note"],
       ...visible.map((lead) => [
@@ -268,6 +275,8 @@ export default function Leads() {
     link.download = `medville-enquiries-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+    setExporting(false);
+    setExportOpen(false);
     toast("Downloaded. This file holds patient details; store it securely.");
   };
 
@@ -282,7 +291,7 @@ export default function Leads() {
           <button
             type="button"
             className="admin-btn admin-btn-quiet"
-            onClick={() => void exportCsv()}
+            onClick={() => setExportOpen(true)}
             disabled={showTrash || !visible.length || visible.length > 500}
           >
             <Download size={16} /> Export loaded enquiries
@@ -486,10 +495,21 @@ export default function Leads() {
         )}
       </Drawer>
       <ConfirmDialog
+        open={exportOpen}
+        title="Download these enquiries?"
+        body={<p>This file contains patient details. Continue only if you can store it securely and limit access to authorized staff.</p>}
+        confirmLabel="Download enquiries"
+        busyLabel="Preparing download"
+        busy={exporting}
+        onCancel={() => setExportOpen(false)}
+        onConfirm={() => void exportCsv()}
+      />
+      <ConfirmDialog
         open={Boolean(deleteCandidate)}
         title="Move this enquiry to the Recycle Bin?"
         body={<p>It will disappear from active enquiries and can be restored for seven days. The access log will record who moved it and when.</p>}
         confirmLabel="Move to Recycle Bin"
+        busyLabel="Moving enquiry"
         busy={saving}
         onCancel={() => setDeleteCandidate(null)}
         onConfirm={() => void deleteLead()}
@@ -499,6 +519,7 @@ export default function Leads() {
         title="Apply imported status updates?"
         body={<p>This will update only the status of {pendingImport?.length ?? 0} enquiries. Names, contact details, form answers, and notes will not change.</p>}
         confirmLabel="Update statuses"
+        busyLabel="Updating statuses"
         busy={saving}
         onCancel={() => setPendingImport(null)}
         onConfirm={() => void importStatuses()}

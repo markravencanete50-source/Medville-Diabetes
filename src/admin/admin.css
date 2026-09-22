@@ -906,47 +906,78 @@
   width: min(360px, calc(100vw - 32px));
 }
 
-/* Every completed dashboard action receives one clear result card. */
+/* Every dashboard action receives a clear, top-level result card. */
 .admin.admin-action-notices {
   position: fixed;
   inset: 0;
-  z-index: 10000;
+  z-index: 12000;
   display: flex;
+  min-height: 0;
   align-items: center;
   justify-content: center;
   padding: 20px;
   pointer-events: none;
-  min-height: 0;
   background: transparent;
 }
 
-.admin.admin-action-notices.is-visible { background: rgb(0 29 41 / 0.35); }
+.admin.admin-action-notices.is-visible {
+  pointer-events: auto;
+  background: rgb(0 29 41 / 0.58);
+  backdrop-filter: blur(8px);
+  animation: admin-modal-backdrop-in 220ms ease-out both;
+}
 
 .admin-action-notice {
   display: flex;
-  width: min(100%, 520px);
-  align-items: flex-start;
-  gap: 14px;
-  padding: 20px;
+  width: min(100%, 540px);
+  align-items: center;
+  gap: 16px;
+  padding: 22px;
   border: 1px solid var(--a-line);
-  border-radius: 16px;
+  border-radius: 18px;
   background: var(--a-surface);
   box-shadow: var(--a-shadow-lg, 0 24px 70px rgb(0 17 26 / 0.34));
   color: var(--a-text);
   pointer-events: auto;
-  animation: admin-notice-in 180ms ease-out both;
+  animation: admin-notice-in 360ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+.admin-action-notice-motion {
+  position: relative;
+  display: inline-flex;
+  width: 58px;
+  height: 58px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
 }
 
 .admin-action-notice-icon {
+  position: relative;
+  z-index: 2;
   display: inline-flex;
-  width: 42px;
-  height: 42px;
-  flex: none;
+  width: 46px;
+  height: 46px;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
   background: var(--a-ok-soft);
   color: var(--a-ok);
+  animation: admin-action-icon-in 520ms cubic-bezier(0.25, 1, 0.5, 1) 100ms both;
+}
+
+.admin-action-notice-ring {
+  position: absolute;
+  inset: 1px;
+  border: 2px solid color-mix(in srgb, var(--a-ok) 28%, transparent);
+  border-radius: 999px;
+  animation: admin-action-ring 720ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+.admin-action-notice-ring-two {
+  inset: 7px;
+  border-color: color-mix(in srgb, var(--a-ok) 16%, transparent);
+  animation-delay: 100ms;
 }
 
 .admin-action-notice-danger .admin-action-notice-icon {
@@ -954,27 +985,44 @@
   color: var(--a-danger);
 }
 
+.admin-action-notice-danger .admin-action-notice-ring {
+  border-color: color-mix(in srgb, var(--a-danger) 26%, transparent);
+}
+
 .admin-action-notice-title {
   margin: 1px 0 3px;
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
 }
 
 .admin-action-notice-message {
   margin: 0;
   color: var(--a-text-muted);
-  font-size: 13px;
+  font-size: 13.5px;
   line-height: 1.55;
 }
 
 @keyframes admin-notice-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  from { opacity: 0; transform: translateY(20px) scale(0.94); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .admin-action-notice { animation: none; }
+@keyframes admin-modal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes admin-action-icon-in {
+  from { opacity: 0; transform: scale(0.45) rotate(-12deg); }
+  72% { opacity: 1; transform: scale(1.1) rotate(2deg); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes admin-action-ring {
+  from { opacity: 0; transform: scale(0.45); }
+  55% { opacity: 1; }
+  to { opacity: 0; transform: scale(1.25); }
 }
 
 .admin-scrim {
@@ -984,23 +1032,51 @@
   background: var(--a-scrim);
 }
 
-.admin-confirm-card {
+.admin-confirm-layer {
   position: fixed;
-  z-index: 60;
-  left: 50%;
-  top: 50%;
-  width: min(calc(100% - 28px), 500px);
-  transform: translate(-50%, -50%);
+  inset: 0;
+  z-index: 13000;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+  padding: 14px;
+}
+
+.admin-confirm-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border: 0;
+  background: rgb(0 20 30 / 0.72);
+  backdrop-filter: blur(9px);
+  animation: admin-modal-backdrop-in 220ms ease-out both;
+}
+
+.admin-confirm-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 500px);
   border: 1px solid var(--a-line);
-  border-radius: 18px;
+  border-radius: 20px;
   padding: clamp(22px, 5vw, 32px);
   background: var(--a-surface);
   box-shadow: var(--a-shadow-pop);
   color: var(--a-text);
-  animation: admin-notice-in 180ms ease-out both;
+  animation: admin-notice-in 360ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+.admin-confirm-motion {
+  position: relative;
+  display: inline-flex;
+  width: 62px;
+  height: 62px;
+  align-items: center;
+  justify-content: center;
 }
 
 .admin-confirm-icon {
+  position: relative;
+  z-index: 2;
   display: inline-flex;
   width: 48px;
   height: 48px;
@@ -1011,11 +1087,41 @@
   color: var(--a-danger);
 }
 
+.admin-confirm-ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid color-mix(in srgb, var(--a-danger) 26%, transparent);
+  border-radius: 999px;
+  animation: admin-confirm-pulse 1.9s ease-out infinite;
+}
+
+.admin-confirm-motion.is-busy .admin-confirm-icon svg {
+  animation: admin-confirm-spin 850ms linear infinite;
+}
+
 .admin-confirm-body {
   margin-top: 10px;
   color: var(--a-text-muted);
   font-size: 14px;
   line-height: 1.6;
+}
+
+@keyframes admin-confirm-pulse {
+  0% { opacity: 0.75; transform: scale(0.74); }
+  75%, 100% { opacity: 0; transform: scale(1.15); }
+}
+
+@keyframes admin-confirm-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-action-notice,
+  .admin.admin-action-notices.is-visible,
+  .admin-action-notice-icon,
+  .admin-action-notice-ring,
+  .admin-confirm-scrim,
+  .admin-confirm-card,
+  .admin-confirm-ring,
+  .admin-confirm-motion.is-busy .admin-confirm-icon svg { animation: none; }
 }
 
 /* ---- responsive ----

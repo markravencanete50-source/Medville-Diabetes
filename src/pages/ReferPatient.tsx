@@ -1,4 +1,6 @@
 import { editableItems } from "../content/editableItems";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePageText } from "../lib/useSiteData";
 import {
   ArrowRight,
@@ -10,6 +12,7 @@ import {
   Send,
   Sparkles,
   Stethoscope,
+  X,
 } from "lucide-react";
 import Container from "../components/Container";
 import Button from "../components/Button";
@@ -26,14 +29,10 @@ import { useCompanyDetails } from "../lib/useCompanyDetails";
   Structure and wording follow section 13 of the client's website copy
   document of 2026-08-28.
 
-  Two things on this page wait on the client. The referral packet PDF and the
-  explainer video do not exist yet, so both are read from constants in
-  data/company.ts. The download buttons say "Download" whatever the state,
-  on the client's instruction of 2026-09-02; until the packet is supplied
-  they open an email asking for it, which is a working route rather than a
-  link to a file that is not there. Until the video is supplied its frame
-  shows a placeholder panel. Setting either constant switches the page over
-  with no other change.
+  The two supplied prescription order forms are presented in one download
+  chooser. A custom packet address saved in the dashboard can still replace
+  that chooser. Until an explainer video is supplied, its frame shows a
+  placeholder panel.
 
   Motion: the hero assembles line by line, the three steps tilt up in
   sequence, the video frame draws in from the left, the download panel pushes
@@ -62,8 +61,9 @@ export default function ReferPatient() {
   const { EMAIL, EMAIL_HREF, PHONE_DISPLAY, PHONE_TEL } = useCompanyDetails();
   const { text } = usePageText("refer");
   const PACKET_LABEL = text("download.buttonLabel");
-  const PACKET_HREF = text("download.packetUrl") || `${EMAIL_HREF}?subject=Referral%20form%20and%20requirements%20request`;
+  const customPacketUrl = text("download.packetUrl");
   const videoUrl = text("video.embedUrl");
+  const [formsOpen, setFormsOpen] = useState(false);
   usePageMeta(metaFor("/refer-a-patient"));
 
   const revealRef = useReveal<HTMLDivElement>();
@@ -116,7 +116,7 @@ export default function ReferPatient() {
                 className="rise-in mt-8 flex flex-wrap items-center gap-3.5"
                 style={{ "--rise-delay": "480ms" } as React.CSSProperties}
               >
-                <Button href={PACKET_HREF} variant="cta" className="min-h-[50px] px-7">
+                <Button href={customPacketUrl || undefined} onClick={customPacketUrl ? undefined : () => setFormsOpen(true)} variant="cta" className="min-h-[50px] px-7">
                   {PACKET_LABEL}
                   <Download size={16} strokeWidth={2.2} />
                 </Button>
@@ -187,7 +187,7 @@ export default function ReferPatient() {
             )}
             {stepsButton && (
             <div data-reveal={640} className="reveal-drop mt-10">
-              <Button href={PACKET_HREF} variant="cta" className="min-h-[50px] px-7">
+              <Button href={customPacketUrl || undefined} onClick={customPacketUrl ? undefined : () => setFormsOpen(true)} variant="cta" className="min-h-[50px] px-7">
                 {PACKET_LABEL}
                 <Download size={16} strokeWidth={2.2} />
               </Button>
@@ -252,7 +252,7 @@ export default function ReferPatient() {
                 <p className="mt-3 max-w-[52ch] text-body leading-relaxed text-grey-dark">{text("download.get-the-medville-diabetes-referral-form-and-requirements-together")}</p>
                 </>}
                 {downloadButton && <>
-                <Button href={PACKET_HREF} variant="cta" className="mt-7 min-h-[50px] px-7">
+                <Button href={customPacketUrl || undefined} onClick={customPacketUrl ? undefined : () => setFormsOpen(true)} variant="cta" className="mt-7 min-h-[50px] px-7">
                   {PACKET_LABEL}
                   <Download size={16} strokeWidth={2.2} />
                 </Button>
@@ -311,6 +311,91 @@ export default function ReferPatient() {
           </Container>
         </section>}
       </div>
+      <ReferralFormsModal open={formsOpen} onClose={() => setFormsOpen(false)} />
     </div>
+  );
+}
+
+const REFERRAL_FORMS = [
+  {
+    name: "FreeStyle Libre",
+    detail: "Prescription order form for FreeStyle Libre systems",
+    href: "/forms/medville-libre-rx-order-form.pdf",
+    fileName: "Medville_LIBRE_RX_FINAL.pdf",
+  },
+  {
+    name: "Dexcom G7",
+    detail: "Prescription order form for the Dexcom G7 system",
+    href: "/forms/medville-dexcom-g7-rx-order-form.pdf",
+    fileName: "Medville_Dexcom_G7_RX_FINAL.pdf",
+  },
+] as const;
+
+function ReferralFormsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const dialogRef = useRef<HTMLElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+      if (event.key !== "Tab") return;
+      const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]') ?? []);
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, [onClose, open]);
+
+  if (!open) return null;
+  return createPortal(
+    <div className="referral-forms-backdrop" onMouseDown={onClose}>
+      <section
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="referral-forms-title"
+        aria-describedby="referral-forms-description"
+        className="referral-forms-card"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <button ref={closeRef} type="button" className="referral-forms-close" aria-label="Close form selection" onClick={onClose}>
+          <X size={20} aria-hidden="true" />
+        </button>
+        <span className="referral-forms-icon" aria-hidden="true"><FileText size={26} /></span>
+        <p className="referral-forms-eyebrow">Referral forms</p>
+        <h2 id="referral-forms-title" className="referral-forms-title">Choose the form you need</h2>
+        <p id="referral-forms-description" className="referral-forms-description">Download the order form for the continuous glucose monitoring system you are prescribing.</p>
+        <div className="referral-forms-options">
+          {REFERRAL_FORMS.map((form) => (
+            <a key={form.name} href={form.href} download={form.fileName} className="referral-form-option" onClick={onClose}>
+              <span>
+                <strong>{form.name}</strong>
+                <small>{form.detail}</small>
+              </span>
+              <Download size={20} aria-hidden="true" />
+            </a>
+          ))}
+        </div>
+      </section>
+    </div>,
+    document.body,
   );
 }

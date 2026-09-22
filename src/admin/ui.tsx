@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, Info, X } from "lucide-react";
+import { AlertTriangle, Check, Info, LoaderCircle, X } from "lucide-react";
 import { createPortal } from "react-dom";
 
 /*
@@ -125,25 +125,35 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const push = useCallback((message: string, tone: "ok" | "danger" = "ok") => {
     const id = Date.now() + Math.floor(performance.now());
-    setToasts((current) => [...current, { id, message, tone }]);
+    setToasts([{ id, message, tone }]);
     window.setTimeout(() => {
       setToasts((current) => current.filter((toast) => toast.id !== id));
-    }, 5000);
+    }, 4200);
   }, []);
 
   return (
     <ToastContext.Provider value={push}>
       {children}
-      {createPortal(<div className={`admin admin-action-notices${toasts.length ? " is-visible" : ""}`} aria-live="polite" aria-atomic="true">
+      {createPortal(<div
+        className={`admin admin-action-notices${toasts.length ? " is-visible" : ""}`}
+        aria-live="polite"
+        aria-atomic="true"
+        onClick={() => setToasts([])}
+      >
         {toasts.slice(-1).map((toast) => (
           <section
             key={toast.id}
             role={toast.tone === "danger" ? "alert" : "status"}
             className={`admin-action-notice admin-action-notice-${toast.tone}`}
             aria-label={toast.tone === "ok" ? "Action completed" : "Action needs attention"}
+            onClick={(event) => event.stopPropagation()}
           >
-            <span className="admin-action-notice-icon" aria-hidden="true">
-              {toast.tone === "ok" ? <Check size={22} /> : <AlertTriangle size={22} />}
+            <span className="admin-action-notice-motion" aria-hidden="true">
+              <span className="admin-action-notice-ring admin-action-notice-ring-one" />
+              <span className="admin-action-notice-ring admin-action-notice-ring-two" />
+              <span className="admin-action-notice-icon">
+                {toast.tone === "ok" ? <Check size={24} /> : <AlertTriangle size={23} />}
+              </span>
             </span>
             <div className="min-w-0 flex-1">
               <p className="admin-action-notice-title">
@@ -256,6 +266,7 @@ export function ConfirmDialog({
   title,
   body,
   confirmLabel,
+  busyLabel = "Processing",
   busy = false,
   onCancel,
   onConfirm,
@@ -264,6 +275,7 @@ export function ConfirmDialog({
   title: string;
   body: React.ReactNode;
   confirmLabel: string;
+  busyLabel?: string;
   busy?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -304,18 +316,21 @@ export function ConfirmDialog({
 
   if (!open) return null;
   return createPortal(
-    <>
-      <button type="button" className="admin-scrim" tabIndex={-1} aria-label="Cancel" disabled={busy} onClick={onCancel} />
+    <div className="admin-confirm-layer">
+      <button type="button" className="admin-confirm-scrim" tabIndex={-1} aria-label="Cancel" disabled={busy} onClick={onCancel} />
       <section ref={dialogRef} role="alertdialog" aria-modal="true" aria-labelledby="admin-confirm-title" aria-describedby="admin-confirm-body" className="admin-confirm-card">
-        <span className="admin-confirm-icon" aria-hidden="true"><AlertTriangle size={24} /></span>
+        <span className={`admin-confirm-motion${busy ? " is-busy" : ""}`} aria-hidden="true">
+          <span className="admin-confirm-ring" />
+          <span className="admin-confirm-icon">{busy ? <LoaderCircle size={24} /> : <AlertTriangle size={24} />}</span>
+        </span>
         <h2 id="admin-confirm-title" className="admin-page-title mt-4">{title}</h2>
         <div id="admin-confirm-body" className="admin-confirm-body">{body}</div>
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button ref={cancelRef} type="button" className="admin-btn admin-btn-quiet" disabled={busy} onClick={onCancel}>Cancel</button>
-          <button type="button" className="admin-btn admin-btn-danger" disabled={busy} onClick={onConfirm}>{busy ? "Deleting" : confirmLabel}</button>
+          <button type="button" className="admin-btn admin-btn-danger" disabled={busy} onClick={onConfirm}>{busy ? busyLabel : confirmLabel}</button>
         </div>
       </section>
-    </>,
+    </div>,
     document.body,
   );
 }
