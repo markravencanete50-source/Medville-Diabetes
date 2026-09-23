@@ -16,6 +16,9 @@ test("article prompt is limited to one browser visit and precedes privacy notice
   assert.match(site, /<NewsletterPrompt onComplete=\{completeArticlePrompt\}/);
   assert.match(site, /articlePromptComplete && <CookieNotice/);
   assert.match(notice, /<Link to="\/privacy-policy"/);
+  assert.match(notice, /choose\("accepted"\)/);
+  assert.match(notice, /choose\("rejected"\)/);
+  assert.match(notice, /localStorage\.setItem\(PREFERENCE_KEY, preference\)/);
 });
 
 test("admin confirmation uses dashboard theme and referral video has a direct visibility control", async () => {
