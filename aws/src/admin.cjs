@@ -102,7 +102,7 @@ async function retryConfirmation(actor,b){
  if(out.Item.customerConfirmationStatus==='sent')return{ok:true,notificationStatus:'not-configured',customerConfirmationStatus:'sent'};
  await audit(actor,'leads.confirmation.requested',{leadId:b.id});
  let status='failed';
- try{await sendSubmissionConfirmation(out.Item.email,out.Item.source==='contact'?'contact':'eligibility');status='sent'}catch{}
+ try{await sendSubmissionConfirmation(out.Item.email,out.Item.source==='contact'?'contact':'eligibility',out.Item.id);status='sent'}catch{}
  await db.send(new UpdateCommand({TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:'SET customerConfirmationStatus=:status, customerConfirmationUpdatedAt=:at',ExpressionAttributeValues:{':status':status,':at':new Date().toISOString()},ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt)'}));
  await audit(actor,'leads.confirmation.completed',{leadId:b.id,status});
  return{ok:true,notificationStatus:'not-configured',customerConfirmationStatus:status};

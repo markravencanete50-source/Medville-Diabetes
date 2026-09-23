@@ -136,6 +136,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       {createPortal(<div
         className={`admin admin-action-notices${toasts.length ? " is-visible" : ""}`}
+        data-admin-theme={document.querySelector(".admin[data-admin-theme]")?.getAttribute("data-admin-theme") ?? "light"}
         aria-live="polite"
         aria-atomic="true"
         onClick={() => setToasts([])}
@@ -331,7 +332,7 @@ export function ConfirmDialog({
         </div>
       </section>
     </div>,
-    document.body,
+    document.querySelector<HTMLElement>(".admin[data-admin-theme]") ?? document.body,
   );
 }
 

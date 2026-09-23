@@ -209,6 +209,21 @@ export default function Content({ repository = pageRepository }: { repository?: 
               {page.blocks.map((block) => <option key={block.id} value={block.id}>{block.label}</option>)}
             </select>
           </Field>
+          {pageId === "refer" && (
+            <fieldset disabled={busy}>
+              <Card>
+                <VisibilityControl
+                  label="See how it works video"
+                  help="Hide the entire video section, including the placeholder, from the public page. Save changes to publish."
+                  visible={sectionIsVisible(values, "video")}
+                  onChange={(visible) => {
+                    set(sectionVisibilityKey("video"), visible ? "" : "hidden");
+                    setSection("video");
+                  }}
+                />
+              </Card>
+            </fieldset>
+          )}
           {pageId === "blog" && <Card><p className="admin-help">Edit article titles, cover pictures, and article sections in the Blog editor.</p><a href="#blog" className="admin-btn admin-btn-quiet" onClick={(event) => { if (dirty && !window.confirm("Discard unsaved page changes and open the Blog editor?")) event.preventDefault(); }}>Edit articles</a></Card>}
           {(pageId === "home" || pageId === "products" || pageId === "qualify") && <p className="admin-help">Product names and photographs are shared across the website. Edit them in Products. Reviews and questions have their own editors.</p>}
           <fieldset disabled={busy} className="min-w-0">

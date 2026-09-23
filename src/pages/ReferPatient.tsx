@@ -137,11 +137,6 @@ export default function ReferPatient() {
               className="rise-in overflow-hidden rounded-[26px] shadow-soft"
               style={{ "--rise-delay": "380ms", "--rise-duration": "1400ms" } as React.CSSProperties}
             >
-              {/*
-                Placeholder photograph until the client supplies a provider
-                image. The brief asks for a healthcare provider speaking with an
-                adult patient during a routine visit.
-              */}
               <img
                 src={text("hero.section-photograph")}
                 alt={text("hero.photograph-description")}
