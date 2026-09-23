@@ -350,7 +350,7 @@ export const EXTRA_FIELDS: Record<string, Record<string, FieldDef[]>> = {
       {"key":"send-your-patient-to-medville-diabetes-and-we-will-help-guide-the","label":"Introduction","kind":"longText","fallback":"Send your patient to Medville Diabetes and we will help guide them through the supply process, from potential eligibility to next steps.","max":300},
       {"key":"contact-our-team","label":"Contact Our Team","kind":"text","fallback":"Contact Our Team","max":240},
       {"key":"simple-referral-process-clear-follow-up-support-for-your-patient","label":"Simple referral process. Clear follow-up. Support for your patient ...","kind":"text","fallback":"Simple referral process. Clear follow-up. Support for your patient along the way.","max":240},
-      {"key":"section-photograph","label":"Section photograph","kind":"image","fallback":"/photography/doctor-documents.webp","max":2048},
+      {"key":"section-photograph","label":"Section photograph","kind":"image","fallback":"/photography/referral-doctor.webp","max":2048},
       {"key":"photograph-description","label":"Photograph description","kind":"text","fallback":"A healthcare professional reviews referral documents.","max":240},
     ],
     steps: [

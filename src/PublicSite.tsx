@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -17,6 +17,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
 import NewsletterPrompt from "./components/NewsletterPrompt";
+import CookieNotice from "./components/CookieNotice";
 import { SiteDataProvider, usePageVisible } from "./lib/useSiteData";
 import type { PageId } from "./content/schema";
 import type { SiteData } from "./lib/siteContent";
@@ -32,6 +33,8 @@ export default function PublicSite({ initialData }: { initialData?: SiteData } =
 
 function PublicFrame() {
   const location = useLocation();
+  const [articlePromptComplete, setArticlePromptComplete] = useState(false);
+  const completeArticlePrompt = useCallback(() => setArticlePromptComplete(true), []);
   const standaloneEligibility = location.pathname === "/qualify"
     && new URLSearchParams(location.search).get("standalone") === "1";
   return (
@@ -64,7 +67,12 @@ function PublicFrame() {
         </Routes>
       </main>
       {!standaloneEligibility && <Footer />}
-      {!standaloneEligibility && !isEditorPreview() && <NewsletterPrompt />}
+      {!standaloneEligibility && !isEditorPreview() && (
+        <>
+          <NewsletterPrompt onComplete={completeArticlePrompt} />
+          {articlePromptComplete && <CookieNotice />}
+        </>
+      )}
     </>
   );
 }

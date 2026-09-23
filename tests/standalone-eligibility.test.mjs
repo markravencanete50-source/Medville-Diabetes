@@ -10,5 +10,7 @@ test("influencer links open a standalone eligibility form without site chrome", 
   assert.match(app, /standaloneEligibility/);
   assert.match(app, /!standaloneEligibility && <Header/);
   assert.match(app, /!standaloneEligibility && <Footer/);
-  assert.match(app, /!standaloneEligibility && !isEditorPreview\(\) && <NewsletterPrompt/);
+  assert.match(app, /!standaloneEligibility && !isEditorPreview\(\) && \(/);
+  assert.match(app, /<NewsletterPrompt onComplete=\{completeArticlePrompt\}/);
+  assert.match(app, /articlePromptComplete && <CookieNotice/);
 });
