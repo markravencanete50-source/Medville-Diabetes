@@ -8,6 +8,7 @@ type Status = "idle" | "sending" | "success" | "error";
 export default function NewsletterPrompt() {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
+  const [showBanner, setShowBanner] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
@@ -20,10 +21,14 @@ export default function NewsletterPrompt() {
     || "https://us-central1-medville-diabetes.cloudfunctions.net/blogSubscribe";
 
   useEffect(() => {
-    if (["/qualify", "/contact", "/admin"].some(path => pathname.startsWith(path))) { setOpen(false); return; }
+    if (["/qualify", "/contact", "/admin"].some(path => pathname.startsWith(path))) {
+      setOpen(false);
+      setShowBanner(false);
+      return;
+    }
     if (shownThisVisit.current) return;
     shownThisVisit.current = true;
-    setOpen(true);
+    setShowBanner(true);
   }, [pathname]);
 
   useEffect(() => {
@@ -37,6 +42,12 @@ export default function NewsletterPrompt() {
 
   const close = () => {
     setOpen(false);
+    setShowBanner(false);
+  };
+
+  const openForm = () => {
+    setShowBanner(false);
+    setOpen(true);
   };
 
   const submit = async (event: React.FormEvent) => {
@@ -63,10 +74,26 @@ export default function NewsletterPrompt() {
     }
   };
 
-  if (!open) return null;
+  if (!open && !showBanner) return null;
 
   return createPortal(
-    <dialog
+    <>
+      {showBanner && !open && (
+        <section
+          aria-label="New article updates"
+          className="fixed bottom-4 left-4 right-4 z-50 flex items-center gap-3 rounded-md border border-line-brand bg-surface-raised p-3 shadow-overlay sm:left-auto sm:right-6 sm:max-w-[400px]"
+        >
+          <Bell size={20} className="flex-none text-brand" aria-hidden="true" />
+          <p className="min-w-0 flex-1 text-caption leading-snug text-ink">Get new diabetes guides by email.</p>
+          <button type="button" onClick={openForm} className="min-h-11 flex-none rounded-full bg-brand-bright px-4 text-caption font-semibold text-ink">
+            Subscribe
+          </button>
+          <button type="button" onClick={close} aria-label="Dismiss article updates" className="flex h-11 w-11 flex-none items-center justify-center rounded-full text-grey-muted hover:bg-grey-light hover:text-ink">
+            <X size={18} aria-hidden="true" />
+          </button>
+        </section>
+      )}
+      {open && <dialog
       ref={dialog}
       onCancel={close}
       role="dialog"
@@ -140,6 +167,7 @@ export default function NewsletterPrompt() {
           </form>
         </>
       )}
-    </dialog>, document.body
+    </dialog>}
+    </>, document.body
   );
 }

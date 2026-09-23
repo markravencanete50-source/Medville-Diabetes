@@ -69,6 +69,23 @@ for (const url of urls) {
   const internalLinks = [...root.matchAll(/href="(\/[^"]*)"/g)].map((item) => item[1]);
   if (new Set(internalLinks).size < 5) fail(`${path} has too few crawlable internal links`);
 
+  for (const [, payload] of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) {
+    let data;
+    try {
+      data = JSON.parse(payload);
+    } catch {
+      fail(`${path} has invalid JSON-LD`);
+    }
+    if (data["@type"] === "Product" && !data.offers && !data.review && !data.aggregateRating) {
+      fail(`${path} claims a Product rich result without an offer or verified review`);
+    }
+    for (const image of [data.image, data.logo].flat().filter((value) => typeof value === "string")) {
+      if (!/^https:\/\/[^/]+\//.test(image) || /https?:\/\/.*https?:\/\//.test(image)) {
+        fail(`${path} has a malformed structured-data image URL: ${image}`);
+      }
+    }
+  }
+
   if (titles.has(title)) fail(`${path} duplicates the title used by ${titles.get(title)}`);
   if (descriptions.has(description)) {
     fail(`${path} duplicates the description used by ${descriptions.get(description)}`);

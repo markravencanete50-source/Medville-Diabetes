@@ -238,19 +238,6 @@ function faqSchema(items) {
   };
 }
 
-function productSchema(product, origin) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: product.name,
-    description: product.shortDescription,
-    image: `${origin}${product.imageFront}`,
-    brand: { "@type": "Brand", name: product.brand },
-    category: product.category,
-    url: `${origin}/products/${product.slug}`,
-  };
-}
-
 /*
   Where a page sits in the site. Google shows this trail in place of the raw
   address in a result, and it is the only machine-readable statement that a
@@ -400,7 +387,10 @@ for (const product of products) {
     image: product.imageFront,
     body: server.renderPage(path, siteData),
     jsonLd: [
-      productSchema(product, origin),
+      /* These pages invite an eligibility enquiry and have no public price or
+         verified reviews. Product rich-result markup would be invalid without
+         an actual offer, review, or aggregate rating. The page and breadcrumb
+         still identify the device to crawlers in ordinary HTML and JSON-LD. */
       breadcrumbs(
         [
           HOME,

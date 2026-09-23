@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import crypto from 'node:crypto';
 const origin='https://www.medvillediabetes.com';
-const template=readFileSync('aws/medville-phi-stack.yaml','utf8');
+const template=readFileSync('aws/medville-phi-stack.yaml','utf8').replace(/\r\n/g,'\n');
 const id='10000000-0000-4000-8000-000000000001';
 function runtime(name,{send=async()=>({}),emailSend=async()=>({MessageId:'synthetic-message'}),identity={uid:'synthetic-admin',email:'admin@example.com',role:'owner',features:[]},fetchImpl}={}){
  const start=template.indexOf('        ZipFile: |',template.indexOf(`  ${name}Function:`));
