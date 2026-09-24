@@ -185,6 +185,20 @@ export default function PrivacyPolicy() {
         digital signatures, ensure that information within a certificate can be
         trusted.
       </LegalText>
+
+      {/* Supplemental factual notice; the client-provided policy above remains verbatim. */}
+      <LegalHeading>Optional Google Analytics on general pages</LegalHeading>
+      <LegalText>
+        If you choose &ldquo;Allow analytics,&rdquo; we use Google Analytics on our
+        home, about, blog index, privacy policy, and terms pages to understand
+        general website use. We do not load it on eligibility, patient referral,
+        contact, product, service, or individual article pages. We do not send
+        form responses or URL search parameters to Google Analytics. Google may
+        receive device and browsing information, including your IP address, when
+        analytics is enabled. You may decline or change your choice using
+        &ldquo;Analytics choices&rdquo; in the footer. For more information, see
+        Google&rsquo;s <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener noreferrer" className="underline">partner-sites information</a>.
+      </LegalText>
     </LegalLayout>
   );
 }

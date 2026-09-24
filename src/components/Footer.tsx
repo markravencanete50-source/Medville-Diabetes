@@ -167,6 +167,13 @@ export default function Footer() {
               All product names, logos, trademarks, and registered trademarks are the
               property of their respective owners.
             </p>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new Event("medville:analytics-choices"))}
+              className="text-caption text-on-dark-muted underline hover:text-on-dark"
+            >
+              Analytics choices
+            </button>
           </Container>
         </div>
       </div>
