@@ -31,3 +31,9 @@ test("privacy choices stay at the lower left and control optional analytics", as
   assert.match(notice, />Reject<\/button>/);
   assert.match(notice, /choice !== "accepted"/);
 });
+
+test("homepage HTML revalidates so visitors receive prompt updates", async () => {
+  const hosting = JSON.parse(await read("../firebase.json"));
+  const root = hosting.hosting.headers.find((entry) => entry.source === "/");
+  assert.equal(root?.headers.find((header) => header.key === "Cache-Control")?.value, "no-cache");
+});
