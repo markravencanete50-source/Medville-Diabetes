@@ -172,7 +172,7 @@ export default function Footer() {
               onClick={() => window.dispatchEvent(new Event("medville:analytics-choices"))}
               className="text-caption text-on-dark-muted underline hover:text-on-dark"
             >
-              Analytics choices
+              Cookie and analytics choices
             </button>
           </Container>
         </div>

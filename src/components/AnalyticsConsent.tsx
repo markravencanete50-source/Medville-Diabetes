@@ -59,7 +59,7 @@ function loadTag(path: string, title: string) {
   document.head.appendChild(script);
 }
 
-export default function AnalyticsConsent() {
+export default function AnalyticsConsent({ promptComplete }: { promptComplete: boolean }) {
   const location = useLocation();
   const page = analyticsPage(location.pathname);
   const [choice, setChoice] = useState<Choice>(null);
@@ -108,7 +108,7 @@ export default function AnalyticsConsent() {
     return () => document.removeEventListener("click", navigateWithFreshDocument, true);
   }, [choice]);
 
-  if (!ready || preview || !page || location.search || (choice && !showChoices)) return null;
+  if (!ready || !promptComplete || preview || (choice && !showChoices)) return null;
 
   const decide = (next: Exclude<Choice, null>) => {
     saveChoice(next);
@@ -119,12 +119,12 @@ export default function AnalyticsConsent() {
 
   return (
     <section
-      aria-label="Analytics choices"
-      className="fixed bottom-36 left-4 z-60 max-h-[calc(100dvh-10rem)] w-[min(36rem,calc(100vw-2rem))] overflow-y-auto rounded-xl border border-brand-deep/20 bg-white p-5 text-grey-dark shadow-xl sm:bottom-4"
+      aria-label="Cookies and privacy choices"
+      className="fixed bottom-4 left-4 z-60 max-h-[calc(100dvh-2rem)] w-[min(38rem,calc(100vw-2rem))] overflow-y-auto rounded-xl border border-line-brand bg-surface-raised p-5 text-grey-dark shadow-overlay sm:bottom-6 sm:left-6 sm:p-6"
     >
-      <h2 className="m-0 font-display text-lg font-semibold text-brand-deep">Optional website analytics</h2>
+      <h2 className="m-0 font-display text-lg font-semibold text-brand-deep">Cookies and privacy</h2>
       <p className="mt-2 text-small leading-relaxed">
-        May we use Google Analytics on general pages to understand website use?
+        Necessary browser storage keeps the site working. May we also use optional Google Analytics on general pages to understand website use?
         We do not load it on eligibility, patient referral, contact, product,
         service, or individual article pages. Google may receive your device and
         browsing data if you agree. You can change this choice any time in the footer.
@@ -132,8 +132,8 @@ export default function AnalyticsConsent() {
         Google&rsquo;s <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener noreferrer" className="underline">partner-sites information</a>.
       </p>
       <div className="mt-4 flex flex-wrap gap-3">
-        <button type="button" onClick={() => decide("accepted")} className="rounded-lg bg-brand-deep px-4 py-2 text-small font-semibold text-white">Allow analytics</button>
-        <button type="button" onClick={() => decide("declined")} className="rounded-lg border border-brand-deep px-4 py-2 text-small font-semibold text-brand-deep">Decline</button>
+        <button type="button" aria-label="Accept optional analytics" onClick={() => decide("accepted")} className="min-h-11 min-w-[120px] rounded-full bg-brand-bright px-5 py-2.5 text-small font-semibold text-ink">Accept</button>
+        <button type="button" aria-label="Reject optional analytics" onClick={() => decide("declined")} className="min-h-11 min-w-[120px] rounded-full border border-line-input px-5 py-2.5 text-small font-semibold text-ink">Reject</button>
       </div>
     </section>
   );

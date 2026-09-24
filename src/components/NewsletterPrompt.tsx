@@ -4,11 +4,11 @@ import { useLocation } from "react-router-dom";
 import { createPortal } from "react-dom";
 
 type Status = "idle" | "sending" | "success" | "error";
+const SEEN_KEY = "medville:article-prompt-seen:v1";
 
-export default function NewsletterPrompt() {
+export default function NewsletterPrompt({ onComplete }: { onComplete: () => void }) {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
-  const [showBanner, setShowBanner] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
@@ -21,15 +21,15 @@ export default function NewsletterPrompt() {
     || "https://us-central1-medville-diabetes.cloudfunctions.net/blogSubscribe";
 
   useEffect(() => {
-    if (["/qualify", "/contact", "/admin"].some(path => pathname.startsWith(path))) {
-      setOpen(false);
-      setShowBanner(false);
-      return;
-    }
     if (shownThisVisit.current) return;
     shownThisVisit.current = true;
-    setShowBanner(true);
-  }, [pathname]);
+    try {
+      if (sessionStorage.getItem(SEEN_KEY) === "1") { onComplete(); return; }
+      sessionStorage.setItem(SEEN_KEY, "1");
+    } catch { /* Keep the in-memory guard if storage is unavailable. */ }
+    if (["/qualify", "/contact", "/admin"].some(path => pathname.startsWith(path))) { onComplete(); return; }
+    setOpen(true);
+  }, [onComplete, pathname]);
 
   useEffect(() => {
     if (!open) return;
@@ -42,12 +42,7 @@ export default function NewsletterPrompt() {
 
   const close = () => {
     setOpen(false);
-    setShowBanner(false);
-  };
-
-  const openForm = () => {
-    setShowBanner(false);
-    setOpen(true);
+    onComplete();
   };
 
   const submit = async (event: React.FormEvent) => {
@@ -74,32 +69,16 @@ export default function NewsletterPrompt() {
     }
   };
 
-  if (!open && !showBanner) return null;
+  if (!open) return null;
 
   return createPortal(
-    <>
-      {showBanner && !open && (
-        <section
-          aria-label="New article updates"
-          className="fixed bottom-4 left-4 right-4 z-50 flex items-center gap-3 rounded-md border border-line-brand bg-surface-raised p-3 shadow-overlay sm:left-auto sm:right-6 sm:max-w-[400px]"
-        >
-          <Bell size={20} className="flex-none text-brand" aria-hidden="true" />
-          <p className="min-w-0 flex-1 text-caption leading-snug text-ink">Get new diabetes guides by email.</p>
-          <button type="button" onClick={openForm} className="min-h-11 flex-none rounded-full bg-brand-bright px-4 text-caption font-semibold text-ink">
-            Subscribe
-          </button>
-          <button type="button" onClick={close} aria-label="Dismiss article updates" className="flex h-11 w-11 flex-none items-center justify-center rounded-full text-grey-muted hover:bg-grey-light hover:text-ink">
-            <X size={18} aria-hidden="true" />
-          </button>
-        </section>
-      )}
-      {open && <dialog
+    <dialog
       ref={dialog}
       onCancel={close}
       role="dialog"
       aria-modal="true"
       aria-labelledby={headingId}
-      className="newsletter-dialog fixed inset-0 m-auto max-h-[calc(100dvh-32px)] w-[calc(100%-32px)] max-w-[440px] overflow-y-auto rounded-[22px] border border-line-brand bg-surface-raised p-5 shadow-overlay sm:p-6"
+      className="newsletter-dialog max-h-[calc(100dvh-32px)] w-[calc(100%-32px)] max-w-[440px] overflow-y-auto rounded-[22px] border border-line-brand bg-surface-raised p-5 shadow-overlay sm:p-6"
     >
       <button
         type="button"
@@ -167,7 +146,6 @@ export default function NewsletterPrompt() {
           </form>
         </>
       )}
-    </dialog>}
-    </>, document.body
+    </dialog>, document.body
   );
 }

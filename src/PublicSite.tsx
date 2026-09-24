@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -33,6 +33,8 @@ export default function PublicSite({ initialData }: { initialData?: SiteData } =
 
 function PublicFrame() {
   const location = useLocation();
+  const [articlePromptComplete, setArticlePromptComplete] = useState(false);
+  const completeArticlePrompt = useCallback(() => setArticlePromptComplete(true), []);
   const standaloneEligibility = location.pathname === "/qualify"
     && new URLSearchParams(location.search).get("standalone") === "1";
   return (
@@ -65,8 +67,8 @@ function PublicFrame() {
         </Routes>
       </main>
       {!standaloneEligibility && <Footer />}
-      {!standaloneEligibility && !isEditorPreview() && <NewsletterPrompt />}
-      <AnalyticsConsent />
+      {!standaloneEligibility && !isEditorPreview() && <NewsletterPrompt onComplete={completeArticlePrompt} />}
+      <AnalyticsConsent promptComplete={articlePromptComplete} />
     </>
   );
 }
