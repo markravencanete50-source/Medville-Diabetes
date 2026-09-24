@@ -37,7 +37,7 @@ function loadTag(path: string, title: string) {
   if (tagLoaded) return;
   tagLoaded = true;
   window.dataLayer = window.dataLayer || [];
-  window.gtag = (...args: unknown[]) => { window.dataLayer?.push(args); };
+  window.gtag = function (..._args: unknown[]) { window.dataLayer?.push(arguments); };
   window.gtag("js", new Date());
   window.gtag("config", ANALYTICS_ID, {
     send_page_view: false,
