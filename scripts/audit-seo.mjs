@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const DIST = "dist";
-const ORIGIN = "https://www.medvillediabetes.com";
+const ORIGIN = "https://medvillediabetes.com";
 
 const fail = (message) => {
   throw new Error(`SEO audit failed: ${message}`);

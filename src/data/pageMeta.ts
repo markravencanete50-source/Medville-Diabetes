@@ -29,25 +29,10 @@ export interface PageMeta {
 }
 
 /*
-  The host the site is actually served from, which is what every absolute
-  address below has to name: a canonical, an og:url or an og:image is only
-  useful if the machine reading it can fetch it.
-
-  This is the Firebase host rather than www.medvillediabetes.com because the
-  custom domain is not connected yet. The name resolves, but to the registrar's
-  parking page, so an og:image there answers with something that is not the
-  picture and a chat app draws no preview card at all. Pointing at the parked
-  name also aimed the preview's own link at that page rather than at the site.
-
-  When the custom domain is added in the Firebase console and the DNS records
-  are set at GoDaddy, change this one line to
-  "https://www.medvillediabetes.com" and push. It is the only line: the
-  prerender script writes the sitemap, robots.txt, every canonical link and
-  every preview card from this value, and the copies in index.html only ever
-  serve the development server, because the built home page is rewritten
-  from here too.
+  The apex is the public URL. The www host redirects to it. Prerender uses
+  this origin for canonical links, preview cards, robots.txt and the sitemap.
 */
-export const SITE_ORIGIN = "https://www.medvillediabetes.com";
+export const SITE_ORIGIN = "https://medvillediabetes.com";
 export const SITE_NAME = "Medville Diabetes";
 
 export const PAGE_META: Record<string, PageMeta> = {
