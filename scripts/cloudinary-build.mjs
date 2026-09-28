@@ -21,6 +21,7 @@ for (const path of await walk(dist)) {
   for (const [source, cdn] of Object.entries(images)) {
     if (!source.startsWith("/")) continue;
     html = html.replaceAll(`"${source}"`, `"${cdn}"`)
+      .replaceAll(`https://medvillediabetes.com${source}`, cdn)
       .replaceAll(`https://www.medvillediabetes.com${source}`, cdn)
       .replaceAll(`https://medville-diabetes.web.app${source}`, cdn);
   }

@@ -1,5 +1,5 @@
 import {readFile,writeFile} from 'node:fs/promises';
-const base='https://www.medvillediabetes.com';
+const base='https://medvillediabetes.com';
 const sitemap=await readFile('dist/sitemap.xml','utf8');
 const urls=[...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(m=>m[1]);
 const results=[],assets=new Set(),brokenLinks=new Set();
