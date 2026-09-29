@@ -134,10 +134,10 @@ export default function Blog() {
 
   const remove = async (post: PostRecord) => {
     const builtIn = EDITORIAL_POSTS.some((entry) => entry.slug === post.slug);
-    if (!window.confirm(builtIn ? `Restore the original version of "${post.title}"? Your saved edits will be removed.` : `Delete "${post.title}"? This cannot be undone.`)) return;
+    if (!window.confirm(builtIn ? `Restore the original version of "${post.title}"? Your saved edits will move to the Recycle Bin.` : `Move "${post.title}" to the Recycle Bin?`)) return;
     try {
-      await deletePost(post.slug);
-      toast(builtIn ? "Original article restored." : "Article deleted.");
+      const archived = await deletePost(post.slug, post.title);
+      toast(archived ? builtIn ? "Original article restored. Saved edits are in the Recycle Bin." : "Article moved to the Recycle Bin." : "The original article is already active.");
       void refresh();
     } catch {
       toast("The article could not be deleted.", "danger");

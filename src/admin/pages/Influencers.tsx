@@ -28,7 +28,6 @@ export default function Influencers() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [busySlug, setBusySlug] = useState("");
-  const [showDeleted, setShowDeleted] = useState(false);
 
   const load = useCallback(async () => {
     setError("");
@@ -42,7 +41,7 @@ export default function Influencers() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const visibleItems = (items ?? []).filter((item) => Boolean(item.deleted) === showDeleted);
+  const visibleItems = (items ?? []).filter((item) => !item.deleted);
   const totals = useMemo(() => (items ?? []).filter((item) => !item.deleted).reduce(
     (sum, item) => ({ clicks: sum.clicks + item.clicks, leads: sum.leads + item.leads }),
     { clicks: 0, leads: 0 },
@@ -86,7 +85,7 @@ export default function Influencers() {
     try {
       await adminApi.setInfluencerDeleted(getToken, item.slug, !item.deleted);
       setItems((current) => (current ?? []).map((value) => value.slug === item.slug ? { ...value, deleted: !item.deleted, active: false } : value));
-      toast(item.deleted ? "Link restored. Reactivate it when ready." : "Link deleted. You can restore it from Deleted links.");
+      toast(item.deleted ? "Link restored. Reactivate it when ready." : "Link moved to the Recycle Bin.");
     } catch (problem) {
       toast(problem instanceof AdminApiError ? problem.message : "That did not work.", "danger");
     } finally { setBusySlug(""); }
@@ -149,10 +148,9 @@ export default function Influencers() {
         </form>
       </Card>
 
-      <label className="admin-help mb-3 flex items-center gap-2"><input type="checkbox" checked={showDeleted} onChange={(event) => setShowDeleted(event.target.checked)} />Deleted links</label>
       <Card pad={false}>
         {items === null ? <Spinner label="Loading influencers" /> : !visibleItems.length ? (
-          <Empty>{showDeleted ? "No deleted links." : "No influencer links yet. Create the first one above."}</Empty>
+          <Empty>No influencer links yet. Create the first one above.</Empty>
         ) : (
           <div className="admin-table-wrap">
             <table className="admin-table">
@@ -164,7 +162,7 @@ export default function Influencers() {
                   <td data-label="Referral link"><input className="admin-input min-w-[260px]" readOnly value={referralUrl(item)} aria-label={`Referral link for ${item.name}`} /></td>
                   <td data-label="Visits">{item.clicks}</td><td data-label="Enquiries">{item.leads}</td><td data-label="Conversion">{rate}</td>
                   <td data-label="Status"><Badge tone={item.active ? "ok" : "quiet"}>{item.active ? "Active" : "Paused"}</Badge></td>
-                  <td>{!item.deleted && <><button type="button" className="admin-btn admin-btn-quiet admin-btn-sm" onClick={() => void copy(item)}><Copy size={14} /> Copy</button><button type="button" className="admin-btn admin-btn-quiet admin-btn-sm ml-2" disabled={Boolean(busySlug)} onClick={() => void setActive(item)}>{item.active ? "Pause" : "Reactivate"}</button></>}<button type="button" className="admin-btn admin-btn-quiet admin-btn-sm ml-2" disabled={Boolean(busySlug)} onClick={() => void setDeleted(item)}>{item.deleted ? "Restore" : "Delete"}</button></td>
+      <td><button type="button" className="admin-btn admin-btn-quiet admin-btn-sm" onClick={() => void copy(item)}><Copy size={14} /> Copy</button><button type="button" className="admin-btn admin-btn-quiet admin-btn-sm ml-2" disabled={Boolean(busySlug)} onClick={() => void setActive(item)}>{item.active ? "Pause" : "Reactivate"}</button><button type="button" className="admin-btn admin-btn-quiet admin-btn-sm ml-2" disabled={Boolean(busySlug)} onClick={() => void setDeleted(item)}>Move to Recycle Bin</button></td>
                 </tr>;
               })}</tbody>
             </table>

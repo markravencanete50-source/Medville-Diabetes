@@ -62,6 +62,10 @@ service cloud.firestore {
       return hasFeature(feature);
     }
 
+    function canEditTrashKind(kind) {
+      return kind in ['products', 'faqs', 'testimonials', 'blog'] && hasFeature(kind);
+    }
+
     function textField(d, key, limit) {
       return !(key in d) || (d[key] is string && d[key].size() <= limit);
     }
@@ -136,6 +140,24 @@ service cloud.firestore {
       allow read: if canEditContent('blog') || resource.data.published == true;
       allow create, update: if canEditContent('blog') && validPost(request.resource.data);
       allow delete: if canEditContent('blog');
+    }
+
+    /* Recoverable website content only. Patient enquiries remain in AWS and
+       never enter a Firestore document, including this collection. */
+    match /dashboardTrash/{id} {
+      allow get, list: if canEditTrashKind(resource.data.kind);
+      allow create: if canEditTrashKind(request.resource.data.kind)
+        && request.resource.data.keys().hasAll(['kind', 'sourceId', 'label', 'deletedAt', 'deletedBy', 'snapshot', 'builtIn'])
+        && request.resource.data.keys().hasOnly(['kind', 'sourceId', 'label', 'deletedAt', 'deletedBy', 'snapshot', 'builtIn'])
+        && id == request.resource.data.kind + ':' + request.resource.data.sourceId
+        && textField(request.resource.data, 'sourceId', 160)
+        && textField(request.resource.data, 'label', 500)
+        && textField(request.resource.data, 'deletedAt', 40)
+        && request.resource.data.deletedBy == request.auth.uid
+        && (request.resource.data.snapshot == null || request.resource.data.snapshot is map)
+        && request.resource.data.builtIn is bool;
+      allow delete: if canEditTrashKind(resource.data.kind);
+      allow update: if false;
     }
 
     /* ---- Protected Health Information ---- */

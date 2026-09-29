@@ -89,7 +89,7 @@ export default function Products() {
     if (!window.confirm(`Remove ${product.name} from the website?`)) return;
     try {
       await hideProduct(product.slug);
-      toast("Product removed from the website.");
+      toast("Product moved to the Recycle Bin.");
       await refresh();
     } catch {
       toast("That product could not be removed.", "danger");

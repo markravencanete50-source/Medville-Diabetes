@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Star,
   Sun,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
@@ -78,7 +79,8 @@ type Section =
   | "faqs"
   | "testimonials"
   | "team"
-  | "audit";
+  | "audit"
+  | "recycle";
 
 type ScreenModule = Promise<{ default: React.ComponentType }>;
 
@@ -94,6 +96,7 @@ const SCREEN_LOADERS: Record<Section, () => ScreenModule> = {
   testimonials: () => import("./pages/Testimonials"),
   team: () => import("./pages/Team"),
   audit: () => import("./pages/Audit"),
+  recycle: () => import("./pages/RecycleBin"),
 };
 
 const Overview = screen(SCREEN_LOADERS.overview);
@@ -107,6 +110,7 @@ const Faqs = screen(SCREEN_LOADERS.faqs);
 const Testimonials = screen(SCREEN_LOADERS.testimonials);
 const Team = screen(SCREEN_LOADERS.team);
 const Audit = screen(SCREEN_LOADERS.audit);
+const RecycleBin = screen(SCREEN_LOADERS.recycle);
 
 function preloadScreen(section: Section) {
   void SCREEN_LOADERS[section]().catch(() => undefined);
@@ -124,6 +128,7 @@ const NAV: { id: Section; label: string; icon: typeof BarChart3; group: string }
   { id: "testimonials", label: "Reviews", icon: Star, group: "Website" },
   { id: "team", label: "Administrators", icon: Users, group: "Account" },
   { id: "audit", label: "Access log", icon: ScrollText, group: "Account" },
+  { id: "recycle", label: "Recycle Bin", icon: Trash2, group: "Account" },
 ];
 
 const ROLE_LABEL: Record<AdminRole, string> = {
@@ -455,7 +460,7 @@ function Shell() {
             yet"; without it, Enquiries and the access log fail with an error
             that explains nothing.
           */}
-          {!isAdminApiConfigured() && (section === "overview" || section === "leads" || section === "influencers" || section === "audit") && (
+          {!isAdminApiConfigured() && (section === "overview" || section === "leads" || section === "influencers" || section === "audit" || section === "recycle") && (
             <div className="mb-4">
               <Banner tone="warn">
                 Online intake is awaiting activation. Enquiries and the access log
@@ -498,6 +503,7 @@ function Shell() {
             {section === "testimonials" && <Testimonials />}
             {section === "team" && <Team />}
             {section === "audit" && <Audit />}
+            {section === "recycle" && <RecycleBin />}
           </Suspense>
         </main>
       </div>

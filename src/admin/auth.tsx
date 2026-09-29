@@ -238,5 +238,7 @@ export const ROLE_ACCESS: Record<AdminRole, AdminFeature[]> = {
 
 export function canOpen(role: AdminRole, section: string, features?: AdminFeature[]) {
   if (role === "owner") return true;
+  if (section === "recycle") return (features ?? ROLE_ACCESS[role]).some((feature) =>
+    (["leads", "influencers", "products", "blog", "faqs", "testimonials"] as string[]).includes(feature));
   return (features ?? ROLE_ACCESS[role]).includes(section as AdminFeature);
 }

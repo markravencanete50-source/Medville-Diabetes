@@ -56,8 +56,8 @@ export default function Faqs() {
   const remove = async (record: FaqRecord) => {
     if (!window.confirm("Remove this question from the website?")) return;
     try {
-      await deleteFaq(record.id);
-      toast("Question removed.");
+      const archived = await deleteFaq(record.id, record.question || "Question");
+      toast(archived ? "Question moved to the Recycle Bin." : "Unsaved question removed.");
       await refresh();
     } catch {
       toast("That question could not be removed.", "danger");

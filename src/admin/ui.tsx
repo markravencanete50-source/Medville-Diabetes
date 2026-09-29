@@ -135,7 +135,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={push}>
       {children}
       {createPortal(<div
-        className={`admin admin-action-notices${toasts.length ? " is-visible" : ""}`}
+        className={`admin-action-notices${toasts.length ? " is-visible" : ""}`}
         aria-live="polite"
         aria-atomic="true"
         onClick={() => setToasts([])}
@@ -171,7 +171,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             </button>
           </section>
         ))}
-      </div>, document.body)}
+      </div>, document.querySelector(".admin[data-admin-theme]") ?? document.body)}
     </ToastContext.Provider>
   );
 }
@@ -331,7 +331,7 @@ export function ConfirmDialog({
         </div>
       </section>
     </div>,
-    document.body,
+    document.querySelector(".admin[data-admin-theme]") ?? document.body,
   );
 }
 

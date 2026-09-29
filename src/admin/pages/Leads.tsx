@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, RefreshCw, RotateCcw, Search, Trash2, Upload } from "lucide-react";
+import { Download, RefreshCw, Search, Trash2, Upload } from "lucide-react";
 import {
   adminApi,
   AdminApiError,
@@ -62,9 +62,9 @@ export default function Leads() {
   const [filter, setFilter] = useState<LeadStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [range, setRange] = useState<DateRange>({ from: "", to: "" });
-  const [showTrash, setShowTrash] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [openLead, setOpenLead] = useState<Lead | null>(null);
-  const [deleteCandidate, setDeleteCandidate] = useState<Lead | null>(null);
+  const [deleteCandidates, setDeleteCandidates] = useState<Lead[]>([]);
   const [pendingImport, setPendingImport] = useState<{ id: string; status: LeadStatus }[] | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -83,20 +83,21 @@ export default function Leads() {
       return;
     }
     try {
-      const result = await adminApi.listLeads(getToken, { ...range, deleted: showTrash });
+      const result = await adminApi.listLeads(getToken, range);
       setLeads(result.leads);
+      setSelectedIds(new Set());
       setNextCursor(result.nextCursor);
     } catch (problem) {
       setLeads([]);
       setError(problem instanceof AdminApiError ? problem.message : "That did not work.");
     }
-  }, [getToken, connected, range, showTrash]);
+  }, [getToken, connected, range]);
 
   const loadMore = async () => {
     if (!nextCursor || loadingMore) return;
     setLoadingMore(true);
     try {
-      const result = await adminApi.listLeads(getToken, { ...range, deleted: showTrash, cursor: nextCursor });
+      const result = await adminApi.listLeads(getToken, { ...range, cursor: nextCursor });
       setLeads((current) => [...new Map([...(current ?? []), ...result.leads].map((lead) => [lead.id, lead])).values()]);
       setNextCursor(result.nextCursor);
     } catch { toast("The next page could not be loaded. Please try again.", "danger"); }
@@ -128,31 +129,29 @@ export default function Leads() {
     finally { setSaving(false); }
   };
 
-  const deleteLead = async () => {
-    if (!deleteCandidate) return;
+  const deleteLeads = async () => {
+    if (!deleteCandidates.length) return;
     setSaving(true);
+    const moved: string[] = [];
+    const failed: string[] = [];
     try {
-      await adminApi.deleteLead(getToken, deleteCandidate.id);
-      setLeads((current) => (current ?? []).filter((lead) => lead.id !== deleteCandidate.id));
-      setOpenLead((current) => current?.id === deleteCandidate.id ? null : current);
-      setDeleteCandidate(null);
-      toast("Enquiry moved to the Recycle Bin for seven days.");
-    } catch (problem) {
-      toast(problem instanceof AdminApiError ? problem.message : "The enquiry could not be deleted.", "danger");
+      /* Keep a small request pool so every enquiry keeps its own AWS audit
+         transaction without flooding the service on a large selection. */
+      for (let start = 0; start < deleteCandidates.length; start += 4) {
+        const batch = deleteCandidates.slice(start, start + 4);
+        const results = await Promise.allSettled(batch.map((lead) => adminApi.deleteLead(getToken, lead.id)));
+        results.forEach((result, index) => (result.status === "fulfilled" ? moved : failed).push(batch[index].id));
+      }
+      const removed = new Set(moved);
+      setLeads((current) => (current ?? []).filter((lead) => !removed.has(lead.id)));
+      setSelectedIds(new Set(failed));
+      setOpenLead((current) => current && removed.has(current.id) ? null : current);
+      setDeleteCandidates([]);
+      if (failed.length) toast(`${moved.length} moved to the Recycle Bin; ${failed.length} could not be moved. Failed enquiries remain selected.`, "danger");
+      else toast(`${moved.length} ${moved.length === 1 ? "enquiry" : "enquiries"} moved to the Recycle Bin for seven days.`);
     } finally {
       setSaving(false);
     }
-  };
-
-  const restoreLead = async (lead: Lead) => {
-    setSaving(true);
-    try {
-      await adminApi.restoreLead(getToken, lead.id);
-      setLeads((current) => (current ?? []).filter((item) => item.id !== lead.id));
-      toast("Enquiry restored.");
-    } catch (problem) {
-      toast(problem instanceof AdminApiError ? problem.message : "The enquiry could not be restored.", "danger");
-    } finally { setSaving(false); }
   };
 
   const downloadStatusTemplate = () => {
@@ -292,16 +291,16 @@ export default function Leads() {
             type="button"
             className="admin-btn admin-btn-quiet"
             onClick={() => setExportOpen(true)}
-            disabled={showTrash || !visible.length || visible.length > 500}
+            disabled={!visible.length || visible.length > 500}
           >
             <Download size={16} /> Export loaded enquiries
           </button>
-          <button type="button" className="admin-btn admin-btn-quiet" disabled={showTrash || !visible.length} onClick={downloadStatusTemplate}>
+          <button type="button" className="admin-btn admin-btn-quiet" disabled={!visible.length} onClick={downloadStatusTemplate}>
             <Download size={16} /> Status template
           </button>
-          <label className={`admin-btn admin-btn-quiet ${showTrash ? "pointer-events-none opacity-50" : "cursor-pointer"}`}>
+          <label className="admin-btn admin-btn-quiet cursor-pointer">
             <Upload size={16} /> Import statuses
-            <input type="file" accept=".csv,text/csv" className="sr-only" disabled={showTrash} onChange={(event) => { void readStatusImport(event.target.files?.[0]); event.currentTarget.value = ""; }} />
+            <input type="file" accept=".csv,text/csv" className="sr-only" onChange={(event) => { void readStatusImport(event.target.files?.[0]); event.currentTarget.value = ""; }} />
           </label>
           </>
         }
@@ -314,10 +313,6 @@ export default function Leads() {
       )}
 
       <Card className="mb-4">
-        <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Enquiry view">
-          <button type="button" className={`admin-btn ${!showTrash ? "admin-btn-primary" : "admin-btn-quiet"}`} onClick={() => { setShowTrash(false); setOpenLead(null); }}>Active enquiries</button>
-          <button type="button" className={`admin-btn ${showTrash ? "admin-btn-primary" : "admin-btn-quiet"}`} onClick={() => { setShowTrash(true); setOpenLead(null); }}><Trash2 size={16} /> Recycle Bin</button>
-        </div>
         <div className="mb-4"><DateRangeFilter value={range} onChange={setRange} /></div>
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-0 flex-1 basis-[220px]">
@@ -369,28 +364,45 @@ export default function Leads() {
               ? "Enquiries will appear here once the enquiry service is connected."
               : leads.length
                 ? "No enquiries match that search."
-                : showTrash ? "The Recycle Bin is empty." : "No enquiries have arrived yet."}
+                : "No enquiries have arrived yet."}
           </Empty>
         ) : (
           <div className="admin-table-wrap">
+            <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3" style={{ borderColor: "var(--a-line)" }}>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={visible.length > 0 && visible.every((lead) => selectedIds.has(lead.id))} onChange={(event) => setSelectedIds((current) => {
+                  const next = new Set(current);
+                  visible.forEach((lead) => event.target.checked ? next.add(lead.id) : next.delete(lead.id));
+                  return next;
+                })} /> Select all shown
+              </label>
+              <button type="button" className="admin-btn admin-btn-danger admin-btn-sm" disabled={!selectedIds.size || saving} onClick={() => setDeleteCandidates((leads ?? []).filter((lead) => selectedIds.has(lead.id)))}>
+                <Trash2 size={14} /> Move {selectedIds.size} to Recycle Bin
+              </button>
+              <span className="admin-help">Selection applies to loaded enquiries only.</span>
+            </div>
             <table className="admin-table">
               <thead>
                 <tr>
+                  <th scope="col"><span className="sr-only">Select enquiry</span></th>
                   <th scope="col">Name</th>
                   <th scope="col">Received</th>
                   <th scope="col">Location</th>
                   <th scope="col">Enquiry</th>
                   <th scope="col">Influencer</th>
                   <th scope="col">Stage</th>
-                  {showTrash && <th scope="col">Removal</th>}
-                  {showTrash && <th scope="col"><span className="sr-only">Actions</span></th>}
                 </tr>
               </thead>
               <tbody>
                 {visible.map((lead) => (
                   <tr key={lead.id}>
+                    <td data-label="Select"><input type="checkbox" aria-label={`Select ${leadName(lead)}`} checked={selectedIds.has(lead.id)} onChange={(event) => setSelectedIds((current) => {
+                      const next = new Set(current);
+                      if (event.target.checked) next.add(lead.id); else next.delete(lead.id);
+                      return next;
+                    })} /></td>
                     <td data-label="Name">
-                      {showTrash ? <span className="font-semibold">{leadName(lead)}</span> : <button
+                      <button
                         type="button"
                         className="font-semibold underline underline-offset-2"
                         style={{ color: "var(--a-brand-text)" }}
@@ -398,7 +410,7 @@ export default function Leads() {
                         onClick={() => void open(lead.id)}
                       >
                         {leadName(lead)}
-                      </button>}
+                      </button>
                     </td>
                     <td data-label="Received" style={{ color: "var(--a-text-muted)" }}>
                       {formatDateTime(lead.createdAt)}
@@ -417,8 +429,6 @@ export default function Leads() {
                         {LEAD_STATUS_LABEL[lead.status] ?? lead.status}
                       </Badge>
                     </td>
-                    {showTrash && <td data-label="Removal" style={{ color: "var(--a-text-muted)" }}>{daysUntilRemoval(lead.purgeAt)}</td>}
-                    {showTrash && <td data-label="Actions"><button type="button" className="admin-btn admin-btn-quiet admin-btn-sm" disabled={saving} onClick={() => void restoreLead(lead)}><RotateCcw size={14} /> Restore</button></td>}
                   </tr>
                 ))}
               </tbody>
@@ -486,7 +496,7 @@ export default function Leads() {
             </p>
 
             <div className="border-t pt-4" style={{ borderColor: "var(--a-line)" }}>
-              <button type="button" className="admin-btn admin-btn-danger w-full" disabled={saving} onClick={() => setDeleteCandidate(openLead)}>
+              <button type="button" className="admin-btn admin-btn-danger w-full" disabled={saving} onClick={() => setDeleteCandidates([openLead])}>
                 <Trash2 size={16} aria-hidden="true" /> Move to Recycle Bin
               </button>
               <p className="admin-help">The enquiry can be restored for seven days. After that, AWS removes it automatically. The action remains recorded in the access log.</p>
@@ -505,14 +515,14 @@ export default function Leads() {
         onConfirm={() => void exportCsv()}
       />
       <ConfirmDialog
-        open={Boolean(deleteCandidate)}
-        title="Move this enquiry to the Recycle Bin?"
-        body={<p>It will disappear from active enquiries and can be restored for seven days. The access log will record who moved it and when.</p>}
+        open={deleteCandidates.length > 0}
+        title={deleteCandidates.length === 1 ? "Move this enquiry to the Recycle Bin?" : `Move ${deleteCandidates.length} enquiries to the Recycle Bin?`}
+        body={<p>{deleteCandidates.length === 1 ? "It" : "They"} will disappear from active enquiries and can be restored for seven days. The access log will record who moved each enquiry and when.</p>}
         confirmLabel="Move to Recycle Bin"
-        busyLabel="Moving enquiry"
+        busyLabel="Moving enquiries"
         busy={saving}
-        onCancel={() => setDeleteCandidate(null)}
-        onConfirm={() => void deleteLead()}
+        onCancel={() => setDeleteCandidates([])}
+        onConfirm={() => void deleteLeads()}
       />
       <ConfirmDialog
         open={Boolean(pendingImport)}
@@ -534,11 +544,6 @@ function emailStatusLabel(status: string) {
   return "Pending delivery";
 }
 
-function daysUntilRemoval(purgeAt: number | null) {
-  if (!purgeAt) return "Within seven days";
-  const days = Math.max(0, Math.ceil((purgeAt * 1000 - Date.now()) / 86_400_000));
-  return days === 0 ? "Pending permanent removal" : `${days} ${days === 1 ? "day" : "days"} remaining`;
-}
 
 function Detail({ label, children }: { label: string; children: React.ReactNode }) {
   return (

@@ -1,11 +1,13 @@
 import {
   collection,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
   getFirestore,
+  query,
+  runTransaction,
   setDoc,
+  where,
   type Firestore,
 } from "firebase/firestore";
 import { adminAuth } from "./auth";
@@ -14,7 +16,7 @@ import { adminApi } from "./api";
 import type { PageId, PageValues } from "../content/schema";
 import { pageValidationError } from "../content/validation";
 import { EDITORIAL_POSTS } from "../data/editorialPosts";
-import type { Product } from "../data/products";
+import { products as builtInProducts, type Product } from "../data/products";
 import {
   DEFAULT_TEMPLATE,
   decodeBlocks,
@@ -68,6 +70,19 @@ export interface PostRecord {
   /* The article's layout. Always set on this side, so the editor never has
      to guess; a document saved before layouts existed reads as Classic. */
   template: PostTemplate;
+}
+
+export type TrashKind = "products" | "faqs" | "testimonials" | "blog";
+
+export interface TrashRecord {
+  id: string;
+  kind: TrashKind;
+  sourceId: string;
+  label: string;
+  deletedAt: string;
+  deletedBy: string;
+  snapshot: Record<string, unknown> | null;
+  builtIn: boolean;
 }
 
 /* There is no button colour here. Every button is cyan or navy, on the
@@ -179,15 +194,76 @@ export async function saveProduct(slug: string, product: Partial<Product>) {
 }
 
 export async function hideProduct(slug: string) {
-  /* Built-in products cannot be deleted out of the code, so removing one is
-     recorded as a tombstone the site knows to skip. */
-  await setDoc(doc(adminDb(), "products", slug), { deleted: true });
+  const builtIn = builtInProducts.find((item) => item.slug === slug);
+  const source = doc(adminDb(), "products", slug);
+  const trash = doc(adminDb(), "dashboardTrash", `products:${slug}`);
+  await runTransaction(adminDb(), async (transaction) => {
+    const current = await transaction.get(source);
+    const priorTrash = await transaction.get(trash);
+    if (priorTrash.exists()) throw new Error("This product is already in the Recycle Bin.");
+    if (!current.exists() && !builtIn) throw new Error("This product no longer exists.");
+    transaction.set(trash, {
+      kind: "products", sourceId: slug,
+      label: String(current.data()?.name ?? builtIn?.name ?? slug),
+      deletedAt: new Date().toISOString(), deletedBy: adminAuth().currentUser?.uid ?? "",
+      snapshot: current.exists() ? current.data() : null, builtIn: Boolean(builtIn),
+    });
+    if (builtIn) transaction.set(source, { deleted: true });
+    else transaction.delete(source);
+  });
   clearCachedData("products");
 }
 
-export async function deleteProductDoc(slug: string) {
-  await deleteDoc(doc(adminDb(), "products", slug));
-  clearCachedData("products");
+async function trashDocument(kind: Exclude<TrashKind, "products">, id: string, label: string) {
+  const collectionName = kind === "blog" ? "posts" : kind;
+  const source = doc(adminDb(), collectionName, id);
+  const trash = doc(adminDb(), "dashboardTrash", `${kind}:${id}`);
+  const archived = await runTransaction(adminDb(), async (transaction) => {
+    const current = await transaction.get(source);
+    const priorTrash = await transaction.get(trash);
+    if (priorTrash.exists()) throw new Error("This item is already in the Recycle Bin.");
+    if (!current.exists()) return false;
+    transaction.set(trash, {
+      kind, sourceId: id, label,
+      deletedAt: new Date().toISOString(), deletedBy: adminAuth().currentUser?.uid ?? "",
+      snapshot: current.data(), builtIn: kind === "blog" && EDITORIAL_POSTS.some((post) => post.slug === id),
+    });
+    transaction.delete(source);
+    return true;
+  });
+  clearCachedData(kind === "blog" ? "posts" : kind);
+  return archived;
+}
+
+export async function loadTrash(kinds: TrashKind[]): Promise<TrashRecord[]> {
+  const groups = await Promise.all(kinds.map(async (kind) => {
+    const snapshots = await getDocs(query(collection(adminDb(), "dashboardTrash"), where("kind", "==", kind)));
+    return snapshots.docs.map((entry) => ({ id: entry.id, ...entry.data() } as TrashRecord));
+  }));
+  return groups.flat().sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
+}
+
+export async function restoreTrash(item: TrashRecord) {
+  const source = doc(adminDb(), item.kind === "blog" ? "posts" : item.kind, item.sourceId);
+  const trash = doc(adminDb(), "dashboardTrash", item.id);
+  await runTransaction(adminDb(), async (transaction) => {
+    const archived = await transaction.get(trash);
+    const current = await transaction.get(source);
+    if (!archived.exists()) throw new Error("This item is no longer in the Recycle Bin.");
+    const record = archived.data() as Omit<TrashRecord, "id">;
+    if (record.kind !== item.kind || record.sourceId !== item.sourceId) throw new Error("The saved item changed. Refresh and try again.");
+    if (item.kind === "products" && record.builtIn) {
+      if (current.exists() && current.data()?.deleted !== true) throw new Error("A current product already uses this address.");
+      if (record.snapshot) transaction.set(source, record.snapshot);
+      else transaction.delete(source);
+    } else {
+      if (current.exists()) throw new Error("A current item already uses this address.");
+      if (!record.snapshot) throw new Error("The saved item has no restorable content.");
+      transaction.set(source, record.snapshot);
+    }
+    transaction.delete(trash);
+  });
+  clearCachedData(item.kind === "blog" ? "posts" : item.kind);
 }
 
 /* ---- faqs and testimonials ---- */
@@ -207,9 +283,8 @@ export async function saveFaq(record: FaqRecord) {
   clearCachedData("faqs");
 }
 
-export async function deleteFaq(id: string) {
-  await deleteDoc(doc(adminDb(), "faqs", id));
-  clearCachedData("faqs");
+export async function deleteFaq(id: string, label: string) {
+  return trashDocument("faqs", id, label);
 }
 
 export async function loadTestimonials(): Promise<TestimonialRecord[]> {
@@ -227,9 +302,8 @@ export async function saveTestimonial(record: TestimonialRecord) {
   clearCachedData("testimonials");
 }
 
-export async function deleteTestimonial(id: string) {
-  await deleteDoc(doc(adminDb(), "testimonials", id));
-  clearCachedData("testimonials");
+export async function deleteTestimonial(id: string, label: string) {
+  return trashDocument("testimonials", id, label);
 }
 
 /* ---- images ---- */
@@ -344,9 +418,8 @@ export async function savePost(record: PostRecord) {
   clearCachedData("posts");
 }
 
-export async function deletePost(slug: string) {
-  await deleteDoc(doc(adminDb(), "posts", slug));
-  clearCachedData("posts");
+export async function deletePost(slug: string, label: string) {
+  return trashDocument("blog", slug, label);
 }
 
 export async function postSlugExists(slug: string) {

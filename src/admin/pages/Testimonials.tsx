@@ -65,8 +65,8 @@ export default function Testimonials() {
   const remove = async (record: TestimonialRecord) => {
     if (!window.confirm("Remove this review?")) return;
     try {
-      await deleteTestimonial(record.id);
-      toast("Review removed.");
+      const archived = await deleteTestimonial(record.id, record.name || "Review");
+      toast(archived ? "Review moved to the Recycle Bin." : "Unsaved review removed.");
       await refresh();
     } catch {
       toast("That review could not be removed.", "danger");
