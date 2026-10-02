@@ -4,16 +4,18 @@ import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("article updates open as a centered, once-per-visit modal before privacy choices", async () => {
-  const [newsletter, site, styles] = await Promise.all([
+test("article updates open from the footer without covering the first visit", async () => {
+  const [newsletter, site, styles, footer] = await Promise.all([
     read("../src/components/NewsletterPrompt.tsx"),
     read("../src/PublicSite.tsx"),
     read("../src/index.css"),
+    read("../src/components/Footer.tsx"),
   ]);
-  assert.match(newsletter, /sessionStorage\.getItem\(SEEN_KEY\)/);
-  assert.match(newsletter, /sessionStorage\.setItem\(SEEN_KEY, "1"\)/);
+  assert.doesNotMatch(newsletter, /sessionStorage\.getItem\(SEEN_KEY\)/);
+  assert.match(newsletter, /addEventListener\("medville:article-updates", show\)/);
   assert.match(newsletter, /dialog\.current\?\.showModal\(\)/);
-  assert.doesNotMatch(newsletter, /showBanner|Get new diabetes guides by email/);
+  assert.match(footer, /Get article updates/);
+  assert.match(footer, /dispatchEvent\(new Event\("medville:article-updates"\)\)/);
   assert.match(newsletter, /onComplete\(\)/);
   assert.match(styles, /\.newsletter-dialog\[open\][\s\S]*top: 50%;[\s\S]*left: 50%;[\s\S]*translate\(-50%, -50%\)/);
   assert.match(site, /<NewsletterPrompt onComplete=\{completeArticlePrompt\}/);
@@ -32,8 +34,12 @@ test("privacy choices stay at the lower left and control optional analytics", as
   assert.match(notice, /choice !== "accepted"/);
 });
 
-test("homepage HTML revalidates so visitors receive prompt updates", async () => {
+test("all page HTML revalidates while versioned assets stay cached", async () => {
   const hosting = JSON.parse(await read("../firebase.json"));
+  const all = hosting.hosting.headers.find((entry) => entry.source === "**");
   const root = hosting.hosting.headers.find((entry) => entry.source === "/");
+  const assets = hosting.hosting.headers.find((entry) => entry.source === "/assets/**");
+  assert.equal(all?.headers.find((header) => header.key === "Cache-Control")?.value, "no-cache");
   assert.equal(root?.headers.find((header) => header.key === "Cache-Control")?.value, "no-cache");
+  assert.equal(assets?.headers.find((header) => header.key === "Cache-Control")?.value, "public, max-age=31536000, immutable");
 });

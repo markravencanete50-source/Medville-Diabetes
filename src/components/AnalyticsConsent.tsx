@@ -14,6 +14,7 @@ declare global {
 }
 
 let tagLoaded = false;
+let lastTrackedPath: string | null = null;
 
 function storedChoice(): Choice {
   if (typeof window === "undefined") return null;
@@ -52,6 +53,7 @@ function loadTag(path: string, title: string) {
     page_referrer: window.location.origin,
     page_title: title,
   });
+  lastTrackedPath = path;
   const script = document.createElement("script");
   script.async = true;
   script.src = `https://www.googletagmanager.com/gtag/js?id=${ANALYTICS_ID}`;
@@ -82,7 +84,16 @@ export default function AnalyticsConsent({ promptComplete }: { promptComplete: b
 
   useEffect(() => {
     if (preview || choice !== "accepted" || !page || location.search) return;
-    loadTag(page.path, page.title);
+    if (!tagLoaded) {
+      loadTag(page.path, page.title);
+    } else if (lastTrackedPath !== page.path) {
+      window.gtag?.("event", "page_view", {
+        page_location: `${window.location.origin}${page.path}`,
+        page_referrer: window.location.origin,
+        page_title: page.title,
+      });
+      lastTrackedPath = page.path;
+    }
   }, [choice, page, location.search, preview]);
 
   useEffect(() => {
@@ -100,6 +111,10 @@ export default function AnalyticsConsent({ promptComplete }: { promptComplete: b
       const destination = new URL(anchor.href, window.location.href);
       if (destination.origin !== window.location.origin) return;
       if (destination.pathname === window.location.pathname && destination.search === window.location.search) return;
+      // Public informational pages can use fast client navigation. A fresh
+      // document is required only before entering a route where analytics
+      // must not be present at all.
+      if (analyticsPage(destination.pathname) && !destination.search) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       window.location.assign(destination.href);
@@ -120,18 +135,17 @@ export default function AnalyticsConsent({ promptComplete }: { promptComplete: b
   return (
     <section
       aria-label="Cookies and privacy choices"
-      className="fixed bottom-4 left-4 z-60 max-h-[calc(100dvh-2rem)] w-[min(38rem,calc(100vw-2rem))] overflow-y-auto rounded-xl border border-line-brand bg-surface-raised p-5 text-grey-dark shadow-overlay sm:bottom-6 sm:left-6 sm:p-6"
+      className="fixed bottom-4 left-4 z-60 max-h-[calc(100dvh-2rem)] w-[min(38rem,calc(100vw-2rem))] overflow-y-auto rounded-xl border border-line-brand bg-surface-raised p-4 text-grey-dark shadow-overlay sm:bottom-6 sm:left-6 sm:p-6"
     >
       <h2 className="m-0 font-display text-lg font-semibold text-brand-deep">Cookies and privacy</h2>
-      <p className="mt-2 text-small leading-relaxed">
-        Necessary browser storage keeps the site working. May we also use optional Google Analytics on general pages to understand website use?
-        We do not load it on eligibility, patient referral, contact, product,
-        service, or individual article pages. Google may receive your device and
-        browsing data if you agree. You can change this choice any time in the footer.
-        See our <Link to="/privacy-policy" className="underline">privacy policy</Link> and
+      <p className="mt-2 text-small leading-snug">
+        May we use optional Google Analytics on general pages? Google may receive
+        device and browsing data if you agree. We keep it off health-related forms
+        and pages. Read our <Link to="/privacy-policy" className="underline">privacy policy</Link> and
         Google&rsquo;s <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener noreferrer" className="underline">partner-sites information</a>.
+        You can change your choice in the footer.
       </p>
-      <div className="mt-4 flex flex-wrap gap-3">
+      <div className="mt-3 flex flex-wrap gap-3">
         <button type="button" aria-label="Accept optional analytics" onClick={() => decide("accepted")} className="min-h-11 min-w-[120px] rounded-full bg-brand-bright px-5 py-2.5 text-small font-semibold text-ink">Accept</button>
         <button type="button" aria-label="Reject optional analytics" onClick={() => decide("declined")} className="min-h-11 min-w-[120px] rounded-full border border-line-input px-5 py-2.5 text-small font-semibold text-ink">Reject</button>
       </div>

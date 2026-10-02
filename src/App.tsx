@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ComponentType } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 /*
@@ -8,9 +8,8 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
   code. Each side now loads only what it needs.
 */
 const AdminApp = lazy(() => import("./admin/AdminApp"));
-const PublicSite = lazy(() => import("./PublicSite"));
-
-export default function App() {
+const LazyPublicSite = lazy(() => import("./PublicSite"));
+export default function App({ PublicSite }: { PublicSite?: ComponentType }) {
   return (
     <BrowserRouter>
       <Routes>
@@ -24,11 +23,7 @@ export default function App() {
         />
         <Route
           path="*"
-          element={
-            <Suspense fallback={null}>
-              <PublicSite />
-            </Suspense>
-          }
+          element={PublicSite ? <PublicSite /> : <Suspense fallback={null}><LazyPublicSite /></Suspense>}
         />
       </Routes>
     </BrowserRouter>

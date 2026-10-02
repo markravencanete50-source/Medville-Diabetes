@@ -282,9 +282,12 @@ h1, h2, h3, h4 {
 /* ---- animation utilities ---- */
 
 .rise-in {
-  animation: rise-in var(--rise-duration, 1000ms) var(--ease-gentle) both;
-  animation-delay: var(--rise-delay, 0ms);
+  animation: rise-in min(var(--rise-duration, 480ms), 480ms) var(--ease-gentle) both;
+  animation-delay: min(var(--rise-delay, 0ms), 120ms);
 }
+
+/* Search visitors should be able to read the page title as soon as HTML paints. */
+h1.rise-in { animation: none; }
 
 .floaty { animation: floaty 7s ease-in-out infinite; }
 

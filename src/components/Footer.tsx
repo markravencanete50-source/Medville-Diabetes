@@ -129,6 +129,15 @@ export default function Footer() {
                   </Link>
                 </li>
               ))}
+              <li>
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new Event("medville:article-updates"))}
+                  className={linkClass}
+                >
+                  Get article updates
+                </button>
+              </li>
             </ul>
           </nav>
 

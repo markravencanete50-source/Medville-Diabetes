@@ -119,6 +119,7 @@ export default function HeroViewer({ product }: { product: Product }) {
               <img
                 src={product.imageBack}
                 alt=""
+                {...{ fetchpriority: "low" }}
                 draggable={false}
                 className="absolute inset-0 h-full w-full object-contain p-7"
                 style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}

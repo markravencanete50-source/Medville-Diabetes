@@ -97,12 +97,15 @@ function clamp(text, limit = 158) {
   return `${value.slice(0, value.lastIndexOf(" ", limit - 1))}…`;
 }
 
-function pageHtml(template, { path, title, description, image, jsonLd, origin, type, noindex, extraMeta, body }) {
+function pageHtml(template, { path, title, description, image, preloadImage, jsonLd, origin, type, noindex, extraMeta, body }) {
   const url = `${origin}${path}`;
   const picture = image ? (image.startsWith("http") ? image : `${origin}${image}`) : `${origin}/og-image.jpg`;
   const desc = clamp(description);
 
   let html = template;
+  if (preloadImage) {
+    html = html.replace("</head>", `  <link rel="preload" as="image" href="${escape(preloadImage)}" fetchpriority="high" />\n  </head>`);
+  }
   html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escape(title)}</title>`);
   html = html.replace(
     /<meta name="description" content="[\s\S]*?" \/>/,
@@ -359,6 +362,7 @@ for (const [path, fallback] of Object.entries(meta.PAGE_META)) {
       origin,
       noindex,
       body: server.renderPage(path, siteData),
+      preloadImage: path === "/" ? products.find((product) => product.slug === "freestyle-libre-3")?.imageFront : undefined,
       /* The company card belongs on the home page and the contact page, the
          two a search engine treats as the business itself. The breadcrumb
          belongs on everything below the home page. */

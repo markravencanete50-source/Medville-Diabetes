@@ -4,7 +4,6 @@ import { useLocation } from "react-router-dom";
 import { createPortal } from "react-dom";
 
 type Status = "idle" | "sending" | "success" | "error";
-const SEEN_KEY = "medville:article-prompt-seen:v1";
 
 export default function NewsletterPrompt({ onComplete }: { onComplete: () => void }) {
   const { pathname } = useLocation();
@@ -15,21 +14,20 @@ export default function NewsletterPrompt({ onComplete }: { onComplete: () => voi
   const [website, setWebsite] = useState("");
   const headingId = useId();
   const sending = useRef(false);
-  const shownThisVisit = useRef(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const endpoint = (import.meta.env.VITE_NEWSLETTER_ENDPOINT as string | undefined)
     || "https://us-central1-medville-diabetes.cloudfunctions.net/blogSubscribe";
 
   useEffect(() => {
-    if (shownThisVisit.current) return;
-    shownThisVisit.current = true;
-    try {
-      if (sessionStorage.getItem(SEEN_KEY) === "1") { onComplete(); return; }
-      sessionStorage.setItem(SEEN_KEY, "1");
-    } catch { /* Keep the in-memory guard if storage is unavailable. */ }
-    if (["/qualify", "/contact", "/admin"].some(path => pathname.startsWith(path))) { onComplete(); return; }
-    setOpen(true);
-  }, [onComplete, pathname]);
+    // The article signup remains available from the footer, but no longer
+    // covers the page a visitor just opened from search.
+    onComplete();
+    const show = () => setOpen(true);
+    window.addEventListener("medville:article-updates", show);
+    return () => window.removeEventListener("medville:article-updates", show);
+  }, [onComplete]);
+
+  useEffect(() => setOpen(false), [pathname]);
 
   useEffect(() => {
     if (!open) return;
