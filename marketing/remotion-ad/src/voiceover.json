@@ -1,0 +1,62 @@
+{
+  "voice": "af_heart",
+  "duration": 44.449,
+  "lines": [
+    {
+      "id": "hook",
+      "start": 0.6,
+      "end": 5.163,
+      "spoken": "Managing diabetes takes work every day. Getting your CGM should be simple.",
+      "caption": "Managing diabetes takes work every day. Getting your CGM should be simple."
+    },
+    {
+      "id": "brand",
+      "start": 5.613,
+      "end": 11.211,
+      "spoken": "Medville Diabetes is a United States supplier of CGMs, sensors, and insulin pumps.",
+      "caption": "Medville Diabetes is a United States supplier of CGMs, sensors, and insulin pumps."
+    },
+    {
+      "id": "choose",
+      "start": 11.611,
+      "end": 18.001,
+      "spoken": "Here is how it works. First, choose your device, like the FreeStyle Libre three, or the Dexcom G seven.",
+      "caption": "Here is how it works. First, choose your device, like the FreeStyle Libre 3 or the Dexcom G7."
+    },
+    {
+      "id": "form",
+      "start": 18.351,
+      "end": 21.132,
+      "spoken": "Next, fill out our short eligibility form online.",
+      "caption": "Next, fill out our short eligibility form online."
+    },
+    {
+      "id": "review",
+      "start": 22.232,
+      "end": 26.476,
+      "spoken": "Our team reviews your information, checks your insurance, and works with your doctor.",
+      "caption": "Our team reviews your information, checks your insurance, and works with your doctor."
+    },
+    {
+      "id": "deliver",
+      "start": 27.076,
+      "end": 30.948,
+      "spoken": "Once you qualify, we ship your CGM and supplies straight to your door.",
+      "caption": "Once you qualify, we ship your CGM and supplies straight to your door."
+    },
+    {
+      "id": "support",
+      "start": 31.648,
+      "end": 36.394,
+      "spoken": "And we stay with you, with ongoing resupply, and real people to answer your questions.",
+      "caption": "And we stay with you, with ongoing resupply and real people to answer your questions."
+    },
+    {
+      "id": "cta",
+      "start": 36.844,
+      "end": 41.849,
+      "spoken": "Medville Diabetes. Check your eligibility today, at medville diabetes dot com.",
+      "caption": "Medville Diabetes. Check your eligibility today at medvillediabetes.com."
+    }
+  ]
+}

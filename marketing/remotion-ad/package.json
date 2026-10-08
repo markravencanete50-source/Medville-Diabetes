@@ -1,0 +1,23 @@
+{
+  "name": "medville-remotion-ad",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Medville Diabetes video advertisement, built with Remotion.",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render MedvilleAd out/medville-diabetes-ad.mp4",
+    "still": "remotion still MedvilleAd",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.529",
+    "@remotion/transitions": "4.0.529",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.529"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "typescript": "5.6.3"
+  }
+}
