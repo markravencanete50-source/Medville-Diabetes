@@ -302,7 +302,7 @@
     s1pulse.style.left = px(pt.x - TX); s1pulse.style.top = px(300 + pt.y);
     s1pulse.style.transform = `scale(${1 + pu * 2.6})`;
     s1pulse.style.opacity = (1 - pu) * 0.8 * prog(t, 0.3, 0.6);
-    revealWords(s1l1, t, 0.45, { out: 4.25 });
+    revealWords(s1l1, t, 0.25, { out: 4.25 });
     revealWords(s1l2, t, 1.9, { stagger: 0.08, out: 4.35 });
     s1.hud.style.transform = `translate3d(${(c.ry || 0) * -2}px,0,0)`;
   }
@@ -329,7 +329,7 @@
   el("img", "", s2logoBox, { width: "1000px", height: "450px", display: "block" }).src = "../../public/brand/medville-logo.svg";
   const s2shine = el("div", "abs", s2logoBox, {
     inset: "0", WebkitMaskImage: "url(../../public/brand/medville-logo.svg)", WebkitMaskSize: "100% 100%",
-    background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,.85) 50%, transparent 60%)",
+    background: "linear-gradient(105deg, transparent 44%, rgba(255,255,255,.45) 50%, transparent 56%)",
     backgroundSize: "300% 100%",
   });
   const s2tag = words(s2.world, "Your CGM supplier, from the first call to every resupply.", {
@@ -452,8 +452,12 @@
       [15.5, { z: 1300, rx: -2, ry: -10 }, E.inCubic],
     ]);
     setCam(s3.world, c);
-    s3.root.style.opacity = 1 - E.inOutSine(prog(t, 14.95, 15.25));
-    if (zoomOut > 0) { const b = 6 + zoomOut * 40; setBlur(s3, "mb3", b, b); }
+    s3.root.style.opacity = 1 - E.inOutSine(prog(t, 15.1, 15.4));
+    if (zoomOut > 0) {
+      const b = 6 + zoomOut * 40;
+      setBlur(s3, "mb3", b, b);
+      s3.root.style.filter += ` brightness(${1 + zoomOut * 3})`;
+    }
     s3.hud.style.opacity = 1 - prog(t, 14.8, 15.2);
     driftBlobs(s3blobs, t, 30);
     // Ring: hold on a product, then turn to the next one.
@@ -575,7 +579,7 @@
     const on = t >= 14.9 && t < 28.0;
     show(s4, on);
     if (!on) return;
-    s4.root.style.opacity = E.outCubic(prog(t, 15.0, 15.4));
+    s4.root.style.opacity = E.outCubic(prog(t, 15.05, 15.35));
     const c = camS4(t);
     setCam(s4.world, c);
     driftBlobs(s4blobs, t);
@@ -662,10 +666,10 @@
       [33.75, { z: 80, rx: 2, ry: -6 }, E.linear],
     ]);
     setCam(s5.world, c);
-    s5eye.style.opacity = prog(t, 27.9, 28.3);
-    revealWords(s5h, t, 28.0, { stagger: 0.06 });
+    s5eye.style.opacity = prog(t, 27.5, 27.9);
+    revealWords(s5h, t, 27.55, { stagger: 0.06 });
     s5tiles.forEach((o, i) => {
-      const t0 = 28.0 + i * 0.13;
+      const t0 = 27.6 + i * 0.12;
       const p = E.outCubic(prog(t, t0, t0 + 0.8));
       o.tile.style.opacity = prog(t, t0, t0 + 0.3);
       o.tile.style.transform = `translateZ(${(1 - p) * -260}px) rotateX(${(1 - p) * 85}deg)`;
@@ -695,7 +699,7 @@
   const s6h = words(s6head, "Looking for a CGM supplier?", { font: "700 72px/1.1 Poppins", color: "#00293b" });
   const s6sub = el("div", "", s6head, { marginTop: "18px", font: "400 34px Inter", color: "#3d6273" }, "We work with patients and healthcare providers.");
   function audienceCard(x, o) {
-    const card = el("div", "abs p3d", s6.world, {
+    const card = el("div", "abs", s6.world, {
       left: px(x), top: "380px", width: "720px", height: "440px", borderRadius: "36px", background: o.bg,
       boxShadow: o.shadow,
     });
@@ -729,7 +733,7 @@
     ]);
     setCam(s6.world, c);
     driftBlobs(s6blobs, t);
-    revealWords(s6h, t, 33.95, { stagger: 0.07 });
+    revealWords(s6h, t, 33.85, { stagger: 0.07 });
     rise(s6sub, t, 34.4);
     [[s6a, -1, 34.4], [s6b, 1, 34.6]].forEach(([o, side, t0]) => {
       const p = E.outCubic(prog(t, t0, t0 + 0.9));
@@ -809,31 +813,31 @@
     s7wave.style.strokeDasharray = `${wl} ${wl}`;
     s7wave.style.strokeDashoffset = wl * (1 - E.inOutSine(prog(t, 37.9, 41.0)));
 
-    rise(s7logo, t, 38.0, { dy: 30, scale: 0.9 });
-    revealWords(s7h, t, 38.35, { stagger: 0.07 });
-    rise(s7sub, t, 38.85);
+    rise(s7logo, t, 37.75, { dy: 30, scale: 0.9 });
+    revealWords(s7h, t, 38.1, { stagger: 0.07 });
+    rise(s7sub, t, 38.55);
     // Button pops in, the cursor arrives and clicks it.
-    const bp = E.outBack(prog(t, 39.0, 39.6));
-    const click = 40.05;
+    const bp = E.outBack(prog(t, 38.75, 39.35));
+    const click = 39.85;
     const press = t < click ? 1 : lerp(0.94, 1, E.outBack(prog(t, click, click + 0.35)));
-    s7btnWrap.style.opacity = prog(t, 39.0, 39.25);
+    s7btnWrap.style.opacity = prog(t, 38.75, 39.0);
     s7btn.style.transform = `scale(${lerp(0.6, 1, bp) * (t >= click && t < click + 0.35 ? press : 1)})`;
-    s7arrow.style.transform = `translateX(${Math.max(0, Math.sin((t - 40.4) * 4)) * 6 * prog(t, 40.4, 40.6)}px)`;
+    s7arrow.style.transform = `translateX(${Math.max(0, Math.sin((t - 40.2) * 4)) * 6 * prog(t, 40.2, 40.4)}px)`;
     const rp = prog(t, click, click + 0.8);
     s7ripple.style.opacity = rp > 0 && rp < 1 ? (1 - rp) * 0.9 : 0;
     s7ripple.style.transform = `scale(${1 + E.outCubic(rp) * 0.14}, ${1 + E.outCubic(rp) * 0.5})`;
-    const cp = E.inOutCubic(prog(t, 39.35, 39.95));
+    const cp = E.inOutCubic(prog(t, 39.15, 39.75));
     const cxp = lerp(1500, 960 + 150, cp), cyp = lerp(1020, 640, cp) + Math.sin(cp * Math.PI) * -60;
-    const cOut = prog(t, 40.6, 41.0);
-    s7cursor.style.opacity = prog(t, 39.35, 39.5) * (1 - cOut);
+    const cOut = prog(t, 40.4, 40.8);
+    s7cursor.style.opacity = prog(t, 39.15, 39.3) * (1 - cOut);
     const cs = t >= click && t < click + 0.2 ? 0.86 : 1;
     s7cursor.style.transform = `translate3d(${cxp - 12}px,${cyp - 8}px,40px) scale(${cs})`;
 
     s7pills.forEach((p, i) => {
-      rise(p, t, 40.4 + i * 0.14, { dy: 30, scale: 0.85 });
-      drawIcon(p._ic, prog(t, 40.55 + i * 0.14, 41.2 + i * 0.14));
+      rise(p, t, 40.15 + i * 0.14, { dy: 30, scale: 0.85 });
+      drawIcon(p._ic, prog(t, 40.3 + i * 0.14, 40.95 + i * 0.14));
     });
-    rise(s7hours, t, 41.0, { dy: 18 });
+    rise(s7hours, t, 40.75, { dy: 18 });
   }
 
   /* ---------- frame ---------- */

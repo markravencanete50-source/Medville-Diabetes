@@ -234,9 +234,9 @@ for i, tt_ in enumerate([15.9, 19.95, 24.05]):
 whoosh(27.5, 0.8, 5000, 500, 0.5)    # crane down to services
 whoosh(33.78, 0.8, 300, 4000, 0.45)  # cube turn
 whoosh(37.73, 0.75, 600, 7000, 0.5)  # diagonal wipe to the end card
-tick(40.05, 0.7)                     # cursor click
-bell(40.07, 88, 0.16, 0.8)
-bell(40.15, 93, 0.10, 0.8)
+tick(39.85, 0.7)                     # cursor click
+bell(39.87, 88, 0.16, 0.8)
+bell(39.95, 93, 0.10, 0.8)
 
 
 # ---------- reverb ----------
