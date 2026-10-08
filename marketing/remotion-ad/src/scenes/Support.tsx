@@ -4,7 +4,7 @@ import { C, BODY, DISPLAY } from "../theme";
 import { clamp, ease, ep, handheld, lerp, prog } from "../anim";
 import { Icon, IconTile } from "../components/Icon";
 import { Doorstep, FLIP_AT } from "./Deliver";
-import { wordTime, L } from "../timeline";
+import { wordTime, L, WIPE } from "../timeline";
 
 /*
   Scene 7, "And we stay with you, with ongoing resupply, and real people to
@@ -13,7 +13,6 @@ import { wordTime, L } from "../timeline";
   opens out into the end card.
 */
 export const FLIP = [FLIP_AT, FLIP_AT + 0.85] as const;
-export const IRIS = [L.cta.start - 0.6, L.cta.start + 0.05] as const;
 export const RING = { x: 1390, y: 470, r: 230 };
 
 const NODES = [
@@ -35,7 +34,7 @@ const SupportContent: React.FC<{ t: number }> = ({ t }) => {
       <AbsoluteFill style={{ backgroundImage: "radial-gradient(circle, rgba(0,41,59,.1) 2px, transparent 2.6px)", backgroundSize: "46px 46px" }} />
       {/* A real person on the support line. */}
       <div style={{ position: "absolute", left: 130, top: 130, width: 780, height: 660, borderRadius: 36, overflow: "hidden", boxShadow: "0 40px 90px rgba(0,41,59,.25)" }}>
-        <Img src={staticFile("img/support-agent.webp")} style={{ width: "100%", height: "100%", objectFit: "cover", transform: `${handheld(t, 0.8)} scale(${lerp(1.1, 1.03, prog(t, FLIP[0], IRIS[0]))})` }} />
+        <Img src={staticFile("img/support-agent.webp")} style={{ width: "100%", height: "100%", objectFit: "cover", transform: `${handheld(t, 0.8)} scale(${lerp(1.1, 1.03, prog(t, FLIP[0], WIPE.supportOut[0]))})` }} />
         <div style={{ position: "absolute", left: 24, top: 24, display: "flex", alignItems: "center", gap: 10, padding: "10px 20px 10px 12px", borderRadius: 999, background: "rgba(0,41,59,.85)", color: C.white, font: `600 22px ${BODY}` }}>
           <IconTile name="headset" size={40} />
           Medville support
@@ -77,12 +76,16 @@ const SupportContent: React.FC<{ t: number }> = ({ t }) => {
 };
 
 export const Support: React.FC<{ t: number }> = ({ t }) => {
-  if (t < FLIP[0] || t > IRIS[1] + 0.05) return null;
+  if (t < FLIP[0] || t > WIPE.supportOut[1] + 0.05) return null;
+  const out = ep(t, WIPE.supportOut[0], WIPE.supportOut[1], ease.inOut);
+  const leave = (node: React.ReactNode) => (
+    <AbsoluteFill style={{ transform: `translateX(${-out * 1920}px)` }}>{node}</AbsoluteFill>
+  );
   if (t < FLIP[1]) {
     const p = ease.inOut(prog(t, FLIP[0], FLIP[1]));
     const angle = p * 180;
     const s = 1 - Math.sin(Math.PI * p) * 0.42;
-    return (
+    return leave(
       <AbsoluteFill style={{ background: C.abyss, perspective: 2200 }}>
         <div style={{ position: "absolute", inset: 0, transformStyle: "preserve-3d", transform: `scale(${s}) rotateY(${angle}deg)` }}>
           <div style={{ position: "absolute", inset: 0, backfaceVisibility: "hidden", borderRadius: 40 * Math.sin(Math.PI * p), overflow: "hidden" }}>
@@ -92,8 +95,8 @@ export const Support: React.FC<{ t: number }> = ({ t }) => {
             <SupportContent t={t} />
           </div>
         </div>
-      </AbsoluteFill>
+      </AbsoluteFill>,
     );
   }
-  return <SupportContent t={t} />;
+  return leave(<SupportContent t={t} />);
 };

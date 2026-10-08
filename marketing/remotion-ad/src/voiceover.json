@@ -1,6 +1,6 @@
 {
   "voice": "af_heart",
-  "duration": 44.449,
+  "duration": 60.0,
   "lines": [
     {
       "id": "hook",
@@ -52,9 +52,23 @@
       "caption": "And we stay with you, with ongoing resupply and real people to answer your questions."
     },
     {
-      "id": "cta",
+      "id": "services",
       "start": 36.844,
-      "end": 41.849,
+      "end": 45.018,
+      "spoken": "Our services cover insurance verification and authorization, doctor verification, documentation review, and ongoing resupply.",
+      "caption": "Our services cover insurance verification and authorization, doctor verification, documentation review, and ongoing resupply."
+    },
+    {
+      "id": "providers",
+      "start": 45.518,
+      "end": 49.751,
+      "spoken": "Healthcare providers can refer a patient to us, and our team takes it from there.",
+      "caption": "Healthcare providers can refer a patient to us, and our team takes it from there."
+    },
+    {
+      "id": "cta",
+      "start": 50.351,
+      "end": 55.355,
       "spoken": "Medville Diabetes. Check your eligibility today, at medville diabetes dot com.",
       "caption": "Medville Diabetes. Check your eligibility today at medvillediabetes.com."
     }

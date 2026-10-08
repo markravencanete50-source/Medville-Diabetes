@@ -2,14 +2,16 @@ import React from "react";
 import { AbsoluteFill, Audio, staticFile, useCurrentFrame, useVideoConfig, interpolate } from "remotion";
 import "./theme";
 import { C } from "./theme";
-import { LINES, L, wordTime } from "./timeline";
+import { LINES, L, wordTime, WIPE } from "./timeline";
 import { Hook, EXPAND } from "./scenes/Hook";
 import { Brand } from "./scenes/Brand";
 import { Choose, PULLBACK, CLICK_PRODUCT, CLICK_CTA, MORPH } from "./scenes/Choose";
 import { Form, SUBMIT, SENT, WHIP } from "./scenes/Form";
-import { Review, STAMP, DROP } from "./scenes/Review";
+import { Review, STAMP, DROP, CONNECT, REPLY } from "./scenes/Review";
 import { Deliver, CLOSE, MAP, DOORS } from "./scenes/Deliver";
-import { Support, FLIP, IRIS } from "./scenes/Support";
+import { Support, FLIP } from "./scenes/Support";
+import { Services, SERVICE_AT } from "./scenes/Services";
+import { Providers } from "./scenes/Providers";
 import { Cta, CLICK } from "./scenes/Cta";
 import { Captions } from "./components/Captions";
 import { StepTracker } from "./components/StepTracker";
@@ -30,7 +32,7 @@ export const MedvilleAd: React.FC<{ captions: boolean }> = ({ captions }) => {
     const s = f / fps;
     const speaking = LINES.some((l) => s > l.start - 0.15 && s < l.end + 0.1);
     const near = LINES.reduce((m, l) => Math.min(m, Math.max(0, l.start - 0.15 - s, s - l.end - 0.1)), 9);
-    const duck = speaking ? 0.16 : interpolate(near, [0, 0.35], [0.16, 0.34], { extrapolateRight: "clamp" });
+    const duck = speaking ? 0.07 : interpolate(near, [0, 0.35], [0.1, 0.3], { extrapolateRight: "clamp" });
     return duck;
   };
 
@@ -43,6 +45,8 @@ export const MedvilleAd: React.FC<{ captions: boolean }> = ({ captions }) => {
       <Review t={t} />
       <Deliver t={t} />
       <Support t={t} />
+      <Services t={t} />
+      <Providers t={t} />
       <Cta t={t} />
       <StepTracker t={t} />
       {captions && <Captions />}
@@ -73,6 +77,8 @@ export const MedvilleAd: React.FC<{ captions: boolean }> = ({ captions }) => {
       <Sfx at={SENT} name="chime" volume={0.3} />
       <Sfx at={WHIP[0]} name="whoosh-up" volume={0.4} />
       {(["reviews", "checks", "works"] as const).map((w) => <Sfx key={w} at={wordTime("review", w) + 0.15} name="pop" volume={0.25} />)}
+      <Sfx at={CONNECT} name="chime" volume={0.35} />
+      <Sfx at={REPLY} name="pop" volume={0.3} />
       <Sfx at={STAMP} name="stamp" volume={0.55} />
       <Sfx at={DROP[0]} name="whoosh-short" volume={0.25} />
       <Sfx at={DROP[1] - 0.05} name="box" volume={0.4} />
@@ -85,7 +91,12 @@ export const MedvilleAd: React.FC<{ captions: boolean }> = ({ captions }) => {
       <Sfx at={wordTime("support", "ongoing")} name="pop" volume={0.22} />
       <Sfx at={wordTime("support", "real") - 0.1} name="pop" volume={0.22} />
       <Sfx at={wordTime("support", "real") + 0.65} name="pop" volume={0.22} />
-      <Sfx at={IRIS[0]} name="whoosh-up" volume={0.4} />
+      <Sfx at={WIPE.supportOut[0]} name="whoosh-short" volume={0.3} />
+      {SERVICE_AT.map((at) => <Sfx key={at} at={at} name="pop" volume={0.25} />)}
+      <Sfx at={WIPE.servicesOut[0]} name="whoosh-short" volume={0.3} />
+      {(["refer", "patient", "takes"] as const).map((w) => <Sfx key={w} at={wordTime("providers", w) + 0.1} name="pop" volume={0.25} />)}
+      <Sfx at={wordTime("providers", "takes") + 0.25} name="chime" volume={0.3} />
+      <Sfx at={WIPE.providersOut[0]} name="whoosh-up" volume={0.4} />
       <Sfx at={CLICK} name="click" volume={0.55} />
       <Sfx at={CLICK + 0.02} name="chime" volume={0.25} />
     </AbsoluteFill>

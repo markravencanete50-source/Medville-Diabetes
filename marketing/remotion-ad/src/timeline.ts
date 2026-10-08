@@ -5,11 +5,11 @@
 */
 import vo from "./voiceover.json";
 
-export const FPS = 30;
+export const FPS = 60;
 export const DURATION = vo.duration;
 export const DURATION_FRAMES = Math.ceil(vo.duration * FPS);
 
-export type LineId = "hook" | "brand" | "choose" | "form" | "review" | "deliver" | "support" | "cta";
+export type LineId = "hook" | "brand" | "choose" | "form" | "review" | "deliver" | "support" | "services" | "providers" | "cta";
 export type Line = { id: LineId; start: number; end: number; spoken: string; caption: string };
 export const LINES = vo.lines as Line[];
 export const L = Object.fromEntries(LINES.map((l) => [l.id, l])) as Record<LineId, Line>;
@@ -27,3 +27,10 @@ export function wordTime(id: LineId, word: string, nth = 0): number {
   if (at < 0) throw new Error(`"${word}" is not in the ${id} line`);
   return line.start + (at / text.length) * (line.end - line.start);
 }
+
+/* Where the scenes wipe into each other, in seconds: each wipe is 0.6 s, centred on the cut. */
+export const WIPE = {
+  supportOut: [L.support.end - 0.3, L.support.end + 0.3] as const,
+  servicesOut: [L.providers.start - 0.3, L.providers.start + 0.3] as const,
+  providersOut: [L.cta.start - 0.3, L.cta.start + 0.3] as const,
+};

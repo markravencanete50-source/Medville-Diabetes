@@ -4,9 +4,8 @@ import { C, BODY, DISPLAY } from "../theme";
 import { clamp, ease, ep, lerp, prog } from "../anim";
 import { Icon } from "../components/Icon";
 import { Cursor } from "../components/Cursor";
-import { IRIS, RING } from "./Support";
 import { PHONE, EMAIL, SITE, HOURS } from "../data";
-import { L } from "../timeline";
+import { L, WIPE } from "../timeline";
 
 /*
   Scene 8, "Medville Diabetes. Check your eligibility today, at
@@ -18,10 +17,9 @@ export const CLICK = L.cta.start + 2.35;
 const CONTACTS: [string, string][] = [["globe", SITE], ["phone", PHONE], ["mail", EMAIL]];
 
 export const Cta: React.FC<{ t: number }> = ({ t }) => {
-  if (t < IRIS[0]) return null;
-  const iris = ep(t, IRIS[0], IRIS[1], ease.in);
-  const r = lerp(0, 2300, iris);
-  const camZ = ep(t, IRIS[0] + 0.2, IRIS[1] + 1.4);
+  if (t < WIPE.providersOut[0]) return null;
+  const enter = ep(t, WIPE.providersOut[0], WIPE.providersOut[1], ease.inOut);
+  const camZ = ep(t, WIPE.providersOut[0] + 0.2, WIPE.providersOut[0] + 1.6);
   const s0 = L.cta.start;
   const logo = ep(t, s0 - 0.25, s0 + 0.5);
   const head = ep(t, s0 + 0.55, s0 + 1.15);
@@ -32,7 +30,7 @@ export const Cta: React.FC<{ t: number }> = ({ t }) => {
   const curOp = ep(t, CLICK - 0.8, CLICK - 0.65) * (1 - ep(t, CLICK + 0.6, CLICK + 0.9));
   const ripple = prog(t, CLICK, CLICK + 0.7);
   return (
-    <AbsoluteFill style={{ clipPath: iris < 1 ? `circle(${r}px at ${RING.x}px ${RING.y}px)` : undefined }}>
+    <AbsoluteFill style={{ transform: `translateX(${(1 - enter) * 1920}px)` }}>
       <AbsoluteFill style={{ background: `radial-gradient(1100px 620px at 50% 30%, rgba(24,186,218,.22) 0%, transparent 70%), linear-gradient(135deg, ${C.navy} 0%, ${C.abyss} 100%)` }} />
       <AbsoluteFill style={{ transform: `scale(${lerp(1.12, 1, camZ)}) translateY(${lerp(30, 0, camZ)}px)` }}>
         <Img src={staticFile("img/medville-logo-on-dark.svg")} style={{ position: "absolute", left: 960 - 300, top: 70, width: 600, opacity: logo, transform: `translateY(${(1 - logo) * 30}px) scale(${lerp(0.9, 1, logo)})` }} />

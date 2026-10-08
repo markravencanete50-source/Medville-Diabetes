@@ -37,11 +37,15 @@ LINES = [
      "Once you qualify, we ship your CGM and supplies straight to your door.", 0.7),
     ("support", "And we stay with you, with ongoing resupply, and real people to answer your questions.",
      "And we stay with you, with ongoing resupply and real people to answer your questions.", 0.45),
+    ("services", "Our services cover insurance verification and authorization, doctor verification, documentation review, and ongoing resupply.",
+     "Our services cover insurance verification and authorization, doctor verification, documentation review, and ongoing resupply.", 0.5),
+    ("providers", "Healthcare providers can refer a patient to us, and our team takes it from there.",
+     "Healthcare providers can refer a patient to us, and our team takes it from there.", 0.6),
     ("cta", "Medville Diabetes. Check your eligibility today, at medville diabetes dot com.",
      "Medville Diabetes. Check your eligibility today at medvillediabetes.com.", 0.0),
 ]
 LEAD_IN = 0.6   # silence before the first word
-TAIL = 2.6      # the end card holds after the last word
+TARGET = 60.0    # the whole advertisement, in seconds
 SPEED = 1.08
 VOICE = "af_heart"
 
@@ -72,7 +76,10 @@ def main():
         timing.append({"id": key, "start": round(t, 3), "end": round(t + dur, 3), "spoken": spoken, "caption": caption})
         out += [a, np.zeros(int(gap * sr), dtype=np.float32)]
         t += dur + gap
-    out.append(np.zeros(int(TAIL * sr), dtype=np.float32))
+    # The end card takes up the rest, so the film is exactly TARGET seconds.
+    tail = TARGET - t
+    assert tail >= 2.0, f"the lines run {t:.2f} s, too long for {TARGET} s"
+    out.append(np.zeros(int(round(tail * sr)), dtype=np.float32))
     audio = np.concatenate(out)
     audio = audio / np.max(np.abs(audio)) * 0.89
     sf.write(os.path.join(ROOT, "public", "voiceover.wav"), audio, sr)

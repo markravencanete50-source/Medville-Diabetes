@@ -44,8 +44,8 @@ export const SiteHeader: React.FC = () => (
 
 /* The hero: logo, then what Medville supplies, arriving with the voiceover. */
 const HERO_ITEMS = [
-  { img: "img/freestyle-libre-3-front.webp", label: "CGM systems", word: "CGMs" },
-  { img: "img/dexcom-g7-front.webp", label: "CGM systems", word: "CGMs" },
+  { img: "img/freestyle-libre-3-front.webp", label: "FreeStyle Libre", word: "CGMs" },
+  { img: "img/dexcom-g7-front.webp", label: "Dexcom", word: "CGMs" },
   { img: "img/freestyle-libre-3-sensor-front.webp", label: "Sensors", word: "sensors" },
   { img: "img/tandem-tslim-x2-front.webp", label: "Insulin pumps", word: "insulin" },
 ];
@@ -143,7 +143,6 @@ export const ProductsSection: React.FC<{ hover: Record<string, number>; selected
             <Img src={staticFile(p.img)} style={{ maxWidth: 430, maxHeight: 280, transform: `scale(${1 + h * 0.05})` }} />
           </div>
           <div style={{ position: "absolute", left: 32, top: 344, font: `600 32px ${DISPLAY}`, color: C.navy }}>{p.name}</div>
-          <div style={{ position: "absolute", left: 32, top: 396, font: `500 22px ${BODY}`, color: C.inkMuted }}>{p.brand} · {p.kind}</div>
           {p.id === "libre3" && isSel > 0 && (
             <div style={{
               position: "absolute", right: 24, top: 24, width: 64, height: 64, borderRadius: "50%", background: C.cyan,

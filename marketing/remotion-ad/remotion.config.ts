@@ -4,7 +4,7 @@ import { Config } from "@remotion/cli/config";
 Config.setVideoImageFormat("jpeg");
 Config.setJpegQuality(95);
 Config.setCodec("h264");
-Config.setCrf(16);
+Config.setCrf(18);
 Config.setPixelFormat("yuv420p");
 Config.setConcurrency(4);
 // A browser that is already on the machine can be used instead of the one
