@@ -67,7 +67,7 @@
   --a-nav-text: #ffffff;    /* 15.2:1 on navy */
   --a-nav-muted: #b8c3c8;   /* white 72% on navy, 8.5:1 */
   --a-nav-hover: #0d3445;   /* white 5% on navy */
-  --a-nav-active: #143a4b;  /* white 8% on navy */
+  --a-nav-active: #033d51;  /* cyan 14% into navy, white on it 11.6:1 */
   --a-nav-rail: #18bada;    /* cyan, 6.6:1 on navy */
 
   --a-scrim: rgb(0 41 59 / 0.6);
@@ -130,7 +130,7 @@
   gap: 2px;
   background: var(--a-nav-bg);
   color: var(--a-nav-text);
-  padding: 18px 14px;
+  padding: 18px 14px 0;
   position: sticky;
   top: 0;
   height: 100vh;
@@ -146,7 +146,14 @@
   padding: 26px clamp(16px, 3vw, 34px) 64px;
 }
 
-/* The phone header: brand mark, the screen name, and two 44px buttons. */
+/* One focus ring for everything without its own: brand colour, offset so it
+   never touches the control. The navy surfaces below swap in raw cyan. */
+.admin :focus-visible {
+  outline: 2px solid var(--a-brand);
+  outline-offset: 2px;
+}
+
+/* The phone header: the logo, the screen name, and two 44px buttons. */
 .admin-topbar {
   display: none;
   align-items: center;
@@ -160,7 +167,12 @@
   z-index: 30;
 }
 
-.admin-topbar .admin-brand-mark { width: 30px; height: 30px; border-radius: 8px; }
+.admin-topbar-logo {
+  display: block;
+  height: 32px;
+  width: auto;
+  flex: none;
+}
 
 .admin-topbar-title {
   flex: 1;
@@ -194,7 +206,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 4px;
   padding: 6px 2px;
   color: var(--a-text-faint);
   font-size: 11px;
@@ -204,62 +216,71 @@
   transition: color 150ms ease;
 }
 
-.admin-tab span {
+.admin-tab-label {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.admin-tab[aria-current="page"],
-.admin-tab[aria-expanded="true"] {
-  color: var(--a-brand);
-  box-shadow: inset 0 2px 0 var(--a-nav-rail);
+/* The pill behind the icon marks the chosen tab. */
+.admin-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 30px;
+  border-radius: 999px;
+  transition: background 150ms ease, color 150ms ease;
 }
+
+.admin-tab:active .admin-tab-icon { background: var(--a-surface-2); }
+
+.admin-tab[aria-current="page"],
+.admin-tab[aria-expanded="true"] { color: var(--a-brand-text); }
+
+.admin-tab[aria-current="page"] .admin-tab-icon,
+.admin-tab[aria-expanded="true"] .admin-tab-icon {
+  background: var(--a-brand-soft);
+  color: var(--a-brand-text);
+}
+
+.admin-tab:focus-visible { outline-offset: -4px; }
 
 /* ---- navigation ---- */
 
 .admin-brand {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 8px 18px;
-  color: var(--a-nav-text);
-  font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 4px 10px 16px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--a-nav-hover);
+}
+
+.admin-brand-logo {
+  display: block;
+  height: 48px;
+  width: auto;
 }
 
 .admin-brand small {
-  display: block;
-  margin-top: 2px;
   color: var(--a-nav-muted);
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
-.admin-brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  flex: none;
-  border-radius: 10px;
-  background: var(--a-nav-rail);
-  color: var(--a-nav-bg);
-}
-
 .admin-nav-link {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 11px;
-  min-height: 42px;
+  gap: 12px;
+  min-height: 40px;
   border-radius: var(--a-radius-sm);
-  padding: 9px 12px;
+  padding: 8px 12px;
   color: var(--a-nav-muted);
   font-size: 14px;
   font-weight: 600;
@@ -268,43 +289,126 @@
   transition: background 150ms ease, color 150ms ease;
 }
 
+.admin-nav-link svg { flex: none; transition: color 150ms ease; }
+
 .admin-nav-link:hover {
   background: var(--a-nav-hover);
   color: var(--a-nav-text);
 }
 
+/* The chosen screen: a soft cyan wash, and a cyan rail set against the
+   sidebar's own edge. */
 .admin-nav-link[aria-current="page"] {
   background: var(--a-nav-active);
   color: var(--a-nav-text);
-  box-shadow: inset 3px 0 0 var(--a-nav-rail);
+}
+
+.admin-nav-link[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  left: -14px;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--a-nav-rail);
 }
 
 .admin-nav-link[aria-current="page"] svg { color: var(--a-nav-rail); }
 
+.admin-nav-link-sm {
+  min-height: 38px;
+  gap: 9px;
+  padding: 7px 10px;
+  font-size: 13px;
+}
+
+/* Theme and sign out share one row. */
+.admin-nav-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
 .admin-nav-link:focus-visible,
-.admin-tab:focus-visible,
-.admin-icon-btn:focus-visible {
+.admin-side .admin-icon-btn:focus-visible,
+.admin-topbar .admin-icon-btn:focus-visible {
   outline: 2px solid var(--a-nav-rail);
   outline-offset: -2px;
 }
 
 .admin-nav-group {
-  margin: 16px 12px 6px;
+  margin: 18px 12px 6px;
   color: var(--a-nav-muted);
-  opacity: 0.8;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
+/* The signed-in person: initials, the address cut short, and their role. The
+   foot holds to the bottom edge, so on a short screen the list scrolls
+   behind it and sign out is never out of reach. */
 .admin-nav-foot {
-  margin-top: auto;
-  padding-top: 18px;
+  position: sticky;
+  bottom: 0;
+  margin: auto -14px 0;
+  padding: 14px 14px 12px;
   border-top: 1px solid var(--a-nav-hover);
+  background: var(--a-nav-bg);
 }
 
-.admin-nav-foot .admin-help { color: var(--a-nav-muted); }
+.admin-user {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 8px;
+  border-radius: var(--a-radius);
+  padding: 10px;
+  background: var(--a-nav-hover);
+}
+
+.admin-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 10px;
+  background: var(--a-nav-rail);
+  color: var(--a-nav-bg);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.admin-user-meta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.admin-user-email {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--a-nav-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The role pill, tuned for navy: a cyan wash with cyan type (6.6:1). */
+.admin-user .admin-badge {
+  padding: 2px 9px;
+  background: color-mix(in srgb, var(--a-nav-rail) 18%, transparent);
+  color: var(--a-nav-rail);
+  font-size: 11px;
+}
 
 /* ---- sign in ---- */
 
@@ -337,6 +441,229 @@
   border: 1px solid var(--a-line-strong);
 }
 
+/* The split layout. On a phone it is one navy column: the logo, then the
+   card. From 1024px the navy moves to a brand panel on the left and the form
+   sits on the page ground on the right. */
+.admin-signin-split {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+}
+
+.admin-signin-brand {
+  display: flex;
+  justify-content: center;
+  padding: 28px 16px 20px;
+}
+
+.admin-signin-logo {
+  display: block;
+  width: auto;
+  height: 44px;
+}
+
+/* Trust points and the headline are for the wide layout only. */
+.admin-signin-pitch { display: none; }
+
+.admin-signin-main {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0 16px 32px;
+}
+
+.admin-signin-main .admin-signin-card {
+  max-width: 440px;
+  animation: admin-signin-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.admin-signin-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.admin-signin-sub {
+  margin: 6px 0 22px;
+  color: var(--a-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* An input with an icon inside each end. 16px type stops phones zooming in. */
+.admin-signin-control { position: relative; }
+
+.admin-signin-input {
+  min-height: 48px;
+  padding: 0 14px 0 42px;
+  font-size: 16px;
+}
+
+.admin-signin-input-end { padding-right: 52px; }
+
+.admin-signin-lead {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  translate: 0 -50%;
+  color: var(--a-text-faint);
+  pointer-events: none;
+}
+
+.admin-signin-control:focus-within .admin-signin-lead { color: var(--a-brand); }
+
+.admin-signin-reveal {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--a-radius-sm);
+  color: var(--a-text-muted);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+.admin-signin-reveal:hover { background: var(--a-surface-2); color: var(--a-text); }
+.admin-signin-reveal:focus-visible { outline: 2px solid var(--a-brand); outline-offset: -2px; }
+
+.admin-signin-caps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  color: var(--a-warn);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-signin-submit {
+  width: 100%;
+  min-height: 48px;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 15px;
+}
+
+.admin-signin-spin { animation: admin-signin-spin 800ms linear infinite; }
+
+.admin-signin-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 22px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--a-line);
+  color: var(--a-text-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.admin-signin-notice svg { flex: none; margin-top: 1px; color: var(--a-brand); }
+
+@keyframes admin-signin-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes admin-signin-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-signin-main .admin-signin-card,
+  .admin-signin-spin { animation: none; }
+}
+
+@media (min-width: 1024px) {
+  .admin-signin-split {
+    flex-direction: row;
+    background: var(--a-bg);
+  }
+
+  .admin-signin-brand {
+    flex: 0 0 46%;
+    max-width: 640px;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 56px clamp(40px, 5vw, 72px);
+    background:
+      radial-gradient(circle at 15% 10%, rgb(24 186 218 / 0.28) 0%, rgb(24 186 218 / 0) 45%),
+      radial-gradient(circle at 90% 90%, rgb(24 186 218 / 0.16) 0%, rgb(24 186 218 / 0) 45%),
+      var(--a-nav-bg);
+    color: var(--a-nav-text);
+  }
+
+  .admin-signin-pitch {
+    display: block;
+    margin: auto 0;
+    max-width: 440px;
+  }
+
+  .admin-signin-headline {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 1.2rem + 1.6vw, 2.7rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.12;
+  }
+
+  .admin-signin-lede {
+    margin: 14px 0 0;
+    color: var(--a-nav-muted);
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .admin-signin-points {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin: 36px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .admin-signin-points li {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: var(--a-nav-text);
+    font-size: 14.5px;
+    line-height: 1.5;
+  }
+
+  .admin-signin-point-icon {
+    display: inline-flex;
+    width: 38px;
+    height: 38px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgb(24 186 218 / 0.3);
+    border-radius: 10px;
+    background: rgb(24 186 218 / 0.14);
+    color: var(--a-accent);
+  }
+
+  .admin-signin-main {
+    align-items: center;
+    padding: 48px clamp(32px, 4vw, 64px);
+  }
+
+  .admin-signin-main .admin-signin-card {
+    padding: 36px;
+    border: 1px solid var(--a-line);
+    box-shadow: var(--a-shadow-pop);
+  }
+}
+
 /* ---- surfaces ---- */
 
 .admin-card {
@@ -357,8 +684,19 @@
   letter-spacing: -0.03em;
 }
 
+/* Title and lede on the left, the actions on the right. On a phone the
+   actions drop below and keep their own row. */
+.admin-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 24px;
+  margin-bottom: 22px;
+}
+
 .admin-page-lede {
-  margin-top: 5px;
+  margin-top: 6px;
   color: var(--a-text-muted);
   font-size: 14px;
   line-height: 1.5;
@@ -380,7 +718,7 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease, box-shadow 150ms ease;
 }
 
 .admin-btn:disabled { cursor: not-allowed; opacity: 0.55; }
@@ -395,6 +733,7 @@
 /* The action colour: orange under navy type. */
 .admin-btn-primary { background: var(--a-cta); color: var(--a-cta-text); }
 .admin-btn-primary:hover:not(:disabled) { background: var(--a-cta-hover); }
+.admin-btn-primary { box-shadow: 0 1px 2px rgb(0 41 59 / 0.12); }
 
 /* The quiet button: a navy outline. */
 .admin-btn-quiet {
@@ -404,14 +743,37 @@
 }
 .admin-btn-quiet:hover:not(:disabled) { border-color: var(--a-brand); color: var(--a-brand-text); }
 
-/* Danger is orange too, but as a stronger fill with a full outline, and the
-   button says what it does. Hovering fills it solid. */
+/* Danger is quiet until it is asked about. A row of loud orange Remove
+   buttons would drown the one orange action that matters, so at rest it is a
+   navy outline with an orange-family icon, and it fills orange on hover or
+   focus. The button still says what it does. */
 .admin-btn-danger {
-  border-color: var(--a-danger-fill);
-  background: var(--a-danger-soft);
-  color: var(--a-danger);
+  border-color: var(--a-line-strong);
+  background: var(--a-surface);
+  color: var(--a-text);
 }
-.admin-btn-danger:hover:not(:disabled) { background: var(--a-danger-fill); color: var(--a-cta-text); }
+.admin-btn-danger svg { color: var(--a-danger); transition: color 150ms ease; }
+.admin-btn-danger:hover:not(:disabled),
+.admin-btn-danger:focus-visible:not(:disabled) {
+  border-color: var(--a-danger-fill);
+  background: var(--a-danger-fill);
+  color: var(--a-cta-text);
+}
+.admin-btn-danger:hover:not(:disabled) svg,
+.admin-btn-danger:focus-visible:not(:disabled) svg { color: var(--a-cta-text); }
+
+/* Where the person is confirming the deletion, the button is the decision,
+   so it is filled from the start. */
+.admin-confirm-card .admin-btn-danger {
+  border-color: var(--a-danger-fill);
+  background: var(--a-danger-fill);
+  color: var(--a-cta-text);
+}
+.admin-confirm-card .admin-btn-danger svg { color: var(--a-cta-text); }
+.admin-confirm-card .admin-btn-danger:hover:not(:disabled) {
+  border-color: var(--a-cta-hover);
+  background: var(--a-cta-hover);
+}
 
 /* A smaller button for a row of them; still 44px on a touch screen. */
 .admin-btn-sm { min-height: 36px; padding: 0 11px; font-size: 13px; }
@@ -806,7 +1168,7 @@
 
 /* ---- table ---- */
 
-.admin-table-wrap { overflow-x: auto; }
+.admin-table-wrap { overflow-x: auto; border-radius: var(--a-radius); }
 
 .admin-table {
   width: 100%;
@@ -815,10 +1177,12 @@
   white-space: nowrap;
 }
 
+/* A tinted header row sets the column names apart from the data. */
 .admin-table th {
   border-bottom: 1px solid var(--a-line);
-  padding: 10px 12px;
-  color: var(--a-text-faint);
+  padding: 12px 14px;
+  background: var(--a-surface-2);
+  color: var(--a-text-muted);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.09em;
@@ -828,11 +1192,13 @@
 
 .admin-table td {
   border-bottom: 1px solid var(--a-line);
-  padding: 11px 12px;
+  padding: 13px 14px;
   vertical-align: middle;
 }
 
+.admin-table tbody tr { transition: background 150ms ease; }
 .admin-table tbody tr:hover { background: var(--a-surface-2); }
+.admin-table tbody tr:last-child td { border-bottom: 0; }
 
 /* ---- small parts ---- */
 
@@ -1124,6 +1490,93 @@
   .admin-confirm-motion.is-busy .admin-confirm-icon svg { animation: none; }
 }
 
+/* ---- loading ---- */
+
+.admin-spin {
+  display: inline-block;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border: 3px solid color-mix(in srgb, var(--a-nav-rail) 25%, transparent);
+  border-top-color: var(--a-nav-rail);
+  border-radius: 999px;
+  animation: admin-spin 800ms linear infinite;
+}
+
+.admin-spin-sm { width: 18px; height: 18px; border-width: 2px; }
+
+/* Inside a page the ring sits on a light or navy ground, so it takes the
+   interface accent instead of raw cyan. */
+.admin-main .admin-spin {
+  border-color: var(--a-line);
+  border-top-color: var(--a-brand);
+}
+
+@keyframes admin-spin { to { transform: rotate(360deg); } }
+
+/* The session check: the logo and a ring, centred on navy. */
+.admin-boot {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  background:
+    radial-gradient(circle at 50% 0%, rgb(24 186 218 / 0.2) 0%, rgb(24 186 218 / 0) 55%),
+    var(--a-nav-bg);
+  color: var(--a-nav-muted);
+}
+
+.admin-boot-logo { display: block; width: 134px; height: auto; }
+.admin-boot-text { margin: 0; font-size: 14px; }
+
+/* The placeholder for a screen that is still arriving. Bars sit on the two
+   surface tints and a lighter band sweeps across them. */
+.admin-skel {
+  --skel-a: var(--a-line-strong);
+  --skel-b: var(--a-line);
+  padding-top: 4px;
+}
+
+.admin-skel-bar {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--skel-a) 0%, var(--skel-b) 50%, var(--skel-a) 100%);
+  background-size: 200% 100%;
+  animation: admin-shimmer 1.4s ease-in-out infinite;
+}
+
+.admin-skel-card {
+  --skel-a: var(--a-line);
+  --skel-b: var(--a-surface-2);
+  margin-top: 26px;
+  padding: 6px 0;
+}
+
+.admin-skel-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+}
+.admin-skel-row + .admin-skel-row { border-top: 1px solid var(--a-line); }
+
+@keyframes admin-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@media (max-width: 639px) {
+  .admin-skel-hide { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-spin { animation: none; }
+  .admin-skel-bar { animation: none; background: var(--skel-a); }
+}
+
 /* ---- responsive ----
    Built at 375px first. The desktop sidebar appears from 1024px; below that
    the phone header and footer take over, and every control is 44px tall. */
@@ -1142,12 +1595,13 @@
     width: min(300px, 86vw);
     height: 100dvh;
     padding-top: max(18px, env(safe-area-inset-top, 0px));
-    padding-bottom: max(18px, env(safe-area-inset-bottom, 0px));
+    padding-bottom: 0;
     transform: translateX(-100%);
     transition: transform 220ms cubic-bezier(0.25, 1, 0.5, 1);
     box-shadow: var(--a-shadow-pop);
   }
   .admin-side[data-open="true"] { transform: none; }
+  .admin-nav-foot { padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); }
   .admin-side .admin-side-close {
     display: inline-flex;
     position: absolute;
@@ -1227,6 +1681,7 @@
     border-bottom: 1px solid var(--a-line);
   }
   .admin-table:not(.admin-table-keep) tbody tr:hover { background: transparent; }
+  .admin-table:not(.admin-table-keep) tbody tr:last-child { border-bottom: 0; }
   .admin-table:not(.admin-table-keep) td {
     display: grid;
     grid-template-columns: 92px minmax(0, 1fr);

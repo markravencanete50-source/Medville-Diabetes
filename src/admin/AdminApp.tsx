@@ -3,7 +3,13 @@ import {
   BarChart3,
   ClipboardList,
   FileText,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Lock,
+  LoaderCircle,
   LogOut,
+  Mail,
   Menu,
   Megaphone,
   MessageSquareQuote,
@@ -16,7 +22,9 @@ import {
   ShieldCheck,
   Star,
   Sun,
+  Timer,
   Trash2,
+  UserRound,
   Users,
   X,
 } from "lucide-react";
@@ -167,18 +175,50 @@ function useSection(role: AdminRole, features: AdminFeature[]) {
   return { section, go };
 }
 
-/* The lockup: a cyan tile with the shield, the name, and what this is. It
-   only ever sits on navy, so it is white and cyan in both themes. */
+/* The lockup: the client's own logo, reversed for dark surfaces, with a small
+   caption saying what this is. It only ever sits on navy, so it is the same
+   in both themes. */
 function Brand() {
   return (
     <div className="admin-brand">
-      <span className="admin-brand-mark" aria-hidden="true">
-        <ShieldCheck size={20} strokeWidth={2.2} />
-      </span>
-      <span>
-        Medville
-        <small>Dashboard</small>
-      </span>
+      <img
+        src="/brand/medville-logo-on-dark.svg"
+        alt="Medville Diabetes"
+        width={107}
+        height={48}
+        className="admin-brand-logo"
+      />
+      <small>Dashboard</small>
+    </div>
+  );
+}
+
+/* Two letters for the avatar, taken from the sign-in address: ada.lovelace@
+   gives AL, and a single word gives its first two letters. */
+function initialsFor(email: string) {
+  const name = email.split("@")[0] ?? "";
+  const parts = name.split(/[._-]+/).filter(Boolean);
+  const letters = parts.length > 1 ? `${parts[0][0]}${parts[1][0]}` : name.slice(0, 2);
+  return (letters || "?").toUpperCase();
+}
+
+/* What shows while a screen's code is fetched. The bars echo the shape of a
+   page, a title and a card of rows, so nothing jumps when the real one lands. */
+function ScreenSkeleton() {
+  return (
+    <div className="admin-skel" role="status" aria-live="polite">
+      <span className="sr-only">Loading</span>
+      <span className="admin-skel-bar" style={{ width: "min(220px, 55%)", height: 28 }} />
+      <span className="admin-skel-bar" style={{ width: "min(420px, 85%)", height: 14, marginTop: 12 }} />
+      <div className="admin-card admin-skel-card" aria-hidden="true">
+        {[100, 92, 96, 84, 90].map((width, index) => (
+          <div key={index} className="admin-skel-row">
+            <span className="admin-skel-bar" style={{ width: 40, height: 40, flex: "none", borderRadius: 8 }} />
+            <span className="admin-skel-bar" style={{ width: `${width * 0.5}%`, height: 14 }} />
+            <span className="admin-skel-bar admin-skel-hide" style={{ width: 72, height: 14, marginLeft: "auto" }} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -190,6 +230,14 @@ function SignIn() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [capsLock, setCapsLock] = useState(false);
+
+  /* Caps Lock cannot be read directly. A key press reports it, so the warning
+     follows the last key the person touched and clears when they leave. */
+  const watchCapsLock = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    setCapsLock(event.getModifierState("CapsLock"));
+  };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -219,10 +267,44 @@ function SignIn() {
   };
 
   return (
-    <div className="admin-signin">
-      <div className="w-full max-w-[420px]">
-        <Brand />
+    <div className="admin-signin admin-signin-split">
+      <aside className="admin-signin-brand">
+        <img
+          className="admin-signin-logo"
+          src="/brand/medville-logo-on-dark.svg"
+          alt="Medville Diabetes"
+          width={98}
+          height={44}
+        />
+        <div className="admin-signin-pitch">
+          <h2 className="admin-signin-headline">Your Medville dashboard</h2>
+          <p className="admin-signin-lede">
+            Manage enquiries, products and site content in one secure place.
+          </p>
+          <ul className="admin-signin-points">
+            <li>
+              <span className="admin-signin-point-icon" aria-hidden="true">
+                <UserRound size={18} />
+              </span>
+              <span>Every person has their own login. Accounts are never shared.</span>
+            </li>
+            <li>
+              <span className="admin-signin-point-icon" aria-hidden="true">
+                <KeyRound size={18} />
+              </span>
+              <span>Your role decides which screens you can open.</span>
+            </li>
+            <li>
+              <span className="admin-signin-point-icon" aria-hidden="true">
+                <Timer size={18} />
+              </span>
+              <span>You are signed out after 20 minutes of inactivity and when the tab closes.</span>
+            </li>
+          </ul>
+        </div>
+      </aside>
 
+      <main className="admin-signin-main">
         <div className="admin-signin-card">
           {!configured && (
             <div className="mb-4">
@@ -249,50 +331,79 @@ function SignIn() {
             </div>
           )}
 
-          <h1 className="admin-page-title m-0 mb-1">Sign in</h1>
-          <p className="admin-help m-0 mb-5">Use the address and password you were invited with.</p>
+          <h1 className="admin-signin-title">Sign in</h1>
+          <p className="admin-signin-sub">Use the address and password you were invited with.</p>
 
-          <form onSubmit={submit} className="flex flex-col gap-3.5">
+          <form onSubmit={submit} className="flex flex-col gap-4">
             <Field label="Email address" htmlFor="admin-email">
-              <input
-                id="admin-email"
-                className="admin-input"
-                type="email"
-                autoComplete="username"
-                required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
+              <div className="admin-signin-control">
+                <Mail className="admin-signin-lead" size={18} aria-hidden="true" />
+                <input
+                  id="admin-email"
+                  className="admin-input admin-signin-input"
+                  type="email"
+                  autoComplete="username"
+                  autoFocus
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+              </div>
             </Field>
             <Field label="Password" htmlFor="admin-password">
-              <input
-                id="admin-password"
-                className="admin-input"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
+              <div className="admin-signin-control">
+                <Lock className="admin-signin-lead" size={18} aria-hidden="true" />
+                <input
+                  id="admin-password"
+                  className="admin-input admin-signin-input admin-signin-input-end"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  onKeyDown={watchCapsLock}
+                  onKeyUp={watchCapsLock}
+                  onBlur={() => setCapsLock(false)}
+                />
+                <button
+                  type="button"
+                  className="admin-signin-reveal"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword((shown) => !shown)}
+                >
+                  {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                </button>
+              </div>
+              {capsLock && (
+                <p className="admin-signin-caps" role="status">
+                  <Lock size={14} aria-hidden="true" />
+                  Caps Lock is on.
+                </p>
+              )}
             </Field>
 
             {error && <Banner tone="danger">{error}</Banner>}
 
             <button
               type="submit"
-              className="admin-btn admin-btn-primary mt-1 min-h-12 w-full"
+              className="admin-btn admin-btn-primary admin-signin-submit"
               disabled={busy || !configured}
             >
+              {busy && <LoaderCircle className="admin-signin-spin" size={18} aria-hidden="true" />}
               {busy ? "Signing in" : "Sign in"}
             </button>
           </form>
 
-          <p className="admin-help mt-4">
-            This dashboard holds patient information. Do not share your login, and sign
-            out when you leave the screen.
+          <p className="admin-signin-notice">
+            <ShieldCheck size={16} aria-hidden="true" />
+            <span>
+              This dashboard holds patient information. Do not share your login, and sign
+              out when you leave the screen.
+            </span>
           </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
@@ -391,23 +502,30 @@ function Shell() {
       ))}
 
       <div className="admin-nav-foot">
-        <p className="admin-help mb-2 truncate px-3" title={session!.email}>
-          {session!.email}
-        </p>
-        <div className="mb-2 px-3">
-          <Badge tone="new">{ROLE_LABEL[role]}</Badge>
+        <div className="admin-user">
+          <span className="admin-avatar" aria-hidden="true">
+            {initialsFor(session!.email)}
+          </span>
+          <span className="admin-user-meta">
+            <span className="admin-user-email" title={session!.email}>
+              {session!.email}
+            </span>
+            <Badge tone="new">{ROLE_LABEL[role]}</Badge>
+          </span>
         </div>
-        <button type="button" className="admin-nav-link w-full" onClick={toggle} aria-label={themeLabel}>
-          {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
-          {theme === "dark" ? "Light mode" : "Dark mode"}
-        </button>
-        <button
-          type="button"
-          className="admin-nav-link w-full"
-          onClick={() => void signOutNow("You signed out.").then(() => toast("Signed out successfully.")).catch(() => toast("Sign out failed. Please try again.", "danger"))}
-        >
-          <LogOut size={17} /> Sign out
-        </button>
+        <div className="admin-nav-actions">
+          <button type="button" className="admin-nav-link admin-nav-link-sm" onClick={toggle} aria-label={themeLabel}>
+            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            {theme === "dark" ? "Light" : "Dark"}
+          </button>
+          <button
+            type="button"
+            className="admin-nav-link admin-nav-link-sm"
+            onClick={() => void signOutNow("You signed out.").then(() => toast("Signed out successfully.")).catch(() => toast("Sign out failed. Please try again.", "danger"))}
+          >
+            <LogOut size={16} /> Sign out
+          </button>
+        </div>
       </div>
     </>
   );
@@ -415,9 +533,13 @@ function Shell() {
   return (
     <div className="admin" data-admin-theme={theme}>
       <div className="admin-topbar">
-        <span className="admin-brand-mark" aria-hidden="true">
-          <ShieldCheck size={17} strokeWidth={2.2} />
-        </span>
+        <img
+          src="/brand/medville-logo-on-dark.svg"
+          alt="Medville Diabetes"
+          width={71}
+          height={32}
+          className="admin-topbar-logo"
+        />
         <p className="admin-topbar-title m-0">{current?.label ?? "Dashboard"}</p>
         <button type="button" className="admin-icon-btn" onClick={toggle} aria-label={themeLabel}>
           {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
@@ -485,13 +607,7 @@ function Shell() {
             </div>
           )}
 
-          <Suspense
-            fallback={
-              <p className="py-16 text-center text-[14px]" style={{ color: "var(--a-text-faint)" }}>
-                Loading
-              </p>
-            }
-          >
+          <Suspense fallback={<ScreenSkeleton />}>
             {section === "overview" && <Overview />}
             {section === "leads" && <Leads />}
             {section === "influencers" && <Influencers />}
@@ -525,8 +641,10 @@ function Shell() {
               onFocus={() => preloadScreen(item.id)}
               onClick={() => go(item.id)}
             >
-              <Icon size={22} strokeWidth={1.9} aria-hidden="true" />
-              <span>{item.label}</span>
+              <span className="admin-tab-icon">
+                <Icon size={21} strokeWidth={1.9} aria-hidden="true" />
+              </span>
+              <span className="admin-tab-label">{item.label}</span>
             </button>
           );
         })}
@@ -537,8 +655,10 @@ function Shell() {
           aria-current={!inTabs && !navOpen ? "page" : undefined}
           onClick={() => setNavOpen((open) => !open)}
         >
-          <MoreHorizontal size={22} strokeWidth={1.9} aria-hidden="true" />
-          <span>More</span>
+          <span className="admin-tab-icon">
+            <MoreHorizontal size={21} strokeWidth={1.9} aria-hidden="true" />
+          </span>
+          <span className="admin-tab-label">More</span>
         </button>
       </nav>
     </div>
@@ -552,10 +672,16 @@ function Gate() {
   if (!ready) {
     return (
       <div className="admin" data-admin-theme={theme}>
-        <div className="admin-signin">
-          <p className="text-[14px]" style={{ color: "var(--a-nav-muted)" }}>
-            Checking your session
-          </p>
+        <div className="admin-boot" role="status" aria-live="polite">
+          <img
+            src="/brand/medville-logo-on-dark.svg"
+            alt="Medville Diabetes"
+            width={134}
+            height={60}
+            className="admin-boot-logo"
+          />
+          <span className="admin-spin" aria-hidden="true" />
+          <p className="admin-boot-text">Checking your session</p>
         </div>
       </div>
     );

@@ -32,12 +32,12 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
-      <div>
+    <header className="admin-page-head">
+      <div className="min-w-0">
         <h1 className="admin-page-title">{title}</h1>
         {lede && <p className="admin-page-lede">{lede}</p>}
       </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>
   );
 }
@@ -96,7 +96,12 @@ export function Empty({ children }: { children: React.ReactNode }) {
 
 export function Spinner({ label = "Loading" }: { label?: string }) {
   return (
-    <p className="px-3 py-10 text-center text-[14px]" style={{ color: "var(--a-text-faint)" }}>
+    <p
+      className="flex items-center justify-center gap-3 px-3 py-10 text-[14px]"
+      style={{ color: "var(--a-text-faint)" }}
+      role="status"
+    >
+      <span className="admin-spin admin-spin-sm" aria-hidden="true" />
       {label}
     </p>
   );
