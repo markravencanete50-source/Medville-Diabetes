@@ -199,16 +199,54 @@ async function emit(path, html) {
 
 /* ---- structured data ---- */
 
-function organisation(company, origin) {
+/*
+  One identifier for the business and one for the site, used everywhere.
+
+  Search engines and AI answer engines build an entity from every block that
+  mentions the company. Without a shared @id each article's publisher, the
+  contact page card and the home page card read as three unrelated
+  organisations that happen to share a name. Pointing them all at the same
+  identifier makes them one.
+*/
+const orgId = (origin) => `${origin}/#organization`;
+const siteId = (origin) => `${origin}/#website`;
+/* Pages without the full card still name the business, so a validator that
+   reads one page at a time finds a complete publisher. */
+const orgRef = (origin) => ({
+  "@type": "Organization",
+  "@id": orgId(origin),
+  name: "Medville Diabetes",
+  url: origin,
+  logo: { "@type": "ImageObject", url: `${origin}/brand/medville-logo.svg` },
+});
+
+function organisation(company, origin, description) {
   return {
     "@context": "https://schema.org",
     "@type": "MedicalBusiness",
+    "@id": orgId(origin),
     name: "Medville Diabetes",
     url: origin,
+    description,
     logo: `${origin}/brand/medville-logo.svg`,
     image: `${origin}/og-image.jpg`,
     telephone: company.PHONE_DISPLAY,
     email: company.EMAIL,
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "customer service",
+      telephone: `+1-${company.PHONE_DISPLAY}`,
+      email: company.EMAIL,
+      areaServed: "US",
+      availableLanguage: "English",
+    },
+    knowsAbout: [
+      "Continuous glucose monitors",
+      "CGM sensors",
+      "Insulin pumps",
+      "Diabetes supplies",
+      "CGM insurance eligibility",
+    ],
     address: {
       "@type": "PostalAddress",
       streetAddress: company.ADDRESS_LINE_1,
@@ -224,6 +262,20 @@ function organisation(company, origin) {
       closes: "17:00",
     },
     areaServed: { "@type": "Country", name: "United States" },
+  };
+}
+
+/* The site itself, owned by the business above. Google reads the site name
+   in a result from this block. */
+function website(origin) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": siteId(origin),
+    name: "Medville Diabetes",
+    url: `${origin}/`,
+    inLanguage: "en-US",
+    publisher: orgRef(origin),
   };
 }
 
@@ -268,7 +320,7 @@ function blogIndexSchema(posts, origin) {
     "@type": "Blog",
     name: "Medville Diabetes Blog",
     url: `${origin}/blog`,
-    publisher: { "@type": "Organization", name: "Medville Diabetes" },
+    publisher: orgRef(origin),
     blogPost: posts.map((post) => ({
       "@type": "BlogPosting",
       headline: post.title,
@@ -285,11 +337,19 @@ function articleSchema(post, origin) {
     "@type": "BlogPosting",
     headline: post.title,
     description: post.excerpt,
-    ...(post.image ? { image: post.image.startsWith("http") ? post.image : `${origin}${post.image}` } : {}),
+    /* Google wants an image on every article it shows as a rich result. A
+       post without its own picture falls back to the site card. */
+    image: post.image ? (post.image.startsWith("http") ? post.image : `${origin}${post.image}`) : `${origin}/og-image.jpg`,
     datePublished: post.publishedAt,
     dateModified: post.updatedAt || post.publishedAt,
-    author: { "@type": "Organization", name: post.author || "Medville Diabetes" },
-    publisher: { "@type": "Organization", name: "Medville Diabetes" },
+    /* A named person is a Person. The default byline is the business, which
+       is the same organisation as every other block, not a second one. */
+    author: post.author && post.author !== "Medville Diabetes"
+      ? { "@type": "Person", name: post.author }
+      : orgRef(origin),
+    publisher: orgRef(origin),
+    isPartOf: { "@id": siteId(origin) },
+    inLanguage: "en-US",
     mainEntityOfPage: `${origin}/blog/${post.slug}`,
   };
 }
@@ -341,6 +401,15 @@ console.log(`  public content: ${products.length} products, ${posts.length} arti
 const sitemap = [];
 const HOME = { name: "Home", path: "/" };
 
+/* The FAQPage block must match the questions a visitor sees. Home.tsx shows
+   the questions saved in the dashboard and falls back to the shipped list
+   only when there are none, so this follows the same rule. Marking up
+   questions the page does not show breaks Google's structured data policy. */
+const homeFaqs = siteData.faqs?.length
+  ? [...siteData.faqs].sort((a, b) => a.order - b.order)
+  : faqs.FALLBACK_FAQS;
+const homeMeta = savedPageMeta("/", meta.PAGE_META["/"]);
+
 /* The trail above each fixed page. A page absent from here sits directly
    under the home page. */
 const TRAIL = {
@@ -367,9 +436,10 @@ for (const [path, fallback] of Object.entries(meta.PAGE_META)) {
          two a search engine treats as the business itself. The breadcrumb
          belongs on everything below the home page. */
       jsonLd: [
-        path === "/" ? organisation(company, origin) : null,
-        path === "/" ? faqSchema(faqs.FALLBACK_FAQS) : null,
-        path === "/contact" ? organisation(company, origin) : null,
+        path === "/" ? website(origin) : null,
+        path === "/" ? organisation(company, origin, homeMeta.description) : null,
+        path === "/" ? faqSchema(homeFaqs) : null,
+        path === "/contact" ? organisation(company, origin, homeMeta.description) : null,
         path === "/" || noindex ? null : breadcrumbs(trail, origin),
       ].filter(Boolean),
     }),
@@ -506,6 +576,55 @@ await writeFile(
     "Disallow: /admin",
     "",
     `Sitemap: ${origin}/sitemap.xml`,
+    "",
+  ].join("\n"),
+  "utf-8",
+);
+
+/*
+  llms.txt: a plain summary of the site for AI answer engines.
+
+  ChatGPT search, Perplexity, Claude and similar tools fetch pages and quote
+  them. This file, from the llmstxt.org proposal, gives them the business
+  facts and a map of the pages in one short markdown document. It is built
+  from the same sources as the sitemap, so it names only addresses that
+  exist and wording the client has approved.
+*/
+const line = (name, path, description) =>
+  `- [${name}](${origin}${path})${description ? `: ${clamp(description, 220)}` : ""}`;
+const fixedPages = Object.entries(meta.PAGE_META)
+  .filter(([path]) => path !== "/404")
+  .map(([path, fallback]) => {
+    const entry = savedPageMeta(path, fallback);
+    return line(entry.title.split(" | ")[0], path, entry.description);
+  });
+await writeFile(
+  join(DIST, "llms.txt"),
+  [
+    "# Medville Diabetes",
+    "",
+    `> ${homeMeta.description}`,
+    "",
+    "Medville Diabetes is a United States supplier of continuous glucose monitors (CGMs), CGM sensors and insulin pumps. Visitors can check their potential CGM eligibility through the qualify form. The team reviews each enquiry and may contact the visitor about potential eligibility and next steps.",
+    "",
+    `- Phone: ${company.PHONE_DISPLAY}`,
+    `- Email: ${company.EMAIL}`,
+    `- Address: ${company.ADDRESS_LINE_1}, ${company.ADDRESS_LINE_2}`,
+    `- Hours: ${company.HOURS_LONG}`,
+    "- Service area: United States",
+    "",
+    `Note: ${company.PRODUCT_DISCLAIMER}`,
+    "",
+    "## Pages",
+    "",
+    ...fixedPages,
+    "",
+    "## Products",
+    "",
+    ...products.map((product) => line(product.name, `/products/${product.slug}`, product.shortDescription)),
+    ...(posts.length
+      ? ["", "## Articles", "", ...posts.map((post) => line(post.title, `/blog/${post.slug}`, post.excerpt))]
+      : []),
     "",
   ].join("\n"),
   "utf-8",
