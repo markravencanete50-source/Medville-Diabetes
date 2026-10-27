@@ -23,7 +23,22 @@ Identity Platform supplies workforce identity only. AWS sends the workforce bear
 token to the existing Google admin service with the fixed action `auth.session`.
 That service checks token revocation, disabled accounts, one-hour authentication
 age and current role/feature claims. No lead ID, patient field or patient action
-is forwarded. An identity outage denies access.
+is forwarded. An identity outage denies access. Before assigning a lead, AWS also
+asks the same service for `team.members` (staff uids, names and roles only) so a
+lead can only be assigned to an active member of the sales team.
+
+Sales roles (2026-10-27): `manager` assigns leads and sees per-person counts;
+`sales` sees only the leads assigned to them. Both receive phone and email
+removed. Call releases one number per click through `leads.dial`, which is
+audited and limited to 60 per person per hour. Neither role can export, delete,
+restore or bulk import enquiries.
+
+Deploying this change needs the CloudFormation update (it adds the
+`AssigneeTimeline` index to the leads table, gives the admin Lambda `RATE_TABLE`
+and update access to the limits table) and a redeploy of the Google `adminApi`
+function (new `team.members` route and the `manager` role). Firestore and Storage
+rules also changed so the manager role keeps product access. The new index builds
+in the background after the update; the sales views fail until it is active.
 
 AWS obtains only public product names/availability and campaign active state from
 `intakeConfig`. It never forwards form answers. Campaign conversion counts are

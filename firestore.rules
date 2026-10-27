@@ -16,9 +16,10 @@ rules_version = '2';
 
   Roles live in Identity Platform custom claims, not in documents, so a role
   cannot be escalated by writing to Firestore:
-    owner     — every feature, including the access log and Owner management
-    marketing — every feature except the access log
-    sales     — products and enquiries only
+    owner:     every feature, including the access log and Owner management
+    marketing: every feature except the access log
+    manager:   products, enquiries and the sales team overview (enquiries are served by AWS)
+    sales:     products and enquiries only
 
   If a change to this file appears to open leads to any client read, it is
   wrong. Route it through the function instead.
@@ -44,7 +45,7 @@ service cloud.firestore {
     }
 
     function isSales() {
-      return role() == 'sales' || role() == 'agent';
+      return role() == 'sales' || role() == 'agent' || role() == 'manager';
     }
 
     function hasFeature(feature) {

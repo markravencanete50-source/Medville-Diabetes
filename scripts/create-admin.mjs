@@ -31,13 +31,13 @@ const [keyPath, email, password, role = "owner"] = process.argv.slice(2);
 
 if (!keyPath || !email || !password) {
   console.error(
-    "usage: node scripts/create-admin.mjs <service-account.json> <email> <password> [owner|marketing|sales]",
+    "usage: node scripts/create-admin.mjs <service-account.json> <email> <password> [owner|marketing|manager|sales]",
   );
   process.exit(2);
 }
 
-if (!["owner", "marketing", "sales"].includes(role)) {
-  console.error(`"${role}" is not a role. Use owner, marketing or sales.`);
+if (!["owner", "marketing", "manager", "sales"].includes(role)) {
+  console.error(`"${role}" is not a role. Use owner, marketing, manager or sales.`);
   process.exit(2);
 }
 

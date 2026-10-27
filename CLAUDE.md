@@ -171,9 +171,25 @@ only change made to their wording.
   reason is the audit log, which names the account that acted; a shared login
   reduces every entry to "somebody at this company". Taking access away is
   never refused, so the rule cannot strand an account that already exists.
-  The role each person gets: `owner` for the two business owners, `agent` for
-  the sales team, which reaches enquiries and nothing else, and `editor` for
-  anyone writing content, which reaches no patient data at all.
+  The role each person gets: `owner` for the two business owners, `marketing`
+  for anyone writing content, `manager` for the sales team manager, and
+  `sales` for each salesperson. (`editor` and `agent` are older names that
+  still map to `marketing` and `sales`.)
+- The sales team, since 2026-10-27 on the client's instruction. Salespeople
+  call leads but must not hold the list, because the owner does not want
+  leads taken to competitors. A `sales` account sees only the enquiries
+  assigned to it. Both sales roles receive phone and email already removed by
+  the AWS lead service, so the numbers are not in the page at all. Call asks
+  `leads.dial` for one number, which is audited, counted against a limit of
+  60 per person per hour, and handed straight to the computer's dialler
+  (Five9 on the client's machines) without being drawn. Neither sales role
+  can export, delete, restore or bulk import; the AWS service refuses those
+  as well as the dashboard hiding them. The `manager` role assigns leads
+  (`leads.assign`, which checks the assignee against the identity service's
+  `team.members` list) and reads per-person figures on the Sales team screen
+  (`leads.team`, counts only). A salesperson's list is read from the sparse
+  `AssigneeTimeline` index on `assignedTo`. Five9 itself can still show the
+  dialled number during a call; that is a Five9 setting, not this site.
 - Administrator invitations. An owner invites by email from the dashboard's
   Administrators screen. `admins.invite` in `functions/admin/index.js` creates
   the Identity Platform account and sets the role claim but never a password,

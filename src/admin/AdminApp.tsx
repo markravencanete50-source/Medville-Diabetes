@@ -4,6 +4,7 @@ import {
   ClipboardList,
   FileText,
   Eye,
+  Headset,
   EyeOff,
   KeyRound,
   Lock,
@@ -79,6 +80,7 @@ function screen(load: () => Promise<{ default: React.ComponentType }>) {
 type Section =
   | "overview"
   | "leads"
+  | "salesTeam"
   | "influencers"
   | "products"
   | "content"
@@ -95,6 +97,7 @@ type ScreenModule = Promise<{ default: React.ComponentType }>;
 const SCREEN_LOADERS: Record<Section, () => ScreenModule> = {
   overview: () => import("./pages/Overview"),
   leads: () => import("./pages/Leads"),
+  salesTeam: () => import("./pages/SalesTeam"),
   influencers: () => import("./pages/Influencers"),
   products: () => import("./pages/Products"),
   content: () => import("./pages/Content"),
@@ -109,6 +112,7 @@ const SCREEN_LOADERS: Record<Section, () => ScreenModule> = {
 
 const Overview = screen(SCREEN_LOADERS.overview);
 const Leads = screen(SCREEN_LOADERS.leads);
+const SalesTeam = screen(SCREEN_LOADERS.salesTeam);
 const Influencers = screen(SCREEN_LOADERS.influencers);
 const Products = screen(SCREEN_LOADERS.products);
 const Content = screen(SCREEN_LOADERS.content);
@@ -127,6 +131,7 @@ function preloadScreen(section: Section) {
 const NAV: { id: Section; label: string; icon: typeof BarChart3; group: string }[] = [
   { id: "overview", label: "Overview", icon: BarChart3, group: "Enquiries" },
   { id: "leads", label: "Enquiries", icon: ClipboardList, group: "Enquiries" },
+  { id: "salesTeam", label: "Sales team", icon: Headset, group: "Enquiries" },
   { id: "influencers", label: "Influencers", icon: Megaphone, group: "Enquiries" },
   { id: "products", label: "Products", icon: Package, group: "Website" },
   { id: "content", label: "Edit pages", icon: FileText, group: "Website" },
@@ -142,6 +147,7 @@ const NAV: { id: Section; label: string; icon: typeof BarChart3; group: string }
 const ROLE_LABEL: Record<AdminRole, string> = {
   owner: "Owner",
   marketing: "Marketing",
+  manager: "Sales manager",
   sales: "Sales",
 };
 
@@ -582,7 +588,7 @@ function Shell() {
             yet"; without it, Enquiries and the access log fail with an error
             that explains nothing.
           */}
-          {!isAdminApiConfigured() && (section === "overview" || section === "leads" || section === "influencers" || section === "audit" || section === "recycle") && (
+          {!isAdminApiConfigured() && (section === "overview" || section === "leads" || section === "salesTeam" || section === "influencers" || section === "audit" || section === "recycle") && (
             <div className="mb-4">
               <Banner tone="warn">
                 Online intake is awaiting activation. Enquiries and the access log
@@ -610,6 +616,7 @@ function Shell() {
           <Suspense fallback={<ScreenSkeleton />}>
             {section === "overview" && <Overview />}
             {section === "leads" && <Leads />}
+            {section === "salesTeam" && <SalesTeam />}
             {section === "influencers" && <Influencers />}
             {section === "products" && <Products />}
             {section === "content" && <Content />}

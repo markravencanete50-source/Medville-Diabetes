@@ -48,13 +48,15 @@ const SHARED_MAILBOX_REFUSAL =
 const ROLE_NOTE: Record<string, string> = {
   owner: "Everything, including these settings and the access log.",
   marketing: "Everything except the access log. Cannot grant or change Owner access.",
-  sales: "Products and enquiries only.",
+  manager: "Leads Sales, assigns enquiries and sees each salesperson's figures. Phone numbers and email addresses stay hidden. Cannot export or delete enquiries.",
+  sales: "Works only the enquiries assigned to them. Phone numbers and email addresses stay hidden; Call dials without showing the number.",
   none: "Signed out of everything. The account stays but has no access.",
 };
 
 const FEATURE_LABEL: Record<AdminFeature, string> = {
   overview: "Overview",
   leads: "Enquiries",
+  salesTeam: "Sales team",
   influencers: "Influencers",
   products: "Products",
   content: "Edit pages",
@@ -69,7 +71,7 @@ const FEATURE_LABEL: Record<AdminFeature, string> = {
 function defaultFeatures(role: string): AdminFeature[] {
   return role === "owner"
     ? [...ADMIN_FEATURES]
-    : role === "marketing" || role === "sales"
+    : role === "marketing" || role === "manager" || role === "sales"
       ? [...ROLE_ACCESS[role as AdminRole]] as AdminFeature[]
       : [];
 }
@@ -81,6 +83,7 @@ export default function Team() {
   const [error, setError] = useState("");
   const [busyUid, setBusyUid] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
   const [inviteRole, setInviteRole] = useState("marketing");
   const [inviteFeatures, setInviteFeatures] = useState<AdminFeature[]>(() => defaultFeatures("marketing"));
   const [inviting, setInviting] = useState(false);
@@ -102,7 +105,7 @@ export default function Team() {
 
     setInviting(true);
     try {
-      const result = await adminApi.inviteAdmin(getToken, email, inviteRole, inviteFeatures);
+      const result = await adminApi.inviteAdmin(getToken, email, inviteRole, inviteFeatures, inviteName.trim());
       if (result.emailSent) {
         toast(
           result.created
@@ -116,6 +119,7 @@ export default function Team() {
         );
       }
       setInviteEmail("");
+      setInviteName("");
       await refresh();
     } catch (problem) {
       toast(problem instanceof AdminApiError ? problem.message : "That did not work.", "danger");
@@ -204,6 +208,19 @@ export default function Team() {
             signed in, and a shared login cannot say who that was.
           </p>
           <div className="mt-3 flex flex-wrap items-end gap-2.5">
+            <div className="w-full sm:min-w-[200px] sm:flex-1">
+              <Field label="Full name" htmlFor="invite-name">
+                <input
+                  id="invite-name"
+                  className="admin-input"
+                  value={inviteName}
+                  maxLength={100}
+                  autoComplete="off"
+                  onChange={(event) => setInviteName(event.target.value)}
+                  placeholder="First and last name"
+                />
+              </Field>
+            </div>
             <div className="w-full sm:min-w-[240px] sm:flex-1">
               <Field label="Email address" htmlFor="invite-email">
                 <input
@@ -229,6 +246,7 @@ export default function Team() {
                   }}
                 >
                   <option value="sales">Sales</option>
+                  <option value="manager">Sales manager</option>
                   <option value="marketing">Marketing</option>
                   {isOwner && <option value="owner">Owner</option>}
                 </select>
@@ -286,7 +304,10 @@ export default function Team() {
                   return (
                     <tr key={user.uid}>
                       <td data-label="Person">
-                        <span className="font-semibold">{user.email || "No email"}</span>
+                        <span className="font-semibold">{user.name || user.email || "No email"}</span>
+                        {user.name && user.email && (
+                          <span className="block text-[12px]" style={{ color: "var(--a-text-muted)" }}>{user.email}</span>
+                        )}
                         {isYou && (
                           <span className="ml-2">
                             <Badge tone="new">You</Badge>
@@ -326,6 +347,7 @@ export default function Team() {
                           >
                             {(isOwner || user.role === "owner") && <option value="owner">Owner</option>}
                             <option value="marketing">Marketing</option>
+                            <option value="manager">Sales manager</option>
                             <option value="sales">Sales</option>
                             <option value="none">No access</option>
                           </select>
@@ -395,7 +417,9 @@ function FeaturePicker({
     <fieldset className={className} disabled={disabled}>
       <legend className="admin-label">Feature access</legend>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {ADMIN_FEATURES.filter((feature) => feature !== "audit" && feature !== "team").map((feature) => (
+        {/* The sales team screen belongs to the Sales manager role and the server
+            refuses it to anyone else, so it is not offered as a tick box. */}
+        {ADMIN_FEATURES.filter((feature) => feature !== "audit" && feature !== "team" && feature !== "salesTeam").map((feature) => (
           <label key={feature} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-[var(--a-line)] bg-[var(--a-surface-2)] px-3 py-2 text-[12px] font-semibold">
             <input
               type="checkbox"

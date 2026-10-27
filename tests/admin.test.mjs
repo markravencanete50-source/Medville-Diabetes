@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createAdminHandler } from "../functions/admin/handler.js";
-import { normalizeRole, roleChangeError } from "../functions/admin/roles.js";
+import { normalizeFeatures, normalizeRole, roleChangeError } from "../functions/admin/roles.js";
 import { passwordEmailMessage, sendAdminPasswordEmail } from "../functions/admin/password-email.js";
 const origin = "https://www.medvillediabetes.com";
 async function request({ role = "owner", body = { action: "leads.get" }, failAudit = false, failRun = false, requestOrigin = origin, method = "POST" } = {}) {
@@ -55,6 +55,12 @@ test("audit failure remains generic and cannot expose a record", async () => { c
 test("route failure remains generic", async () => { const r = await request({ failRun: true }); assert.equal(r.code, 500); assert.equal(JSON.stringify(r.body).includes("private"), false); });
 test("foreign origins and GET requests are refused", async () => { assert.equal((await request({ requestOrigin: "https://evil.invalid" })).code, 403); assert.equal((await request({ method: "GET" })).code, 405); });
 test("legacy role names map to the replacement roles", () => { assert.equal(normalizeRole("editor"), "marketing"); assert.equal(normalizeRole("agent"), "sales"); });
+test("the sales manager role is recognised and starts with the sales team screen", () => {
+  assert.equal(normalizeRole("manager"), "manager");
+  assert.deepEqual(normalizeFeatures(undefined, "manager"), ["leads", "salesTeam", "products"]);
+  assert.equal(normalizeFeatures(undefined, "sales").includes("salesTeam"), false);
+  assert.equal(roleChangeError({ actorRole: "owner", targetRole: "sales", nextRole: "manager" }), "");
+});
 test("marketing cannot grant, remove or alter Owner access", () => {
   assert.match(roleChangeError({ actorRole: "marketing", nextRole: "owner" }), /Owner/);
   assert.match(roleChangeError({ actorRole: "marketing", targetRole: "owner", nextRole: "sales" }), /Owner/);

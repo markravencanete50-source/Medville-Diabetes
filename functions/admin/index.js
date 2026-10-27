@@ -27,7 +27,8 @@
   Roles, taken from the Identity Platform custom claim:
     owner: every feature, including the access log and Owner management
     marketing: every feature except the access log; cannot grant or change Owner access
-    sales: products and enquiries only
+    manager: the sales team overview, lead assignment, and products
+    sales: products and the enquiries assigned to them, with contact details hidden
 */
 
 import { onRequest } from "firebase-functions/v2/https";
@@ -341,6 +342,7 @@ async function listAdmins() {
       .map((user) => ({
         uid: user.uid,
         email: user.email ?? "",
+        name: user.displayName ?? "",
         role: normalizeRole(user.customClaims?.role) || "none",
         features: normalizeRole(user.customClaims?.role)
           ? normalizeFeatures(user.customClaims?.features, normalizeRole(user.customClaims.role))
@@ -403,8 +405,14 @@ const SHARED_MAILBOX_REFUSAL =
   "because the access log records who opened a patient record and a shared " +
   "login cannot answer that.";
 
+/* A display name so the sales team overview can say who is who. It is a
+   workforce detail, never a patient one. */
+const PERSON_NAME = /^[^\u0000-\u001f\u007f<>]{1,100}$/;
+
 async function inviteAdmin(actor, body) {
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
+  if (name && !PERSON_NAME.test(name)) return { error: "Please enter the person's name in plain text." };
   const role = body.role;
   const features = actor.role === "owner"
     ? normalizeFeatures(body.features, role)
@@ -425,7 +433,7 @@ async function inviteAdmin(actor, body) {
   } catch (problem) {
     if (problem?.code !== "auth/user-not-found") throw problem;
     /* No password. The invitation email is the only way in. */
-    user = await auth.createUser({ email, emailVerified: false });
+    user = await auth.createUser({ email, emailVerified: false, ...(name ? { displayName: name } : {}) });
     created = true;
   }
 
@@ -439,6 +447,7 @@ async function inviteAdmin(actor, body) {
   if (changeError) return { error: changeError };
   await audit(actor, "admins.invite.requested", { targetUid: user.uid, role, features, created });
   await auth.setCustomUserClaims(user.uid, { ...user.customClaims, role, features, managedAdmin: true });
+  if (name && !created && user.displayName !== name) await auth.updateUser(user.uid, { displayName: name });
   /* Anything they already held stops working immediately rather than at the
      next token refresh. */
   await auth.revokeRefreshTokens(user.uid);
@@ -567,6 +576,35 @@ async function deleteAdmin(actor, body) {
   return { ok: true };
 }
 
+/*
+  The sales team, for the Sales team screen and for the AWS lead service,
+  which asks before assigning a lead so a lead can only go to a real member
+  of the team. Workforce identity only: uids, names, sign-in times. No lead
+  identifier or patient field is involved.
+*/
+async function listSalesTeam() {
+  const users = [];
+  let pageToken;
+  do {
+    const page = await auth.listUsers(1000, pageToken);
+    users.push(...page.users);
+    pageToken = page.pageToken;
+  } while (pageToken);
+  return {
+    members: users
+      .map((user) => ({ user, role: normalizeRole(user.customClaims?.role) }))
+      .filter(({ role }) => role === "sales" || role === "manager")
+      .map(({ user, role }) => ({
+        uid: user.uid,
+        email: user.email ?? "",
+        name: user.displayName ?? "",
+        role,
+        disabled: user.disabled,
+        lastSignIn: user.metadata.lastSignInTime ?? null,
+      })),
+  };
+}
+
 /* ---- routing ---- */
 
 const ROUTES = {
@@ -590,6 +628,7 @@ const ROUTES = {
   "influencers.setDeleted": { roles: ADMIN_ROLES, feature: "influencers", run: setInfluencerDeleted },
   "audit.list": { roles: ["owner"], feature: "audit", run: listAudit },
   "admins.list": { roles: ["owner"], feature: "team", run: listAdmins },
+  "team.members": { roles: ["owner", "manager"], feature: "salesTeam", run: listSalesTeam },
   "admins.setRole": { roles: ["owner"], feature: "team", run: setAdminRole },
   "admins.delete": { roles: ["owner"], feature: "team", run: deleteAdmin },
   "admins.invite": { roles: ["owner"], feature: "team", run: inviteAdmin },

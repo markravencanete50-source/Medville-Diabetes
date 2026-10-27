@@ -26,6 +26,9 @@ const LEAD_ENDPOINT = (import.meta.env.VITE_AWS_ADMIN_API as string | undefined)
 
 const AWS_ACTIONS = new Set([
   "leads.list",
+  "leads.assign",
+  "leads.dial",
+  "leads.team",
   "leads.get",
   "leads.update",
   "leads.delete",
@@ -64,6 +67,13 @@ export interface Lead {
   customerConfirmationStatus: string;
   status: LeadStatus;
   note: string;
+  /* The uid of the salesperson working this lead, or empty. */
+  assignedTo: string;
+  lastDialAt: string | null;
+  dialCount: number;
+  /* True for the sales roles: phone and email arrive empty and the number is
+     released one call at a time through dialLead. */
+  contactHidden: boolean;
   createdAt: string | null;
   deletedAt: string | null;
   purgeAt: number | null;
@@ -109,10 +119,39 @@ export interface AuditEntry {
 export interface AdminUser {
   uid: string;
   email: string;
+  name: string;
   role: string;
   features: string[];
   disabled: boolean;
   lastSignIn: string | null;
+}
+
+export interface SalesMember {
+  uid: string;
+  email: string;
+  name: string;
+  role: "sales" | "manager";
+  disabled: boolean;
+  lastSignIn: string | null;
+}
+
+export interface SalesPersonFigures {
+  assigned: number;
+  open: number;
+  new: number;
+  calledToday: number;
+  calls: number;
+  qualified: number;
+  notQualified: number;
+  closed: number;
+  oldestNewAt: string | null;
+  lastDialAt: string | null;
+}
+
+export interface SalesTeamSummary {
+  people: Record<string, SalesPersonFigures>;
+  unassigned: { open: number; new: number; oldestNewAt: string | null };
+  total: number;
 }
 
 export interface Influencer {
@@ -143,6 +182,7 @@ const CACHE_INVALIDATING_ACTIONS = new Set([
   "leads.restore",
   "leads.status.import",
   "leads.notify",
+  "leads.assign",
   "influencers.create",
   "influencers.setActive",
   "influencers.setDeleted",
@@ -256,7 +296,21 @@ export const adminApi = {
     from?: string;
     to?: string;
     deleted?: boolean;
+    /* A salesperson's uid, or "unassigned". Ignored for a salesperson, who
+       only ever receives their own leads. */
+    assignee?: string;
   } = {}) => call<{ leads: Lead[]; nextCursor: string | null }>(getToken, "leads.list", options),
+
+  /* Releases one phone number for one call. Each release is written to the
+     access log and counted against an hourly limit. */
+  dialLead: (getToken: GetToken, id: string) => call<{ dial: string }>(getToken, "leads.dial", { id }),
+
+  assignLeads: (getToken: GetToken, ids: string[], assignee: string) =>
+    call<{ ok: true; assigned: number }>(getToken, "leads.assign", { ids, assignee }),
+
+  salesTeam: (getToken: GetToken) => call<{ members: SalesMember[] }>(getToken, "team.members"),
+
+  salesTeamSummary: (getToken: GetToken) => call<SalesTeamSummary>(getToken, "leads.team"),
 
   retryNotification: (getToken: GetToken, id: string) => call<{
     ok: true;
@@ -313,10 +367,11 @@ export const adminApi = {
      set a password: the invitation email does that, so this returning
      successfully means the person can be emailed, not that they can sign in
      yet. */
-  inviteAdmin: (getToken: GetToken, email: string, role: string, features?: string[]) =>
+  inviteAdmin: (getToken: GetToken, email: string, role: string, features?: string[], name = "") =>
     call<{ ok: true; uid: string; created: boolean; emailSent: boolean }>(getToken, "admins.invite", {
       email,
       role,
+      ...(name ? { name } : {}),
       ...(features ? { features } : {}),
     }),
 
@@ -328,4 +383,10 @@ export const adminApi = {
    has to assemble a person's details ad hoc. */
 export function leadName(lead: Lead) {
   return `${lead.firstName} ${lead.lastName}`.trim() || "Unnamed enquiry";
+}
+
+/* How a salesperson is named on screen: their name if the owner gave one,
+   otherwise their email address. */
+export function memberName(member: Pick<SalesMember, "name" | "email"> | undefined) {
+  return member ? member.name || member.email || "Unnamed account" : "Former team member";
 }

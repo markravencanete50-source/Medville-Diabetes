@@ -38,19 +38,20 @@ import { firebaseConfig } from "../lib/firebaseConfig";
 const IDLE_LIMIT_MS = 20 * 60 * 1000;
 const IDLE_WARNING_MS = 2 * 60 * 1000;
 
-export type AdminRole = "owner" | "marketing" | "sales";
+export type AdminRole = "owner" | "marketing" | "manager" | "sales";
 export type AdminFeature =
-  | "overview" | "leads" | "influencers" | "products" | "content" | "blog"
+  | "overview" | "leads" | "salesTeam" | "influencers" | "products" | "content" | "blog"
   | "appearance" | "faqs" | "testimonials" | "team" | "audit";
 
 export const ADMIN_FEATURES: AdminFeature[] = [
-  "overview", "leads", "influencers", "products", "content", "blog",
+  "overview", "leads", "salesTeam", "influencers", "products", "content", "blog",
   "appearance", "faqs", "testimonials", "team", "audit",
 ];
 
 function normalizeRole(role: unknown): AdminRole | null {
   if (role === "owner") return "owner";
   if (role === "marketing" || role === "editor") return "marketing";
+  if (role === "manager") return "manager";
   if (role === "sales" || role === "agent") return "sales";
   return null;
 }
@@ -231,14 +232,22 @@ export function useAdminAuth() {
    navigation and the route guard cannot drift apart. The server enforces the
    same list; this only decides what is worth showing. */
 export const ROLE_ACCESS: Record<AdminRole, AdminFeature[]> = {
-  owner: ["overview", "leads", "influencers", "products", "content", "blog", "appearance", "faqs", "testimonials", "team", "audit"],
+  owner: ["overview", "leads", "salesTeam", "influencers", "products", "content", "blog", "appearance", "faqs", "testimonials", "team", "audit"],
   marketing: ["overview", "leads", "influencers", "products", "content", "blog", "appearance", "faqs", "testimonials"],
+  manager: ["leads", "salesTeam", "products"],
   sales: ["leads", "products"],
 };
+
+/* The two sales roles work leads without holding the list: contact details
+   are hidden and released one call at a time, and export, delete and bulk
+   import are not offered. The AWS lead service refuses them as well. */
+export function isSalesRole(role: AdminRole) {
+  return role === "sales" || role === "manager";
+}
 
 export function canOpen(role: AdminRole, section: string, features?: AdminFeature[]) {
   if (role === "owner") return true;
   if (section === "recycle") return (features ?? ROLE_ACCESS[role]).some((feature) =>
-    (["leads", "influencers", "products", "blog", "faqs", "testimonials"] as string[]).includes(feature));
+    (isSalesRole(role) ? ["influencers", "products", "blog", "faqs", "testimonials"] : ["leads", "influencers", "products", "blog", "faqs", "testimonials"] as string[]).includes(feature));
   return (features ?? ROLE_ACCESS[role]).includes(section as AdminFeature);
 }
