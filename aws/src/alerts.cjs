@@ -13,6 +13,8 @@ const db=DynamoDBDocumentClient.from(new DynamoDBClient({}),{marshallOptions:{re
  watermark only moves forward after their email is accepted, so a failed send is
  retried on the next run and nothing is counted twice. Lead records are never
  written: callbacks are tracked by the same kind of watermark, on the callback time.
+ Only open leads are read: finished ones sit under "done#" in the assignment index and
+ are never touched, so the cost of a run follows the open work, not the history.
 */
 const LOOKBACK_MS=24*60*60*1000;
 const validUid=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(x);
@@ -40,7 +42,7 @@ exports.handler=async()=>{
  for(const sub of subs){
   const newSince=later(sub.newSince,floor),assignedSince=later(sub.assignedSince,floor),callbackSince=later(sub.callbackSince,floor);
   const unassignedNew=sub.role==='owner'||sub.role==='manager'?fresh.filter(x=>x.createdAt>newSince&&!x.assignedTo):[];
-  const mine=await all({TableName:process.env.LEADS_TABLE,IndexName:'AssigneeTimeline',KeyConditionExpression:'assignedTo=:uid',ExpressionAttributeValues:{':uid':sub.uid},ProjectionExpression:'id,#status,assignedAt,callbackAt,deletedAt',ExpressionAttributeNames:{'#status':'status'}});
+  const mine=await all({TableName:process.env.LEADS_TABLE,IndexName:'AssigneeTimeline',KeyConditionExpression:'assignedTo=:uid AND begins_with(workSk,:open)',ExpressionAttributeValues:{':uid':sub.uid,':open':'open#'},ProjectionExpression:'id,#status,assignedAt,callbackAt,deletedAt',ExpressionAttributeNames:{'#status':'status'}});
   const live=mine.filter(x=>!x.deletedAt);
   const assigned=live.filter(x=>typeof x.assignedAt==='string'&&x.assignedAt>assignedSince);
   const due=live.filter(x=>x.status==='callback'&&typeof x.callbackAt==='string'&&x.callbackAt<=nowIso&&x.callbackAt>callbackSince);

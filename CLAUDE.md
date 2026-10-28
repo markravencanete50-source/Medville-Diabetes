@@ -189,7 +189,10 @@ only change made to their wording.
   (`leads.assign`, which checks the assignee against the identity service's
   `team.members` list) and reads per-person figures on the Sales team screen
   (`leads.team`, counts only). A salesperson's list is read from the sparse
-  `AssigneeTimeline` index on `assignedTo`. Five9 itself can still show the
+  `AssigneeTimeline` index on `assignedTo`, sorted by `workSk`: "open#" or
+  "done#" followed by the lead's `gsi1sk`. Every write that assigns a lead or
+  changes its stage (update, assign, status import) must also write `workSk`
+  from the stage it writes, or the alert job will miss or overcount it. Five9 itself can still show the
   dialled number during a call; that is a Five9 setting, not this site.
 - Lead stages, since 2026-10-28. The list lives in `statuses` in
   `aws/src/admin.cjs` and `LEAD_STATUSES` in `src/admin/api.ts`, and the two
@@ -202,7 +205,9 @@ only change made to their wording.
   older stage and stays valid for old records but is not offered. The
   status CSV import cannot set the three stages that need details.
 - Staff email alerts, since 2026-10-28. `aws/src/alerts.cjs` runs every two
-  minutes. It reads lead keys, stages, assignment and times only, and emails
+  minutes. It reads only open leads (the "open#" part of `workSk`), and only
+  their keys, stages, assignment and times, so its cost follows the open work
+  rather than the whole history. It emails
   each subscribed person one message of counts: new enquiries waiting to be
   assigned (Owner and Sales manager), enquiries assigned to them, and their
   callbacks now due. A person's watermark moves only after their email is

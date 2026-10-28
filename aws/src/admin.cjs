@@ -47,8 +47,20 @@ function cursor(value,key){
  if(value===undefined)return undefined;
  if(typeof value!=='string'||value.length>1200)throw new Error('invalid cursor');
  const out=JSON.parse(Buffer.from(value,'base64url').toString('utf8'));
- if(!out||!validId(out.id)||out[key.name]!==key.value||typeof out.gsi1sk!=='string'||out.gsi1sk.length>100||Object.keys(out).length!==3)throw new Error('invalid cursor');
+ if(!out||!validId(out.id)||out[key.name]!==key.value||typeof out[key.sort]!=='string'||out[key.sort].length>110||Object.keys(out).length!==3)throw new Error('invalid cursor');
  return out;
+}
+/*
+ A person's assignments are sorted under "open#" or "done#" and then the arrival time, so
+ the alert job can read only open leads instead of paying to read every finished one, and a
+ salesperson's list shows open work first. Written whenever a lead is assigned or changes
+ stage, from the stage being written and the lead's fixed arrival key.
+*/
+const workKey=(status,gsi1sk)=>`${doneStatuses.has(status)?'done':'open'}#${gsi1sk}`;
+// The fixed arrival keys of several leads, read before writing their work keys.
+async function arrivalKeys(ids){
+ const items=await Promise.all(ids.map(id=>db.send(new GetCommand({TableName:process.env.LEADS_TABLE,Key:{id},ProjectionExpression:'id,gsi1sk,#status,deletedAt',ExpressionAttributeNames:{'#status':'status'},ConsistentRead:true})).then(out=>out.Item)));
+ return items.every(x=>x&&!x.deletedAt&&typeof x.gsi1sk==='string')?items:null;
 }
 const next=value=>value?Buffer.from(JSON.stringify(value)).toString('base64url'):null;
 function auditItem(actor,action,detail={}){
@@ -66,11 +78,16 @@ async function listLeads(actor,b){
  if(b.assignee!==undefined&&b.assignee!==''&&b.assignee!=='unassigned'&&!validUid(b.assignee))return{error:'Invalid salesperson.'};
  // A salesperson's list is always their own assignments, whatever the request asks for.
  const person=actor.role==='sales'?actor.uid:validUid(b.assignee)&&b.assignee!=='unassigned'?b.assignee:'';
- const key=person?{name:'assignedTo',value:person}:{name:'gsi1pk',value:'LEAD'};
+ const key=person?{name:'assignedTo',value:person,sort:'workSk'}:{name:'gsi1pk',value:'LEAD',sort:'gsi1sk'};
  let start;try{start=cursor(b.cursor,key)}catch{return{error:'Invalid page.'}};
  const input={TableName:process.env.LEADS_TABLE,IndexName:person?'AssigneeTimeline':'LeadTimeline',KeyConditionExpression:`${key.name}=:pk`,ExpressionAttributeValues:{':pk':key.value},ScanIndexForward:false,Limit:50,ExclusiveStartKey:start};
- try{applyRange(input,b)}catch{return{error:'Invalid date range.'}};
  const filters=[];input.ExpressionAttributeNames={};
+ if(person){
+  // One person's list is sorted open first, so the calendar range filters it instead.
+  const range={KeyConditionExpression:'',ExpressionAttributeValues:{}};
+  try{applyRange(range,b)}catch{return{error:'Invalid date range.'}};
+  if(range.KeyConditionExpression){filters.push(range.KeyConditionExpression.replace(/^ AND /,''));Object.assign(input.ExpressionAttributeValues,range.ExpressionAttributeValues);}
+ }else{try{applyRange(input,b)}catch{return{error:'Invalid date range.'}};}
  if(b.status){if(!statuses.has(b.status))return{error:'Invalid stage.'};filters.push('#status=:status');input.ExpressionAttributeNames['#status']='status';input.ExpressionAttributeValues[':status']=b.status;}
  if(!person&&b.assignee==='unassigned')filters.push('attribute_not_exists(assignedTo)');
  filters.push(b.deleted===true?'attribute_exists(deletedAt)':'attribute_not_exists(deletedAt)');
@@ -106,9 +123,12 @@ async function assignLeads(actor,b,ctx){
  if(to!==''&&!validUid(to))return{error:'Invalid salesperson.'};
  if(to){const member=(await teamMembers(ctx.header,ctx.origin)).find(m=>m.uid===to);if(!member||member.disabled)return{error:'Choose an active member of the sales team.'};}
  const at=new Date().toISOString();
- const TransactItems=b.ids.map(id=>({Update:{TableName:process.env.LEADS_TABLE,Key:{id},...(to?{UpdateExpression:'SET assignedTo=:to, assignedAt=:at, assignedBy=:by',ExpressionAttributeValues:{':to':to,':at':at,':by':actor.uid}}:{UpdateExpression:'REMOVE assignedTo, assignedAt, assignedBy'}),ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt)'}}));
+ const current=to?await arrivalKeys(b.ids):null;
+ if(to&&!current)return{error:'One of those enquiries is missing or in the Recycle Bin.'};
+ // The stage must still be the one the work key was taken from, or the assignment is refused.
+ const TransactItems=b.ids.map((id,i)=>({Update:{TableName:process.env.LEADS_TABLE,Key:{id},...(to?{UpdateExpression:'SET assignedTo=:to, assignedAt=:at, assignedBy=:by, workSk=:work',ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt) AND #status=:status',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':to':to,':at':at,':by':actor.uid,':work':workKey(current[i].status,current[i].gsi1sk),':status':current[i].status}}:{UpdateExpression:'REMOVE assignedTo, assignedAt, assignedBy, workSk',ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt)'})}}));
  TransactItems.push({Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.assign',{count:b.ids.length,leadIds:b.ids,assignee:to||'none'}),ConditionExpression:'attribute_not_exists(id)'}});
- try{await db.send(new TransactWriteCommand({TransactItems}));}catch(e){if(e?.CancellationReasons?.some(x=>x?.Code==='ConditionalCheckFailed'))return{error:'One of those enquiries is missing or in the Recycle Bin.'};throw e;}
+ try{await db.send(new TransactWriteCommand({TransactItems}));}catch(e){if(e?.CancellationReasons?.some(x=>x?.Code==='ConditionalCheckFailed'))return{error:'One of those enquiries changed or moved to the Recycle Bin. Refresh and try again.'};throw e;}
  return{ok:true,assigned:b.ids.length};
 }
 function dialable(phone){
@@ -213,6 +233,9 @@ async function updateLead(actor,b){
  const names={},values={},sets=[],removes=[],conditions=['attribute_exists(id)','attribute_not_exists(deletedAt)'];
  if(b.status!==undefined){
   const problem=stageChange(b,names,values,sets,removes);if(problem)return{error:problem};
+  const [item]=await arrivalKeys([b.id])||[];
+  if(!item)return{error:'Enquiry not found.',status:404};
+  names['#workSk']='workSk';values[':workSk']=workKey(b.status,item.gsi1sk);sets.push('#workSk=:workSk');
   if(actor.role!=='owner'){conditions.push('#status<>:dnc');values[':dnc']=DO_NOT_CONTACT;}
  }
  if(b.note!==undefined){if(typeof b.note!=='string'||b.note.length>2000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(b.note))return{error:'Invalid note.'};names['#note']='note';values[':note']=b.note;sets.push('#note=:note');}
@@ -252,7 +275,9 @@ async function importStatuses(actor,b){
  if(b.items.some(x=>x&&typeof x==='object'&&needsDetail.has(x.status)&&x.status!=='not-qualified'))return{error:'Callback, Needs verification and Waiting on documents need details. Set them on the enquiry instead.'};
  if(!b.items.every(x=>x&&typeof x==='object'&&validId(x.id)&&statuses.has(x.status))||new Set(b.items.map(x=>x.id)).size!==b.items.length)return{error:'Invalid status import.'};
  const lock=actor.role!=='owner';
- const TransactItems=b.items.map(x=>({Update:{TableName:process.env.LEADS_TABLE,Key:{id:x.id},UpdateExpression:'SET #status=:status REMOVE statusReason, callbackAt',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':status':x.status,...(lock?{':dnc':DO_NOT_CONTACT}:{})},ConditionExpression:`attribute_exists(id) AND attribute_not_exists(deletedAt)${lock?' AND #status<>:dnc':''}`}}));
+ const current=await arrivalKeys(b.items.map(x=>x.id));
+ if(!current)return{error:'The status import includes an enquiry that is missing, in the Recycle Bin, or marked Do not contact.'};
+ const TransactItems=b.items.map((x,i)=>({Update:{TableName:process.env.LEADS_TABLE,Key:{id:x.id},UpdateExpression:'SET #status=:status, workSk=:work REMOVE statusReason, callbackAt',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':status':x.status,':work':workKey(x.status,current[i].gsi1sk),...(lock?{':dnc':DO_NOT_CONTACT}:{})},ConditionExpression:`attribute_exists(id) AND attribute_not_exists(deletedAt)${lock?' AND #status<>:dnc':''}`}}));
  TransactItems.push({Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.status.import',{count:b.items.length,leadIds:b.items.map(x=>x.id)}),ConditionExpression:'attribute_not_exists(id)'}});
  try{await db.send(new TransactWriteCommand({TransactItems}));}catch(e){if(e?.CancellationReasons?.some(x=>x?.Code==='ConditionalCheckFailed'))return{error:'The status import includes an enquiry that is missing, in the Recycle Bin, or marked Do not contact.'};throw e;}
  return{ok:true,updated:b.items.length};

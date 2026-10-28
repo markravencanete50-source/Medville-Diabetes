@@ -75,6 +75,8 @@ Resources:
           AttributeType: S
         - AttributeName: assignedTo
           AttributeType: S
+        - AttributeName: workSk
+          AttributeType: S
       KeySchema:
         - AttributeName: id
           KeyType: HASH
@@ -88,12 +90,13 @@ Resources:
           Projection:
             ProjectionType: ALL
         # Sparse: only assigned leads appear, so a salesperson's list is read
-        # directly rather than filtered out of every lead.
+        # directly rather than filtered out of every lead. workSk is "open#" or
+        # "done#" then the arrival time, so the alert job reads open leads only.
         - IndexName: AssigneeTimeline
           KeySchema:
             - AttributeName: assignedTo
               KeyType: HASH
-            - AttributeName: gsi1sk
+            - AttributeName: workSk
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
@@ -754,8 +757,13 @@ Resources:
             if (value === void 0) return void 0;
             if (typeof value !== "string" || value.length > 1200) throw new Error("invalid cursor");
             const out = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
-            if (!out || !validId(out.id) || out[key.name] !== key.value || typeof out.gsi1sk !== "string" || out.gsi1sk.length > 100 || Object.keys(out).length !== 3) throw new Error("invalid cursor");
+            if (!out || !validId(out.id) || out[key.name] !== key.value || typeof out[key.sort] !== "string" || out[key.sort].length > 110 || Object.keys(out).length !== 3) throw new Error("invalid cursor");
             return out;
+          }
+          var workKey = (status, gsi1sk) => `${doneStatuses.has(status) ? "done" : "open"}#${gsi1sk}`;
+          async function arrivalKeys(ids) {
+            const items = await Promise.all(ids.map((id) => db.send(new GetCommand({ TableName: process.env.LEADS_TABLE, Key: { id }, ProjectionExpression: "id,gsi1sk,#status,deletedAt", ExpressionAttributeNames: { "#status": "status" }, ConsistentRead: true })).then((out) => out.Item)));
+            return items.every((x) => x && !x.deletedAt && typeof x.gsi1sk === "string") ? items : null;
           }
           var next = (value) => value ? Buffer.from(JSON.stringify(value)).toString("base64url") : null;
           function auditItem(actor, action, detail = {}) {
@@ -782,7 +790,7 @@ Resources:
           async function listLeads(actor, b) {
             if (b.assignee !== void 0 && b.assignee !== "" && b.assignee !== "unassigned" && !validUid(b.assignee)) return { error: "Invalid salesperson." };
             const person = actor.role === "sales" ? actor.uid : validUid(b.assignee) && b.assignee !== "unassigned" ? b.assignee : "";
-            const key = person ? { name: "assignedTo", value: person } : { name: "gsi1pk", value: "LEAD" };
+            const key = person ? { name: "assignedTo", value: person, sort: "workSk" } : { name: "gsi1pk", value: "LEAD", sort: "gsi1sk" };
             let start;
             try {
               start = cursor(b.cursor, key);
@@ -791,14 +799,28 @@ Resources:
             }
             ;
             const input = { TableName: process.env.LEADS_TABLE, IndexName: person ? "AssigneeTimeline" : "LeadTimeline", KeyConditionExpression: `${key.name}=:pk`, ExpressionAttributeValues: { ":pk": key.value }, ScanIndexForward: false, Limit: 50, ExclusiveStartKey: start };
-            try {
-              applyRange(input, b);
-            } catch {
-              return { error: "Invalid date range." };
-            }
-            ;
             const filters = [];
             input.ExpressionAttributeNames = {};
+            if (person) {
+              const range = { KeyConditionExpression: "", ExpressionAttributeValues: {} };
+              try {
+                applyRange(range, b);
+              } catch {
+                return { error: "Invalid date range." };
+              }
+              ;
+              if (range.KeyConditionExpression) {
+                filters.push(range.KeyConditionExpression.replace(/^ AND /, ""));
+                Object.assign(input.ExpressionAttributeValues, range.ExpressionAttributeValues);
+              }
+            } else {
+              try {
+                applyRange(input, b);
+              } catch {
+                return { error: "Invalid date range." };
+              }
+              ;
+            }
             if (b.status) {
               if (!statuses.has(b.status)) return { error: "Invalid stage." };
               filters.push("#status=:status");
@@ -845,12 +867,14 @@ Resources:
               if (!member || member.disabled) return { error: "Choose an active member of the sales team." };
             }
             const at = (/* @__PURE__ */ new Date()).toISOString();
-            const TransactItems = b.ids.map((id) => ({ Update: { TableName: process.env.LEADS_TABLE, Key: { id }, ...to ? { UpdateExpression: "SET assignedTo=:to, assignedAt=:at, assignedBy=:by", ExpressionAttributeValues: { ":to": to, ":at": at, ":by": actor.uid } } : { UpdateExpression: "REMOVE assignedTo, assignedAt, assignedBy" }, ConditionExpression: "attribute_exists(id) AND attribute_not_exists(deletedAt)" } }));
+            const current = to ? await arrivalKeys(b.ids) : null;
+            if (to && !current) return { error: "One of those enquiries is missing or in the Recycle Bin." };
+            const TransactItems = b.ids.map((id, i) => ({ Update: { TableName: process.env.LEADS_TABLE, Key: { id }, ...to ? { UpdateExpression: "SET assignedTo=:to, assignedAt=:at, assignedBy=:by, workSk=:work", ConditionExpression: "attribute_exists(id) AND attribute_not_exists(deletedAt) AND #status=:status", ExpressionAttributeNames: { "#status": "status" }, ExpressionAttributeValues: { ":to": to, ":at": at, ":by": actor.uid, ":work": workKey(current[i].status, current[i].gsi1sk), ":status": current[i].status } } : { UpdateExpression: "REMOVE assignedTo, assignedAt, assignedBy, workSk", ConditionExpression: "attribute_exists(id) AND attribute_not_exists(deletedAt)" } } }));
             TransactItems.push({ Put: { TableName: process.env.AUDIT_TABLE, Item: auditItem(actor, "leads.assign", { count: b.ids.length, leadIds: b.ids, assignee: to || "none" }), ConditionExpression: "attribute_not_exists(id)" } });
             try {
               await db.send(new TransactWriteCommand({ TransactItems }));
             } catch (e) {
-              if (e?.CancellationReasons?.some((x) => x?.Code === "ConditionalCheckFailed")) return { error: "One of those enquiries is missing or in the Recycle Bin." };
+              if (e?.CancellationReasons?.some((x) => x?.Code === "ConditionalCheckFailed")) return { error: "One of those enquiries changed or moved to the Recycle Bin. Refresh and try again." };
               throw e;
             }
             return { ok: true, assigned: b.ids.length };
@@ -989,6 +1013,11 @@ Resources:
             if (b.status !== void 0) {
               const problem = stageChange(b, names, values, sets, removes);
               if (problem) return { error: problem };
+              const [item] = await arrivalKeys([b.id]) || [];
+              if (!item) return { error: "Enquiry not found.", status: 404 };
+              names["#workSk"] = "workSk";
+              values[":workSk"] = workKey(b.status, item.gsi1sk);
+              sets.push("#workSk=:workSk");
               if (actor.role !== "owner") {
                 conditions.push("#status<>:dnc");
                 values[":dnc"] = DO_NOT_CONTACT;
@@ -1044,7 +1073,9 @@ Resources:
             if (b.items.some((x) => x && typeof x === "object" && needsDetail.has(x.status) && x.status !== "not-qualified")) return { error: "Callback, Needs verification and Waiting on documents need details. Set them on the enquiry instead." };
             if (!b.items.every((x) => x && typeof x === "object" && validId(x.id) && statuses.has(x.status)) || new Set(b.items.map((x) => x.id)).size !== b.items.length) return { error: "Invalid status import." };
             const lock = actor.role !== "owner";
-            const TransactItems = b.items.map((x) => ({ Update: { TableName: process.env.LEADS_TABLE, Key: { id: x.id }, UpdateExpression: "SET #status=:status REMOVE statusReason, callbackAt", ExpressionAttributeNames: { "#status": "status" }, ExpressionAttributeValues: { ":status": x.status, ...lock ? { ":dnc": DO_NOT_CONTACT } : {} }, ConditionExpression: `attribute_exists(id) AND attribute_not_exists(deletedAt)${lock ? " AND #status<>:dnc" : ""}` } }));
+            const current = await arrivalKeys(b.items.map((x) => x.id));
+            if (!current) return { error: "The status import includes an enquiry that is missing, in the Recycle Bin, or marked Do not contact." };
+            const TransactItems = b.items.map((x, i) => ({ Update: { TableName: process.env.LEADS_TABLE, Key: { id: x.id }, UpdateExpression: "SET #status=:status, workSk=:work REMOVE statusReason, callbackAt", ExpressionAttributeNames: { "#status": "status" }, ExpressionAttributeValues: { ":status": x.status, ":work": workKey(x.status, current[i].gsi1sk), ...lock ? { ":dnc": DO_NOT_CONTACT } : {} }, ConditionExpression: `attribute_exists(id) AND attribute_not_exists(deletedAt)${lock ? " AND #status<>:dnc" : ""}` } }));
             TransactItems.push({ Put: { TableName: process.env.AUDIT_TABLE, Item: auditItem(actor, "leads.status.import", { count: b.items.length, leadIds: b.items.map((x) => x.id) }), ConditionExpression: "attribute_not_exists(id)" } });
             try {
               await db.send(new TransactWriteCommand({ TransactItems }));
@@ -1348,7 +1379,7 @@ Resources:
             for (const sub of subs) {
               const newSince = later(sub.newSince, floor), assignedSince = later(sub.assignedSince, floor), callbackSince = later(sub.callbackSince, floor);
               const unassignedNew = sub.role === "owner" || sub.role === "manager" ? fresh.filter((x) => x.createdAt > newSince && !x.assignedTo) : [];
-              const mine = await all({ TableName: process.env.LEADS_TABLE, IndexName: "AssigneeTimeline", KeyConditionExpression: "assignedTo=:uid", ExpressionAttributeValues: { ":uid": sub.uid }, ProjectionExpression: "id,#status,assignedAt,callbackAt,deletedAt", ExpressionAttributeNames: { "#status": "status" } });
+              const mine = await all({ TableName: process.env.LEADS_TABLE, IndexName: "AssigneeTimeline", KeyConditionExpression: "assignedTo=:uid AND begins_with(workSk,:open)", ExpressionAttributeValues: { ":uid": sub.uid, ":open": "open#" }, ProjectionExpression: "id,#status,assignedAt,callbackAt,deletedAt", ExpressionAttributeNames: { "#status": "status" } });
               const live = mine.filter((x) => !x.deletedAt);
               const assigned = live.filter((x) => typeof x.assignedAt === "string" && x.assignedAt > assignedSince);
               const due = live.filter((x) => x.status === "callback" && typeof x.callbackAt === "string" && x.callbackAt <= nowIso && x.callbackAt > callbackSince);
