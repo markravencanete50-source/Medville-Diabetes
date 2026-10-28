@@ -160,6 +160,8 @@ export default function Team() {
     setBusyUid(user.uid);
     try {
       await adminApi.setAdminRole(getToken, user.uid, role, features);
+      /* Someone who loses access to enquiries should stop getting alerts about them. */
+      if (role === "none" || role === "marketing") await adminApi.setAlerts(getToken, user.uid, false).catch(() => undefined);
       toast("Access updated. They will be signed out of their current session.");
       await refresh();
     } catch (problem) {
@@ -181,6 +183,7 @@ export default function Team() {
     if (!window.confirm("Remove this administrator account? This deletes the login and cannot be undone.")) return;
     setBusyUid(user.uid);
     try {
+      await adminApi.setAlerts(getToken, user.uid, false).catch(() => undefined);
       await adminApi.deleteAdmin(getToken, user.uid);
       toast("Administrator account removed. The login no longer exists.");
       await refresh();

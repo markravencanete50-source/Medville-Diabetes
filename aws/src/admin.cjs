@@ -1,14 +1,23 @@
 const {DynamoDBClient}=require('@aws-sdk/client-dynamodb');
-const {DynamoDBDocumentClient,GetCommand,PutCommand,QueryCommand,TransactWriteCommand,UpdateCommand}=require('@aws-sdk/lib-dynamodb');
+const {DynamoDBDocumentClient,GetCommand,PutCommand,QueryCommand,ScanCommand,TransactWriteCommand,UpdateCommand}=require('@aws-sdk/lib-dynamodb');
 const {randomUUID}=require('node:crypto');
 const {sendSubmissionConfirmation}=require('./email.cjs');
 const db=DynamoDBDocumentClient.from(new DynamoDBClient({}),{marshallOptions:{removeUndefinedValues:true}});
 const origins=new Set((process.env.ALLOWED_ORIGINS||'').split(',').map(x=>x.trim()).filter(Boolean));
-const statuses=new Set(['new','contacted','qualified','not-qualified','closed']);
+// The sales stages. 'contacted' is the stage older records may still hold; it stays valid
+// so those records keep working, but the dashboard no longer offers it.
+const statuses=new Set(['new','contacted','no-answer','voicemail','callback','needs-verification','waiting-documents','intake-completed','qualified','not-qualified','not-interested','wrong-number','do-not-contact','closed']);
+// Stages that need one more fact. The reason is always a fixed choice, never free text, so a
+// stage can carry no patient detail. A callback carries its date and time instead.
+const stageReasons={'needs-verification':['insurance','prescription','contact-details','other'],'waiting-documents':['prescription','insurance-card','photo-id','other'],'not-qualified':['insurance','criteria','area','other']};
+const needsDetail=new Set(['callback','needs-verification','waiting-documents','not-qualified']);
+// A patient who asked not to be contacted stays that way unless an Owner changes it.
+const DO_NOT_CONTACT='do-not-contact';
+const CALLBACK_MAX_DAYS=90;
 const validId=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(x);
 const validUid=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(x);
 const validDay=x=>x===undefined||x===''||(typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(`${x}T00:00:00Z`)));
-const features={'leads.assign':'salesTeam','leads.team':'salesTeam','leads.dial':'leads','leads.list':'leads','leads.get':'leads','leads.update':'leads','leads.delete':'leads','leads.restore':'leads','leads.status.import':'leads','leads.stats':'overview','leads.export':'leads','leads.notify':'leads','audit.list':'audit','influencers.counts':'influencers'};
+const features={'alerts.list':'salesTeam','alerts.set':'salesTeam','leads.assign':'salesTeam','leads.team':'salesTeam','leads.dial':'leads','leads.list':'leads','leads.get':'leads','leads.update':'leads','leads.delete':'leads','leads.restore':'leads','leads.status.import':'leads','leads.stats':'overview','leads.export':'leads','leads.notify':'leads','audit.list':'audit','influencers.counts':'influencers'};
 // Sales staff work leads without holding the list. Both sales roles see contact
 // details masked and dial through leads.dial; a salesperson reaches only the leads
 // assigned to them. Export, delete, restore and bulk import stay with Owner and Marketing.
@@ -28,7 +37,7 @@ async function authenticate(header,origin){
 }
 function response(statusCode,origin,body){return{statusCode,headers:{'Cache-Control':'no-store','Content-Type':'application/json','X-Content-Type-Options':'nosniff',Vary:'Origin',...(origin?{'Access-Control-Allow-Origin':origin}:{})},body:JSON.stringify(body)}}
 function lead(item,actor){
- const fields=['id','firstName','lastName','email','phone','city','state','injectsInsulinDaily','productInterest','productName','referralCode','source','message','notificationStatus','customerConfirmationStatus','status','note','assignedTo'];
+ const fields=['id','firstName','lastName','email','phone','city','state','injectsInsulinDaily','productInterest','productName','referralCode','source','message','notificationStatus','customerConfirmationStatus','status','note','assignedTo','statusReason','callbackAt'];
  const out={...Object.fromEntries(fields.map(k=>[k,typeof item[k]==='string'?item[k]:'' ])),createdAt:typeof item.createdAt==='string'?item.createdAt:null,deletedAt:typeof item.deletedAt==='string'?item.deletedAt:null,purgeAt:typeof item.purgeAt==='number'?item.purgeAt:null,lastDialAt:typeof item.lastDialAt==='string'?item.lastDialAt:null,dialCount:typeof item.dialCount==='number'?item.dialCount:0,contactHidden:false};
  if(hidesContact(actor)){out.email='';out.phone='';out.contactHidden=true;}
  return out;
@@ -114,6 +123,7 @@ async function dialLead(actor,b){
  if(!validId(b.id))return{error:'Invalid enquiry.'};
  const item=await readable(actor,b.id,'leads.dial');
  if(!item)return{error:'Enquiry not found.',status:404};
+ if(item.status===DO_NOT_CONTACT)return{error:'This patient asked not to be contacted.',status:409};
  const number=dialable(item.phone);
  if(!number)return{error:'This enquiry has no phone number that can be dialled.'};
  const now=Date.now(),at=new Date(now).toISOString(),own=actor.role==='sales';
@@ -131,21 +141,47 @@ async function dialLead(actor,b){
  }
  return{dial:number};
 }
-const closedStatuses=new Set(['qualified','not-qualified','closed']);
+const doneStatuses=new Set(['intake-completed','qualified','not-qualified','not-interested','wrong-number','do-not-contact','closed']);
+const qualifiedStatuses=new Set(['intake-completed','qualified']);
+const notQualifiedStatuses=new Set(['not-qualified','not-interested','wrong-number','do-not-contact']);
 const pacificDay=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',day:'2-digit'});
 // Counts per salesperson for the manager. Names and contact details are never read.
+// Email alerts. Only staff email addresses and on/off state live here, in their own table;
+// the address always comes from the identity service, never from the browser.
+async function listAlerts(){
+ const items=[];let key;
+ do{const out=await db.send(new ScanCommand({TableName:process.env.ALERTS_TABLE,ExclusiveStartKey:key}));items.push(...(out.Items||[]));key=out.LastEvaluatedKey;}while(key);
+ return{alerts:items.filter(x=>validUid(x.uid)).map(x=>({uid:x.uid,enabled:x.enabled===true,lastStatus:typeof x.lastStatus==='string'?x.lastStatus:'',lastSentAt:typeof x.lastSentAt==='string'?x.lastSentAt:null}))};
+}
+async function setAlerts(actor,b,ctx){
+ if(!validUid(b.uid)||typeof b.enabled!=='boolean')return{error:'Invalid alert setting.'};
+ const nowIso=new Date().toISOString();
+ if(!b.enabled){
+  await db.send(new UpdateCommand({TableName:process.env.ALERTS_TABLE,Key:{uid:b.uid},UpdateExpression:'SET enabled=:off, updatedAt=:at, updatedBy=:by',ExpressionAttributeValues:{':off':false,':at':nowIso,':by':actor.uid}}));
+  await audit(actor,'alerts.set',{targetUid:b.uid,enabled:false});return{ok:true};
+ }
+ let person;
+ if(b.uid===actor.uid)person={email:actor.email,role:actor.role};
+ else{const member=(await teamMembers(ctx.header,ctx.origin)).find(m=>m.uid===b.uid);if(!member||member.disabled)return{error:'Choose an active member of the sales team.'};person={email:member.email,role:member.role};}
+ if(typeof person.email!=='string'||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(person.email))return{error:'That account has no email address.'};
+ // Counting starts now, so switching alerts on never sends a backlog.
+ await db.send(new UpdateCommand({TableName:process.env.ALERTS_TABLE,Key:{uid:b.uid},UpdateExpression:'SET enabled=:on, email=:email, #role=:role, newSince=:at, assignedSince=:at, callbackSince=:at, updatedAt=:at, updatedBy=:by',ExpressionAttributeNames:{'#role':'role'},ExpressionAttributeValues:{':on':true,':email':person.email.toLowerCase(),':role':person.role,':at':nowIso,':by':actor.uid}}));
+ await audit(actor,'alerts.set',{targetUid:b.uid,enabled:true});
+ return{ok:true};
+}
 async function teamSummary(actor){
- let key,total=0;const people={},unassigned={open:0,new:0,oldestNewAt:null};const today=pacificDay.format(new Date());
+ let key,total=0;const people={},unassigned={open:0,new:0,oldestNewAt:null};const today=pacificDay.format(new Date()),nowIso=new Date().toISOString();
  do{
-  const out=await db.send(new QueryCommand({TableName:process.env.LEADS_TABLE,IndexName:'LeadTimeline',KeyConditionExpression:'gsi1pk=:pk',ExpressionAttributeValues:{':pk':'LEAD'},ProjectionExpression:'assignedTo,#status,lastDialAt,createdAt,dialCount',ExpressionAttributeNames:{'#status':'status'},FilterExpression:'attribute_not_exists(deletedAt)',ExclusiveStartKey:key}));
+  const out=await db.send(new QueryCommand({TableName:process.env.LEADS_TABLE,IndexName:'LeadTimeline',KeyConditionExpression:'gsi1pk=:pk',ExpressionAttributeValues:{':pk':'LEAD'},ProjectionExpression:'assignedTo,#status,lastDialAt,createdAt,dialCount,callbackAt',ExpressionAttributeNames:{'#status':'status'},FilterExpression:'attribute_not_exists(deletedAt)',ExclusiveStartKey:key}));
   for(const x of out.Items||[]){
    total++;
-   const open=!closedStatuses.has(x.status),fresh=x.status==='new',created=typeof x.createdAt==='string'?x.createdAt:null;
+   const open=!doneStatuses.has(x.status),fresh=x.status==='new',created=typeof x.createdAt==='string'?x.createdAt:null;
    if(!validUid(x.assignedTo)){if(open)unassigned.open++;if(fresh){unassigned.new++;if(created&&(!unassigned.oldestNewAt||created<unassigned.oldestNewAt))unassigned.oldestNewAt=created;}continue;}
-   const p=people[x.assignedTo]||(people[x.assignedTo]={assigned:0,open:0,new:0,calledToday:0,calls:0,qualified:0,notQualified:0,closed:0,oldestNewAt:null,lastDialAt:null});
+   const p=people[x.assignedTo]||(people[x.assignedTo]={assigned:0,open:0,new:0,callbacksDue:0,calledToday:0,calls:0,qualified:0,notQualified:0,closed:0,oldestNewAt:null,lastDialAt:null});
    p.assigned++;if(open)p.open++;
    if(fresh){p.new++;if(created&&(!p.oldestNewAt||created<p.oldestNewAt))p.oldestNewAt=created;}
-   if(x.status==='qualified')p.qualified++;if(x.status==='not-qualified')p.notQualified++;if(x.status==='closed')p.closed++;
+   if(qualifiedStatuses.has(x.status))p.qualified++;if(notQualifiedStatuses.has(x.status))p.notQualified++;if(x.status==='closed')p.closed++;
+   if(x.status==='callback'&&typeof x.callbackAt==='string'&&x.callbackAt<=nowIso)p.callbacksDue++;
    if(typeof x.dialCount==='number')p.calls+=x.dialCount;
    if(typeof x.lastDialAt==='string'){if(pacificDay.format(new Date(x.lastDialAt))===today)p.calledToday++;if(!p.lastDialAt||x.lastDialAt>p.lastDialAt)p.lastDialAt=x.lastDialAt;}
   }
@@ -154,17 +190,46 @@ async function teamSummary(actor){
  await audit(actor,'leads.team',{count:total});
  return{people,unassigned,total};
 }
+// A failed condition returns the old item in DynamoDB's own attribute format.
+const attr=(item,key)=>{const v=item?.[key];return typeof v==='string'?v:typeof v?.S==='string'?v.S:undefined;};
+// A stage change also sets or clears the details that belong to the stage, so a lead never
+// keeps a callback time or a reason from a stage it has left.
+function stageChange(b,names,values,sets,removes){
+ if(!statuses.has(b.status))return'Invalid stage.';
+ names['#status']='status';values[':status']=b.status;sets.push('#status=:status');
+ if(stageReasons[b.status]){
+  if(!stageReasons[b.status].includes(b.statusReason))return'Please choose a reason for this stage.';
+  names['#statusReason']='statusReason';values[':statusReason']=b.statusReason;sets.push('#statusReason=:statusReason');
+ }else removes.push('statusReason');
+ if(b.status==='callback'){
+  const at=typeof b.callbackAt==='string'&&b.callbackAt.length<=40?Date.parse(b.callbackAt):NaN;
+  if(!Number.isFinite(at)||at<Date.now()-5*60000||at>Date.now()+CALLBACK_MAX_DAYS*86400000)return`Please choose a callback time within the next ${CALLBACK_MAX_DAYS} days.`;
+  names['#callbackAt']='callbackAt';values[':callbackAt']=new Date(at).toISOString();sets.push('#callbackAt=:callbackAt');
+ }else removes.push('callbackAt');
+ return'';
+}
 async function updateLead(actor,b){
  if(!validId(b.id))return{error:'Invalid enquiry.'};
- const names={},values={},sets=[];
- if(b.status!==undefined){if(!statuses.has(b.status))return{error:'Invalid stage.'};names['#status']='status';values[':status']=b.status;sets.push('#status=:status');}
+ const names={},values={},sets=[],removes=[],conditions=['attribute_exists(id)','attribute_not_exists(deletedAt)'];
+ if(b.status!==undefined){
+  const problem=stageChange(b,names,values,sets,removes);if(problem)return{error:problem};
+  if(actor.role!=='owner'){conditions.push('#status<>:dnc');values[':dnc']=DO_NOT_CONTACT;}
+ }
  if(b.note!==undefined){if(typeof b.note!=='string'||b.note.length>2000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(b.note))return{error:'Invalid note.'};names['#note']='note';values[':note']=b.note;sets.push('#note=:note');}
  if(!sets.length)return{error:'Invalid update.'};
+ if(actor.role==='sales'){values[':me']=actor.uid;conditions.push('assignedTo=:me');}
  try{
   // The change and its audit commit together. Audit failure cannot leave an unrecorded change.
-  if(actor.role==='sales')values[':me']=actor.uid;
-  await db.send(new TransactWriteCommand({TransactItems:[{Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:`SET ${sets.join(', ')}`,ExpressionAttributeNames:names,ExpressionAttributeValues:values,ConditionExpression:`attribute_exists(id) AND attribute_not_exists(deletedAt)${actor.role==='sales'?' AND assignedTo=:me':''}`}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.update',{leadId:b.id,fields:Object.keys(names).map(x=>names[x])}),ConditionExpression:'attribute_not_exists(id)'}}]}));
- }catch(e){if(e?.CancellationReasons?.[0]?.Code==='ConditionalCheckFailed')return{error:'Enquiry not found.',status:404};throw e;}
+  await db.send(new TransactWriteCommand({TransactItems:[{Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:`SET ${sets.join(', ')}${removes.length?` REMOVE ${removes.join(', ')}`:''}`,ExpressionAttributeNames:names,ExpressionAttributeValues:values,ConditionExpression:conditions.join(' AND '),ReturnValuesOnConditionCheckFailure:'ALL_OLD'}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.update',{leadId:b.id,fields:Object.keys(names).map(x=>names[x]),...(b.status!==undefined?{stage:b.status}:{})}),ConditionExpression:'attribute_not_exists(id)'}}]}));
+ }catch(e){
+  const reason=e?.CancellationReasons?.[0];
+  if(reason?.Code==='ConditionalCheckFailed'){
+   const old=reason.Item;
+   if(old&&!attr(old,'deletedAt')&&attr(old,'status')===DO_NOT_CONTACT&&(actor.role!=='sales'||attr(old,'assignedTo')===actor.uid))return{error:'This patient asked not to be contacted. Only an Owner can change this stage.',status:409};
+   return{error:'Enquiry not found.',status:404};
+  }
+  throw e;
+ }
  return{ok:true};
 }
 async function deleteLead(actor,b){
@@ -183,10 +248,13 @@ async function restoreLead(actor,b){
 }
 async function importStatuses(actor,b){
  if(!Array.isArray(b.items)||!b.items.length||b.items.length>50)return{error:'Import must contain between 1 and 50 rows.'};
+ // A stage that needs a reason or a callback time is set on the enquiry itself, not by import.
+ if(b.items.some(x=>x&&typeof x==='object'&&needsDetail.has(x.status)&&x.status!=='not-qualified'))return{error:'Callback, Needs verification and Waiting on documents need details. Set them on the enquiry instead.'};
  if(!b.items.every(x=>x&&typeof x==='object'&&validId(x.id)&&statuses.has(x.status))||new Set(b.items.map(x=>x.id)).size!==b.items.length)return{error:'Invalid status import.'};
- const TransactItems=b.items.map(x=>({Update:{TableName:process.env.LEADS_TABLE,Key:{id:x.id},UpdateExpression:'SET #status=:status',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':status':x.status},ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt)'}}));
+ const lock=actor.role!=='owner';
+ const TransactItems=b.items.map(x=>({Update:{TableName:process.env.LEADS_TABLE,Key:{id:x.id},UpdateExpression:'SET #status=:status REMOVE statusReason, callbackAt',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':status':x.status,...(lock?{':dnc':DO_NOT_CONTACT}:{})},ConditionExpression:`attribute_exists(id) AND attribute_not_exists(deletedAt)${lock?' AND #status<>:dnc':''}`}}));
  TransactItems.push({Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.status.import',{count:b.items.length,leadIds:b.items.map(x=>x.id)}),ConditionExpression:'attribute_not_exists(id)'}});
- try{await db.send(new TransactWriteCommand({TransactItems}));}catch(e){if(e?.CancellationReasons?.some(x=>x?.Code==='ConditionalCheckFailed'))return{error:'The status import includes an enquiry that is missing or in the Recycle Bin.'};throw e;}
+ try{await db.send(new TransactWriteCommand({TransactItems}));}catch(e){if(e?.CancellationReasons?.some(x=>x?.Code==='ConditionalCheckFailed'))return{error:'The status import includes an enquiry that is missing, in the Recycle Bin, or marked Do not contact.'};throw e;}
  return{ok:true,updated:b.items.length};
 }
 async function retryConfirmation(actor,b){
@@ -219,6 +287,8 @@ async function route(actor,b,ctx){
  if(b.action==='leads.assign')return assignLeads(actor,b,ctx);
  if(b.action==='leads.dial')return dialLead(actor,b);
  if(b.action==='leads.team')return teamSummary(actor);
+ if(b.action==='alerts.list')return listAlerts();
+ if(b.action==='alerts.set')return setAlerts(actor,b,ctx);
  if(b.action==='leads.get')return getLead(actor,b);
  if(b.action==='leads.update')return updateLead(actor,b);
  if(b.action==='leads.delete')return deleteLead(actor,b);

@@ -50,3 +50,13 @@ test("rejects duplicate enquiry updates", () => {
     (error) => error instanceof StatusCsvError && /repeats an enquiry/.test(error.message),
   );
 });
+
+test("accepts the new stage names and refuses stages that need details", () => {
+  assert.deepEqual(
+    parseStatusImport("id,status\nlead-1,Left voicemail\nlead-2,\"Closed, order placed\"\n", leads),
+    [{ id: "lead-1", status: "voicemail" }, { id: "lead-2", status: "closed" }],
+  );
+  for (const stage of ["Callback scheduled", "callback", "Needs verification", "Waiting on documents"]) {
+    assert.throws(() => parseStatusImport(`id,status\nlead-1,${stage}\n`, leads), StatusCsvError);
+  }
+});

@@ -11,12 +11,12 @@ function runtime(name,{send=async()=>({}),emailSend=async()=>({MessageId:'synthe
  const end=start+template.slice(start).search(/\n  [A-Za-z]\w*:\n/);
  const code=template.slice(start+'        ZipFile: |'.length,end).trimEnd().split('\n').slice(1).map(x=>x.slice(10)).join('\n');
  const calls=[],fetches=[],emails=[];
- const commands=Object.fromEntries(['GetCommand','PutCommand','QueryCommand','TransactWriteCommand','UpdateCommand'].map(name=>[name,class{constructor(input){this.input=input;this.kind=name}}]));
+ const commands=Object.fromEntries(['GetCommand','PutCommand','QueryCommand','ScanCommand','TransactWriteCommand','UpdateCommand'].map(name=>[name,class{constructor(input){this.input=input;this.kind=name}}]));
  const module={exports:{}};
- const context={module,exports:module.exports,Buffer,AbortSignal,console:{error(){}},process:{env:{ALLOWED_ORIGINS:origin,INTAKE_ENABLED:'true',LEADS_TABLE:'leads',AUDIT_TABLE:'audit',RATE_TABLE:'rate',IDENTITY_VERIFY_URL:'https://identity.example.test',INTAKE_CONFIG_URL:'https://catalog.example.test',SENDER_EMAIL:'info@medvillediabetes.com'}},require(name){if(name==='node:crypto')return crypto;if(name==='@aws-sdk/client-dynamodb')return{DynamoDBClient:class{}};if(name==='@aws-sdk/lib-dynamodb')return{...commands,DynamoDBDocumentClient:{from:()=>({send:async command=>{calls.push(command);return send(command)}})}};if(name==='@aws-sdk/client-sesv2')return{SESv2Client:class{async send(command){emails.push(command);return emailSend(command)}},SendEmailCommand:class{constructor(input){this.input=input;this.kind='SendEmailCommand'}}};throw new Error(name);},fetch:async(url,options)=>{fetches.push({url,options});return fetchImpl?fetchImpl(url,options):{ok:true,status:200,json:async()=>url.includes('identity')?{actor:identity}:{product:{name:'Dexcom G7'},referralActive:false}}}};
+ const context={module,exports:module.exports,Buffer,AbortSignal,console:{error(){}},process:{env:{ALLOWED_ORIGINS:origin,INTAKE_ENABLED:'true',LEADS_TABLE:'leads',AUDIT_TABLE:'audit',RATE_TABLE:'rate',IDENTITY_VERIFY_URL:'https://identity.example.test',INTAKE_CONFIG_URL:'https://catalog.example.test',SENDER_EMAIL:'info@medvillediabetes.com',ALERTS_TABLE:'alerts',DASHBOARD_ORIGIN:origin}},require(name){if(name==='node:crypto')return crypto;if(name==='@aws-sdk/client-dynamodb')return{DynamoDBClient:class{}};if(name==='@aws-sdk/lib-dynamodb')return{...commands,DynamoDBDocumentClient:{from:()=>({send:async command=>{calls.push(command);return send(command)}})}};if(name==='@aws-sdk/client-sesv2')return{SESv2Client:class{async send(command){emails.push(command);return emailSend(command)}},SendEmailCommand:class{constructor(input){this.input=input;this.kind='SendEmailCommand'}}};throw new Error(name);},fetch:async(url,options)=>{fetches.push({url,options});return fetchImpl?fetchImpl(url,options):{ok:true,status:200,json:async()=>url.includes('identity')?{actor:identity}:{product:{name:'Dexcom G7'},referralActive:false}}}};
  vm.runInNewContext(code,context);
  const request=async(body,extra={})=>{const r=await module.exports.handler({rawPath:name==='Intake'?'/intake':'/admin',headers:{origin,'content-type':'application/json',authorization:'Bearer synthetic-token'},requestContext:{http:{method:'POST',sourceIp:'192.0.2.1'},requestId:'synthetic'},body:JSON.stringify(body),...extra});return{...r,json:JSON.parse(r.body)}};
- return{request,calls,fetches,emails};
+ return{request,calls,fetches,emails,handler:module.exports.handler};
 }
 const valid={submissionId:id,firstName:'Synthetic',lastName:'Verification',email:'synthetic@example.com',phone:'2025550142',city:'Test City',state:'California',injectsInsulinDaily:'no',productInterest:'dexcom-g7',consentAccepted:true,website:''};
 for(const action of ['leads.list','leads.get','leads.update','leads.delete','leads.restore','leads.status.import','leads.stats','leads.export','leads.notify','audit.list','influencers.counts'])test(`AWS denies ungranted feature: ${action}`,async()=>{
@@ -38,7 +38,7 @@ test('AWS update and audit use one transaction, with no PHI in audit',async()=>{
 test('AWS update failure returns no success and no separate mutation',async()=>{const r=runtime('Admin',{send:async()=>{throw Error('write unavailable')}});assert.equal((await r.request({action:'leads.update',id,status:'contacted'})).statusCode,503);assert.equal(r.calls.length,1);});
 test('AWS delete creates a seven-day recycle window and audit without copying lead details',async()=>{const r=runtime('Admin',{identity:{uid:'marketing',email:'marketing@example.com',role:'marketing',features:['leads']}});assert.equal((await r.request({action:'leads.delete',id})).statusCode,200);const tx=r.calls[0];assert.equal(tx.kind,'TransactWriteCommand');assert.deepEqual({...tx.input.TransactItems[0].Update.Key},{id});const values=tx.input.TransactItems[0].Update.ExpressionAttributeValues;assert.ok(values[':purgeAt']>Math.floor(Date.now()/1000)+(6*24*60*60));assert.equal(tx.input.TransactItems[1].Put.Item.action,'leads.delete');assert.equal(JSON.stringify(tx.input.TransactItems).includes('synthetic@example.com'),false);});
 test('AWS restore removes recycle markers and is available to a marketing role',async()=>{const r=runtime('Admin',{identity:{uid:'marketing',role:'marketing',features:['leads']}});assert.equal((await r.request({action:'leads.restore',id})).statusCode,200);const update=r.calls[0].input.TransactItems[0].Update;assert.match(update.UpdateExpression,/REMOVE deletedAt, purgeAt, deletedBy/);assert.equal(r.calls[0].input.TransactItems[1].Put.Item.action,'leads.restore');});
-test('AWS status import updates only status fields in one audited transaction',async()=>{const second='10000000-0000-4000-8000-000000000002';const r=runtime('Admin',{identity:{uid:'marketing',role:'marketing',features:['leads']}});const out=await r.request({action:'leads.status.import',items:[{id,status:'contacted'},{id:second,status:'not-qualified'}]});assert.equal(out.statusCode,200);assert.equal(out.json.updated,2);const tx=r.calls[0].input.TransactItems;assert.equal(tx.length,3);assert.equal(tx[0].Update.UpdateExpression,'SET #status=:status');assert.equal(tx[2].Put.Item.action,'leads.status.import');});
+test('AWS status import updates only status fields in one audited transaction',async()=>{const second='10000000-0000-4000-8000-000000000002';const r=runtime('Admin',{identity:{uid:'marketing',role:'marketing',features:['leads']}});const out=await r.request({action:'leads.status.import',items:[{id,status:'contacted'},{id:second,status:'not-qualified'}]});assert.equal(out.statusCode,200);assert.equal(out.json.updated,2);const tx=r.calls[0].input.TransactItems;assert.equal(tx.length,3);assert.match(tx[0].Update.UpdateExpression,/^SET #status=:status REMOVE /);assert.equal(tx[2].Put.Item.action,'leads.status.import');});
 test('AWS list and stats apply a validated server-side calendar range',async()=>{const r=runtime('Admin',{send:async c=>c.kind==='QueryCommand'?{Items:[]}:{}});assert.equal((await r.request({action:'leads.list',from:'2026-09-01',to:'2026-09-22'})).statusCode,200);assert.match(r.calls[0].input.KeyConditionExpression,/BETWEEN :from AND :to/);const bad=await runtime('Admin').request({action:'leads.stats',from:'2026-10-01',to:'2026-09-01'});assert.equal(bad.statusCode,400);});
 test('AWS dashboard can retry a failed customer confirmation',async()=>{const r=runtime('Admin',{send:async c=>c.kind==='GetCommand'?{Item:{...valid,id,source:'qualify',customerConfirmationStatus:'failed'}}:{}});const out=await r.request({action:'leads.notify',id});assert.equal(out.statusCode,200);assert.equal(out.json.customerConfirmationStatus,'sent');assert.equal(r.emails.length,1);assert.equal(r.calls.some(c=>c.kind==='UpdateCommand'&&c.input.ExpressionAttributeValues[':status']==='sent'),true);});
 test('AWS export records exact record IDs and rejects duplicates',async()=>{const r=runtime('Admin');assert.equal((await r.request({action:'leads.export',ids:[id,id]})).statusCode,400);assert.equal((await r.request({action:'leads.export',ids:[id]})).statusCode,200);assert.deepEqual([...r.calls[0].input.Item.leadIds],[id]);});
@@ -108,3 +108,74 @@ test('AWS team summary counts per salesperson without reading patient details',a
  const p=out.json.people[salesperson.uid];assert.equal(p.assigned,2);assert.equal(p.open,1);assert.equal(p.new,1);assert.equal(p.qualified,1);assert.equal(p.calls,2);assert.equal(p.calledToday,1);
  assert.equal(out.json.unassigned.new,1);assert.equal(r.calls.at(-1).input.Item.action,'leads.team');
 });
+
+const later=new Date(Date.now()+86400000).toISOString();
+test('AWS stage change stores a fixed reason or a callback time and clears the others',async()=>{
+ const r=runtime('Admin',{identity:salesperson});
+ assert.equal((await r.request({action:'leads.update',id,status:'callback',callbackAt:later})).statusCode,200);
+ let u=r.calls[0].input.TransactItems[0].Update;assert.equal(u.ExpressionAttributeValues[':callbackAt'],later);assert.match(u.UpdateExpression,/REMOVE statusReason$/);
+ assert.equal((await r.request({action:'leads.update',id,status:'needs-verification',statusReason:'insurance'})).statusCode,200);
+ u=r.calls[1].input.TransactItems[0].Update;assert.equal(u.ExpressionAttributeValues[':statusReason'],'insurance');assert.match(u.UpdateExpression,/REMOVE callbackAt$/);
+ assert.equal(r.calls[1].input.TransactItems[1].Put.Item.stage,'needs-verification');
+});
+test('AWS stage details are validated and never accept free text',async()=>{
+ for(const body of [{status:'callback'},{status:'callback',callbackAt:'2020-01-01T00:00:00Z'},{status:'callback',callbackAt:new Date(Date.now()+200*86400000).toISOString()},{status:'needs-verification'},{status:'needs-verification',statusReason:'Synthetic free text'},{status:'not-qualified',statusReason:'other reason'},{status:'made-up'}]){
+  const r=runtime('Admin');const out=await r.request({action:'leads.update',id,...body});assert.equal(out.statusCode,400);assert.equal(r.calls.length,0);
+ }
+});
+test('AWS do not contact is locked for everyone except an Owner',async()=>{
+ const failed={CancellationReasons:[{Code:'ConditionalCheckFailed',Item:{id:{S:id},status:{S:'do-not-contact'},assignedTo:{S:salesperson.uid}}},{Code:'None'}]};
+ const r=runtime('Admin',{identity:salesperson,send:async c=>{if(c.kind==='TransactWriteCommand')throw failed;return{}}});
+ const out=await r.request({action:'leads.update',id,status:'no-answer'});assert.equal(out.statusCode,409);assert.match(out.json.error,/Only an Owner/);
+ assert.match(r.calls[0].input.TransactItems[0].Update.ConditionExpression,/#status<>:dnc/);
+ const owner=runtime('Admin');await owner.request({action:'leads.update',id,status:'no-answer'});assert.doesNotMatch(owner.calls[0].input.TransactItems[0].Update.ConditionExpression,/:dnc/);
+ const note=runtime('Admin',{identity:salesperson});await note.request({action:'leads.update',id,note:'Synthetic note'});assert.doesNotMatch(note.calls[0].input.TransactItems[0].Update.ConditionExpression,/:dnc/);
+});
+test('AWS refuses to dial a patient marked do not contact',async()=>{const r=runtime('Admin',{identity:salesperson,send:async c=>c.kind==='GetCommand'?{Item:{...assigned,status:'do-not-contact'}}:{}});const out=await r.request({action:'leads.dial',id});assert.equal(out.statusCode,409);assert.equal(out.json.dial,undefined);assert.equal(r.calls.some(c=>c.kind==='TransactWriteCommand'),false);});
+test('AWS status import refuses stages that need details and respects the lock',async()=>{
+ const m={uid:'marketing',role:'marketing',features:['leads']};
+ assert.equal((await runtime('Admin',{identity:m}).request({action:'leads.status.import',items:[{id,status:'callback'}]})).statusCode,400);
+ const r=runtime('Admin',{identity:m});assert.equal((await r.request({action:'leads.status.import',items:[{id,status:'no-answer'}]})).statusCode,200);
+ const u=r.calls[0].input.TransactItems[0].Update;assert.match(u.ConditionExpression,/#status<>:dnc/);assert.match(u.UpdateExpression,/REMOVE statusReason, callbackAt$/);
+});
+test('AWS alerts take the address from the identity service and start counting now',async()=>{
+ const fetchImpl=async(url,options)=>({ok:true,status:200,json:async()=>JSON.parse(options.body).action==='team.members'?{members:[{uid:salesperson.uid,email:'Person@Example.com',role:'sales',disabled:false}]}:{actor:manager}});
+ const r=runtime('Admin',{identity:manager,fetchImpl});const out=await r.request({action:'alerts.set',uid:salesperson.uid,enabled:true,email:'attacker@example.com'});
+ assert.equal(out.statusCode,200);const u=r.calls[0].input;assert.equal(u.TableName,'alerts');assert.equal(u.ExpressionAttributeValues[':email'],'person@example.com');assert.equal(u.ExpressionAttributeValues[':role'],'sales');assert.ok(u.ExpressionAttributeValues[':at']);
+ assert.equal(r.calls[1].input.Item.action,'alerts.set');
+ const self=runtime('Admin',{identity:manager});await self.request({action:'alerts.set',uid:manager.uid,enabled:true});assert.equal(self.calls[0].input.ExpressionAttributeValues[':email'],'manager@example.com');assert.equal(self.fetches.length,1);
+ const off=runtime('Admin',{identity:manager});await off.request({action:'alerts.set',uid:'gone-person',enabled:false});assert.equal(off.calls[0].input.ExpressionAttributeValues[':off'],false);
+ const stranger=runtime('Admin',{identity:manager,fetchImpl});assert.equal((await stranger.request({action:'alerts.set',uid:'not-on-team',enabled:true})).statusCode,400);
+});
+test('AWS salesperson cannot change or read alert settings',async()=>{for(const action of ['alerts.list','alerts.set']){const r=runtime('Admin',{identity:salesperson});assert.equal((await r.request({action,uid:salesperson.uid,enabled:true})).statusCode,403);}});
+function alertsRun(subs,leads,{failSend=false}={}){
+ return runtime('Alerts',{emailSend:async()=>{if(failSend)throw Error('mail unavailable');return{MessageId:'m'}},send:async c=>{
+  if(c.kind==='ScanCommand')return{Items:subs};
+  if(c.kind==='QueryCommand')return{Items:c.input.IndexName==='LeadTimeline'?leads.filter(x=>!x.assignedTo||true):leads.filter(x=>x.assignedTo===c.input.ExpressionAttributeValues[':uid'])};
+  return{};
+ }});
+}
+test('Alerts email counts only, then moves each watermark without writing a lead',async()=>{
+ const past=new Date(Date.now()-600000).toISOString(),earlier=new Date(Date.now()-3600000).toISOString();
+ const subs=[{uid:manager.uid,email:'manager@example.com',role:'manager',enabled:true,newSince:earlier,assignedSince:earlier},{uid:salesperson.uid,email:'person@example.com',role:'sales',enabled:true,newSince:earlier,assignedSince:earlier},{uid:'off',email:'off@example.com',role:'sales',enabled:false}];
+ const leads=[{id,createdAt:past,firstName:'Synthetic',phone:'2025550142'},{id:'10000000-0000-4000-8000-000000000002',createdAt:past,assignedTo:salesperson.uid,assignedAt:past,status:'new'},{id:'10000000-0000-4000-8000-000000000003',createdAt:earlier,assignedTo:salesperson.uid,status:'callback',callbackAt:past}];
+ const r=alertsRun(subs,leads);
+ const out=await r.handler({});assert.equal(out.sent,2);
+ assert.equal(r.emails.length,2);
+ const [toManager,toSales]=r.emails.map(e=>e.input);
+ assert.deepEqual([...toManager.Destination.ToAddresses],['manager@example.com']);assert.match(toManager.Content.Simple.Body.Text.Data,/1 new enquiry is waiting to be assigned/);
+ const salesText=toSales.Content.Simple.Body.Text.Data;assert.match(salesText,/1 callback is due now/);assert.match(salesText,/1 enquiry was assigned to you/);assert.doesNotMatch(salesText,/new enquir/);
+ for(const e of r.emails){const all=JSON.stringify(e.input);assert.equal(all.includes('Synthetic'),false);assert.equal(all.includes('2025550142'),false);assert.doesNotMatch(all,/\u2014/);}
+ for(const q of r.calls.filter(c=>c.kind==='QueryCommand'))assert.doesNotMatch(q.input.ProjectionExpression,/phone|email|firstName|lastName|injects/);
+ assert.equal(r.calls.some(c=>c.kind==='UpdateCommand'&&c.input.TableName==='leads'),false);
+ const marks=r.calls.filter(c=>c.kind==='UpdateCommand'&&c.input.TableName==='alerts');assert.equal(marks.length,2);assert.equal(marks[0].input.ExpressionAttributeValues[':newSince'],past);assert.equal(marks[1].input.ExpressionAttributeValues[':callbackSince'],past);
+ // The next run with those watermarks sends nothing again.
+ const again=alertsRun(subs.map((x,i)=>i<2?{...x,newSince:past,assignedSince:past,callbackSince:past}:x),leads);await again.handler({});assert.equal(again.emails.length,0);
+ const auditEntry=r.calls.find(c=>c.kind==='PutCommand');assert.equal(auditEntry.input.Item.action,'alerts.sent');assert.equal(auditEntry.input.Item.count,2);
+});
+test('Alerts keep the watermark when delivery fails so the next run retries',async()=>{
+ const past=new Date(Date.now()-600000).toISOString(),earlier=new Date(Date.now()-3600000).toISOString();
+ const r=alertsRun([{uid:manager.uid,email:'manager@example.com',role:'manager',enabled:true,newSince:earlier,assignedSince:earlier}],[{id,createdAt:past}],{failSend:true});
+ await r.handler({});const mark=r.calls.find(c=>c.kind==='UpdateCommand'&&c.input.TableName==='alerts');assert.equal(mark.input.ExpressionAttributeValues[':status'],'failed');assert.equal(mark.input.ExpressionAttributeValues[':newSince'],undefined);assert.equal(r.calls.some(c=>c.kind==='PutCommand'),false);
+});
+test('Alerts do nothing and send nothing when nobody is subscribed',async()=>{const r=alertsRun([],[]);await r.handler({});assert.equal(r.emails.length,0);assert.equal(r.calls.length,1);});

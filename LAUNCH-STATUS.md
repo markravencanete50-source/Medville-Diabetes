@@ -40,6 +40,15 @@ function (new `team.members` route and the `manager` role). Firestore and Storag
 rules also changed so the manager role keeps product access. The new index builds
 in the background after the update; the sales views fail until it is active.
 
+Lead stages and staff alerts (2026-10-28): the CloudFormation update also adds the
+`medville-staff-alerts` table, the `medville-staff-alerts` Lambda and its two-minute
+EventBridge schedule. Alerts send through the same SES identity as customer
+receipts, so the same two gates apply: the DKIM records in GoDaddy and SES
+production access. Until production access is granted, every staff address that
+should receive alerts must be verified in SES one by one, or the dashboard shows
+"On, last email failed" for that person. A run that finds nothing reads lead
+stages and times but sends nothing and writes no audit entry.
+
 AWS obtains only public product names/availability and campaign active state from
 `intakeConfig`. It never forwards form answers. Campaign conversion counts are
 computed within AWS and returned only to administrators with the influencer feature.

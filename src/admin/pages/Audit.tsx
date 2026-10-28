@@ -24,6 +24,8 @@ const ACTION_LABEL: Record<string, string> = {
   "leads.dial": "Called an enquiry",
   "leads.dial.limited": "Reached the hourly call limit",
   "leads.team": "Viewed the sales team figures",
+  "alerts.set": "Changed someone's email alerts",
+  "alerts.sent": "Sent staff email alerts (counts only)",
   "admins.setRole": "Changed someone's access",
   "admins.invite": "Invited an administrator",
   "access.denied": "Was refused access",

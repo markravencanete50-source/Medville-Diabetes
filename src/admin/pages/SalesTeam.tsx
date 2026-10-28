@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, UserCheck } from "lucide-react";
+import { BellOff, BellRing, RefreshCw, UserCheck } from "lucide-react";
 import {
   adminApi,
   AdminApiError,
@@ -8,10 +8,11 @@ import {
   type SalesMember,
   type SalesPersonFigures,
   type SalesTeamSummary,
+  type StaffAlert,
 } from "../api";
 import { useAdminAuth } from "../auth";
 import { StatTile } from "../charts";
-import { Badge, Banner, Card, Empty, PageHeader, Spinner, formatDateTime } from "../ui";
+import { Badge, Banner, Card, Empty, PageHeader, Spinner, formatDateTime, useToast } from "../ui";
 
 /*
   The sales team overview, for the sales manager and the owner.
@@ -25,7 +26,7 @@ import { Badge, Banner, Card, Empty, PageHeader, Spinner, formatDateTime } from 
 */
 
 const EMPTY: SalesPersonFigures = {
-  assigned: 0, open: 0, new: 0, calledToday: 0, calls: 0,
+  assigned: 0, open: 0, new: 0, callbacksDue: 0, calledToday: 0, calls: 0,
   qualified: 0, notQualified: 0, closed: 0, oldestNewAt: null, lastDialAt: null,
 };
 
@@ -42,22 +43,28 @@ function waitingFor(iso: string | null) {
 }
 
 export default function SalesTeam() {
-  const { getToken } = useAdminAuth();
+  const { getToken, session } = useAdminAuth();
+  const toast = useToast();
   const [members, setMembers] = useState<SalesMember[] | null>(null);
   const [summary, setSummary] = useState<SalesTeamSummary | null>(null);
+  const [alerts, setAlerts] = useState<Map<string, StaffAlert>>(() => new Map());
+  const [alertBusy, setAlertBusy] = useState("");
   const [error, setError] = useState("");
   const connected = isAdminApiConfigured();
+  const myUid = session!.user.uid;
 
   const refresh = useCallback(async () => {
     setError("");
     setSummary(null);
     try {
-      const [team, figures] = await Promise.all([
+      const [team, figures, alertList] = await Promise.all([
         adminApi.salesTeam(getToken),
         adminApi.salesTeamSummary(getToken),
+        adminApi.listAlerts(getToken).catch(() => ({ alerts: [] as StaffAlert[] })),
       ]);
       setMembers(team.members);
       setSummary(figures);
+      setAlerts(new Map(alertList.alerts.map((item) => [item.uid, item])));
     } catch (problem) {
       setMembers([]);
       setSummary({ people: {}, unassigned: { open: 0, new: 0, oldestNewAt: null }, total: 0 });
@@ -85,6 +92,19 @@ export default function SalesTeam() {
       }
     />
   );
+
+  const toggleAlerts = async (uid: string, enabled: boolean) => {
+    setAlertBusy(uid);
+    try {
+      await adminApi.setAlerts(getToken, uid, enabled);
+      setAlerts((current) => new Map(current).set(uid, { uid, enabled, lastStatus: current.get(uid)?.lastStatus ?? "", lastSentAt: current.get(uid)?.lastSentAt ?? null }));
+      toast(enabled ? "Email alerts are on. Counting starts now." : "Email alerts are off.");
+    } catch (problem) {
+      toast(problem instanceof AdminApiError ? problem.message : "The alert setting did not save.", "danger");
+    } finally {
+      setAlertBusy("");
+    }
+  };
 
   if (!connected) {
     return <>{header}<Card><Empty>Figures will appear here once the enquiry service is connected.</Empty></Card></>;
@@ -126,6 +146,21 @@ export default function SalesTeam() {
         <StatTile label="Qualified" value={totals.qualified} hint="All time" />
       </div>
 
+      <Card className="mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0 flex-1 basis-[260px]">
+            <p className="admin-label">Your email alerts</p>
+            <p className="admin-help" style={{ marginTop: 2 }}>
+              An email when new enquiries are waiting to be assigned, when enquiries are assigned to
+              you, and when your callbacks are due. Alerts give counts only. They never include a
+              patient&apos;s name, number or answers.
+            </p>
+            <AlertState alert={alerts.get(myUid)} />
+          </div>
+          <AlertToggle enabled={alerts.get(myUid)?.enabled === true} busy={alertBusy === myUid} onToggle={(next) => void toggleAlerts(myUid, next)} />
+        </div>
+      </Card>
+
       {summary.unassigned.new > 0 && (
         <div className="mb-4">
           <Banner tone="warn">
@@ -147,8 +182,10 @@ export default function SalesTeam() {
               <thead>
                 <tr>
                   <th scope="col">Salesperson</th>
+                  <th scope="col">Email alerts</th>
                   <th scope="col">Open</th>
                   <th scope="col">Not called yet</th>
+                  <th scope="col">Callbacks due</th>
                   <th scope="col">Called today</th>
                   <th scope="col">Calls made</th>
                   <th scope="col">Qualified</th>
@@ -170,6 +207,19 @@ export default function SalesTeam() {
                         <span className="block text-[12px]" style={{ color: "var(--a-text-muted)" }}>{member.email}</span>
                       )}
                     </td>
+                    <td data-label="Email alerts">
+                      {member && !member.disabled ? (
+                        <>
+                          <AlertToggle
+                            enabled={alerts.get(uid)?.enabled === true}
+                            busy={alertBusy === uid}
+                            label={memberName(member)}
+                            onToggle={(next) => void toggleAlerts(uid, next)}
+                          />
+                          <AlertState alert={alerts.get(uid)} />
+                        </>
+                      ) : ""}
+                    </td>
                     <td data-label="Open">{figures.open}</td>
                     <td data-label="Not called yet">
                       {figures.new}
@@ -178,6 +228,9 @@ export default function SalesTeam() {
                           Oldest waiting {waitingFor(figures.oldestNewAt)}
                         </span>
                       )}
+                    </td>
+                    <td data-label="Callbacks due">
+                      {figures.callbacksDue > 0 ? <Badge tone="warn">{figures.callbacksDue} due</Badge> : 0}
                     </td>
                     <td data-label="Called today">{figures.calledToday}</td>
                     <td data-label="Calls made">{figures.calls}</td>
@@ -199,8 +252,36 @@ export default function SalesTeam() {
       </Card>
       <p className="admin-help mt-3">
         A call is counted when the salesperson presses Call. Opening this screen is recorded in the
-        access log.
+        access log. Alerts are checked every two minutes and go to the email address on each
+        person&apos;s dashboard account.
       </p>
     </>
+  );
+}
+
+function AlertToggle({ enabled, busy, label, onToggle }: { enabled: boolean; busy: boolean; label?: string; onToggle: (next: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      className={`admin-btn admin-btn-sm ${enabled ? "admin-btn-quiet" : "admin-btn-primary"}`}
+      disabled={busy}
+      aria-label={label ? `${enabled ? "Turn off" : "Turn on"} email alerts for ${label}` : undefined}
+      onClick={() => onToggle(!enabled)}
+    >
+      {enabled ? <BellOff size={14} aria-hidden="true" /> : <BellRing size={14} aria-hidden="true" />}
+      {busy ? "Saving" : enabled ? "Turn off" : "Turn on"}
+    </button>
+  );
+}
+
+function AlertState({ alert }: { alert: StaffAlert | undefined }) {
+  if (!alert?.enabled) return <span className="mt-1 block text-[12px]" style={{ color: "var(--a-text-muted)" }}>Off</span>;
+  if (alert.lastStatus === "failed") {
+    return <span className="mt-1 block"><Badge tone="danger">On, last email failed</Badge></span>;
+  }
+  return (
+    <span className="mt-1 block text-[12px]" style={{ color: "var(--a-text-muted)" }}>
+      On{alert.lastSentAt ? `, last sent ${formatDateTime(alert.lastSentAt)}` : ", nothing sent yet"}
+    </span>
   );
 }

@@ -151,6 +151,25 @@ Resources:
         AttributeName: expiresAt
         Enabled: true
 
+  # Staff alert settings: workforce email addresses and on/off state, no patient data.
+  AlertsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: medville-staff-alerts
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !GetAtt PhiKey.Arn
+      AttributeDefinitions:
+        - AttributeName: uid
+          AttributeType: S
+      KeySchema:
+        - AttributeName: uid
+          KeyType: HASH
+
   LambdaRole:
     Type: AWS::IAM::Role
     Properties:
@@ -183,6 +202,9 @@ Resources:
               - Effect: Allow
                 Action: dynamodb:UpdateItem
                 Resource: !GetAtt RateTable.Arn
+              - Effect: Allow
+                Action: [dynamodb:Scan, dynamodb:UpdateItem]
+                Resource: !GetAtt AlertsTable.Arn
               - Effect: Allow
                 Action:
                   - kms:Decrypt
@@ -456,7 +478,39 @@ Resources:
                   Content: { Simple: { Subject: { Data: message.subject, Charset: "UTF-8" }, Body: { Text: { Data: message.text, Charset: "UTF-8" }, Html: { Data: message.html, Charset: "UTF-8" } } } }
                 }));
               }
-              module2.exports = { confirmationMessage, sendSubmissionConfirmation: sendSubmissionConfirmation2 };
+              function plural(n, one, many) {
+                return `${n} ${n === 1 ? one : many}`;
+              }
+              function staffAlertMessage({ newCount = 0, assignedCount = 0, callbackCount = 0 }, dashboardUrl) {
+                const lines = [];
+                if (callbackCount) lines.push(`${plural(callbackCount, "callback is", "callbacks are")} due now.`);
+                if (assignedCount) lines.push(`${plural(assignedCount, "enquiry was", "enquiries were")} assigned to you.`);
+                if (newCount) lines.push(`${plural(newCount, "new enquiry is", "new enquiries are")} waiting to be assigned.`);
+                const subject = `${lines[0].replace(/\.$/, "")} | Medville Diabetes`;
+                const link = `${dashboardUrl.replace(/\/$/, "")}/admin`;
+                const note = "This email holds no patient details on purpose. Sign in to the dashboard to see them.";
+                return {
+                  subject,
+                  text: `${lines.join("\n")}
+
+          ${note}
+
+          ${link}
+
+          Medville Diabetes`,
+                  html: `<!doctype html><html><body style="margin:0;background:#eef8fb;font-family:Arial,sans-serif;color:#00293b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef8fb"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #c7eaf2;border-radius:16px;overflow:hidden"><tr><td style="background:#00293b;padding:24px 30px"><div style="font-size:22px;font-weight:700;line-height:1.2;color:#ffffff">Medville <span style="color:#18bada">Diabetes</span></div></td></tr><tr><td style="padding:32px 30px"><p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0a6d8a">Sales alert</p>${lines.map((line) => `<p style="margin:0 0 12px;font-size:18px;font-weight:700;line-height:1.4;color:#00293b">${line}</p>`).join("")}<p style="margin:18px 0 22px;font-size:15px;line-height:1.6;color:#264f5f">${note}</p><a href="${link}" style="display:inline-block;background:#18bada;color:#00293b;text-decoration:none;font-size:15px;font-weight:700;padding:13px 20px;border-radius:8px">Open the dashboard</a></td></tr><tr><td style="border-top:1px solid #d6edf3;padding:18px 30px;font-size:12px;line-height:1.6;color:#5b7883">You receive this because email alerts are on for your dashboard account. Your manager can turn them off.</td></tr></table></td></tr></table></body></html>`
+                };
+              }
+              async function sendStaffAlert(email, counts, dashboardUrl) {
+                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL) throw new Error("email unavailable");
+                const message = staffAlertMessage(counts, dashboardUrl);
+                await ses.send(new SendEmailCommand({
+                  FromEmailAddress: `Medville Diabetes <${process.env.SENDER_EMAIL}>`,
+                  Destination: { ToAddresses: [email] },
+                  Content: { Simple: { Subject: { Data: message.subject, Charset: "UTF-8" }, Body: { Text: { Data: message.text, Charset: "UTF-8" }, Html: { Data: message.html, Charset: "UTF-8" } } } }
+                }));
+              }
+              module2.exports = { confirmationMessage, sendSubmissionConfirmation: sendSubmissionConfirmation2, staffAlertMessage, sendStaffAlert };
             }
           });
 
@@ -571,6 +625,7 @@ Resources:
           LEADS_TABLE: !Ref LeadsTable
           AUDIT_TABLE: !Ref AuditTable
           RATE_TABLE: !Ref RateTable
+          ALERTS_TABLE: !Ref AlertsTable
           IDENTITY_VERIFY_URL: https://us-central1-medville-diabetes.cloudfunctions.net/adminApi
           SENDER_EMAIL: !Ref SenderEmail
       Code:
@@ -618,22 +673,58 @@ Resources:
                   Content: { Simple: { Subject: { Data: message.subject, Charset: "UTF-8" }, Body: { Text: { Data: message.text, Charset: "UTF-8" }, Html: { Data: message.html, Charset: "UTF-8" } } } }
                 }));
               }
-              module2.exports = { confirmationMessage, sendSubmissionConfirmation: sendSubmissionConfirmation2 };
+              function plural(n, one, many) {
+                return `${n} ${n === 1 ? one : many}`;
+              }
+              function staffAlertMessage({ newCount = 0, assignedCount = 0, callbackCount = 0 }, dashboardUrl) {
+                const lines = [];
+                if (callbackCount) lines.push(`${plural(callbackCount, "callback is", "callbacks are")} due now.`);
+                if (assignedCount) lines.push(`${plural(assignedCount, "enquiry was", "enquiries were")} assigned to you.`);
+                if (newCount) lines.push(`${plural(newCount, "new enquiry is", "new enquiries are")} waiting to be assigned.`);
+                const subject = `${lines[0].replace(/\.$/, "")} | Medville Diabetes`;
+                const link = `${dashboardUrl.replace(/\/$/, "")}/admin`;
+                const note = "This email holds no patient details on purpose. Sign in to the dashboard to see them.";
+                return {
+                  subject,
+                  text: `${lines.join("\n")}
+
+          ${note}
+
+          ${link}
+
+          Medville Diabetes`,
+                  html: `<!doctype html><html><body style="margin:0;background:#eef8fb;font-family:Arial,sans-serif;color:#00293b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef8fb"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #c7eaf2;border-radius:16px;overflow:hidden"><tr><td style="background:#00293b;padding:24px 30px"><div style="font-size:22px;font-weight:700;line-height:1.2;color:#ffffff">Medville <span style="color:#18bada">Diabetes</span></div></td></tr><tr><td style="padding:32px 30px"><p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0a6d8a">Sales alert</p>${lines.map((line) => `<p style="margin:0 0 12px;font-size:18px;font-weight:700;line-height:1.4;color:#00293b">${line}</p>`).join("")}<p style="margin:18px 0 22px;font-size:15px;line-height:1.6;color:#264f5f">${note}</p><a href="${link}" style="display:inline-block;background:#18bada;color:#00293b;text-decoration:none;font-size:15px;font-weight:700;padding:13px 20px;border-radius:8px">Open the dashboard</a></td></tr><tr><td style="border-top:1px solid #d6edf3;padding:18px 30px;font-size:12px;line-height:1.6;color:#5b7883">You receive this because email alerts are on for your dashboard account. Your manager can turn them off.</td></tr></table></td></tr></table></body></html>`
+                };
+              }
+              async function sendStaffAlert(email, counts, dashboardUrl) {
+                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL) throw new Error("email unavailable");
+                const message = staffAlertMessage(counts, dashboardUrl);
+                await ses.send(new SendEmailCommand({
+                  FromEmailAddress: `Medville Diabetes <${process.env.SENDER_EMAIL}>`,
+                  Destination: { ToAddresses: [email] },
+                  Content: { Simple: { Subject: { Data: message.subject, Charset: "UTF-8" }, Body: { Text: { Data: message.text, Charset: "UTF-8" }, Html: { Data: message.html, Charset: "UTF-8" } } } }
+                }));
+              }
+              module2.exports = { confirmationMessage, sendSubmissionConfirmation: sendSubmissionConfirmation2, staffAlertMessage, sendStaffAlert };
             }
           });
 
           // aws/src/admin.cjs
           var { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-          var { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, TransactWriteCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
+          var { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, ScanCommand, TransactWriteCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
           var { randomUUID } = require("node:crypto");
           var { sendSubmissionConfirmation } = require_email();
           var db = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
           var origins = new Set((process.env.ALLOWED_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean));
-          var statuses = /* @__PURE__ */ new Set(["new", "contacted", "qualified", "not-qualified", "closed"]);
+          var statuses = /* @__PURE__ */ new Set(["new", "contacted", "no-answer", "voicemail", "callback", "needs-verification", "waiting-documents", "intake-completed", "qualified", "not-qualified", "not-interested", "wrong-number", "do-not-contact", "closed"]);
+          var stageReasons = { "needs-verification": ["insurance", "prescription", "contact-details", "other"], "waiting-documents": ["prescription", "insurance-card", "photo-id", "other"], "not-qualified": ["insurance", "criteria", "area", "other"] };
+          var needsDetail = /* @__PURE__ */ new Set(["callback", "needs-verification", "waiting-documents", "not-qualified"]);
+          var DO_NOT_CONTACT = "do-not-contact";
+          var CALLBACK_MAX_DAYS = 90;
           var validId = (x) => typeof x === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(x);
           var validUid = (x) => typeof x === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(x);
           var validDay = (x) => x === void 0 || x === "" || typeof x === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x) && !Number.isNaN(Date.parse(`${x}T00:00:00Z`));
-          var features = { "leads.assign": "salesTeam", "leads.team": "salesTeam", "leads.dial": "leads", "leads.list": "leads", "leads.get": "leads", "leads.update": "leads", "leads.delete": "leads", "leads.restore": "leads", "leads.status.import": "leads", "leads.stats": "overview", "leads.export": "leads", "leads.notify": "leads", "audit.list": "audit", "influencers.counts": "influencers" };
+          var features = { "alerts.list": "salesTeam", "alerts.set": "salesTeam", "leads.assign": "salesTeam", "leads.team": "salesTeam", "leads.dial": "leads", "leads.list": "leads", "leads.get": "leads", "leads.update": "leads", "leads.delete": "leads", "leads.restore": "leads", "leads.status.import": "leads", "leads.stats": "overview", "leads.export": "leads", "leads.notify": "leads", "audit.list": "audit", "influencers.counts": "influencers" };
           var hidesContact = (actor) => actor.role === "sales" || actor.role === "manager";
           var recordActions = /* @__PURE__ */ new Set(["leads.delete", "leads.restore", "leads.status.import", "leads.export"]);
           var DIAL_LIMIT_PER_HOUR = 60;
@@ -650,7 +741,7 @@ Resources:
             return { statusCode, headers: { "Cache-Control": "no-store", "Content-Type": "application/json", "X-Content-Type-Options": "nosniff", Vary: "Origin", ...origin ? { "Access-Control-Allow-Origin": origin } : {} }, body: JSON.stringify(body) };
           }
           function lead(item, actor) {
-            const fields = ["id", "firstName", "lastName", "email", "phone", "city", "state", "injectsInsulinDaily", "productInterest", "productName", "referralCode", "source", "message", "notificationStatus", "customerConfirmationStatus", "status", "note", "assignedTo"];
+            const fields = ["id", "firstName", "lastName", "email", "phone", "city", "state", "injectsInsulinDaily", "productInterest", "productName", "referralCode", "source", "message", "notificationStatus", "customerConfirmationStatus", "status", "note", "assignedTo", "statusReason", "callbackAt"];
             const out = { ...Object.fromEntries(fields.map((k) => [k, typeof item[k] === "string" ? item[k] : ""])), createdAt: typeof item.createdAt === "string" ? item.createdAt : null, deletedAt: typeof item.deletedAt === "string" ? item.deletedAt : null, purgeAt: typeof item.purgeAt === "number" ? item.purgeAt : null, lastDialAt: typeof item.lastDialAt === "string" ? item.lastDialAt : null, dialCount: typeof item.dialCount === "number" ? item.dialCount : 0, contactHidden: false };
             if (hidesContact(actor)) {
               out.email = "";
@@ -774,6 +865,7 @@ Resources:
             if (!validId(b.id)) return { error: "Invalid enquiry." };
             const item = await readable(actor, b.id, "leads.dial");
             if (!item) return { error: "Enquiry not found.", status: 404 };
+            if (item.status === DO_NOT_CONTACT) return { error: "This patient asked not to be contacted.", status: 409 };
             const number = dialable(item.phone);
             if (!number) return { error: "This enquiry has no phone number that can be dialled." };
             const now = Date.now(), at = new Date(now).toISOString(), own = actor.role === "sales";
@@ -794,17 +886,49 @@ Resources:
             }
             return { dial: number };
           }
-          var closedStatuses = /* @__PURE__ */ new Set(["qualified", "not-qualified", "closed"]);
+          var doneStatuses = /* @__PURE__ */ new Set(["intake-completed", "qualified", "not-qualified", "not-interested", "wrong-number", "do-not-contact", "closed"]);
+          var qualifiedStatuses = /* @__PURE__ */ new Set(["intake-completed", "qualified"]);
+          var notQualifiedStatuses = /* @__PURE__ */ new Set(["not-qualified", "not-interested", "wrong-number", "do-not-contact"]);
           var pacificDay = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit" });
+          async function listAlerts() {
+            const items = [];
+            let key;
+            do {
+              const out = await db.send(new ScanCommand({ TableName: process.env.ALERTS_TABLE, ExclusiveStartKey: key }));
+              items.push(...out.Items || []);
+              key = out.LastEvaluatedKey;
+            } while (key);
+            return { alerts: items.filter((x) => validUid(x.uid)).map((x) => ({ uid: x.uid, enabled: x.enabled === true, lastStatus: typeof x.lastStatus === "string" ? x.lastStatus : "", lastSentAt: typeof x.lastSentAt === "string" ? x.lastSentAt : null })) };
+          }
+          async function setAlerts(actor, b, ctx) {
+            if (!validUid(b.uid) || typeof b.enabled !== "boolean") return { error: "Invalid alert setting." };
+            const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+            if (!b.enabled) {
+              await db.send(new UpdateCommand({ TableName: process.env.ALERTS_TABLE, Key: { uid: b.uid }, UpdateExpression: "SET enabled=:off, updatedAt=:at, updatedBy=:by", ExpressionAttributeValues: { ":off": false, ":at": nowIso, ":by": actor.uid } }));
+              await audit(actor, "alerts.set", { targetUid: b.uid, enabled: false });
+              return { ok: true };
+            }
+            let person;
+            if (b.uid === actor.uid) person = { email: actor.email, role: actor.role };
+            else {
+              const member = (await teamMembers(ctx.header, ctx.origin)).find((m) => m.uid === b.uid);
+              if (!member || member.disabled) return { error: "Choose an active member of the sales team." };
+              person = { email: member.email, role: member.role };
+            }
+            if (typeof person.email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(person.email)) return { error: "That account has no email address." };
+            await db.send(new UpdateCommand({ TableName: process.env.ALERTS_TABLE, Key: { uid: b.uid }, UpdateExpression: "SET enabled=:on, email=:email, #role=:role, newSince=:at, assignedSince=:at, callbackSince=:at, updatedAt=:at, updatedBy=:by", ExpressionAttributeNames: { "#role": "role" }, ExpressionAttributeValues: { ":on": true, ":email": person.email.toLowerCase(), ":role": person.role, ":at": nowIso, ":by": actor.uid } }));
+            await audit(actor, "alerts.set", { targetUid: b.uid, enabled: true });
+            return { ok: true };
+          }
           async function teamSummary(actor) {
             let key, total = 0;
             const people = {}, unassigned = { open: 0, new: 0, oldestNewAt: null };
-            const today = pacificDay.format(/* @__PURE__ */ new Date());
+            const today = pacificDay.format(/* @__PURE__ */ new Date()), nowIso = (/* @__PURE__ */ new Date()).toISOString();
             do {
-              const out = await db.send(new QueryCommand({ TableName: process.env.LEADS_TABLE, IndexName: "LeadTimeline", KeyConditionExpression: "gsi1pk=:pk", ExpressionAttributeValues: { ":pk": "LEAD" }, ProjectionExpression: "assignedTo,#status,lastDialAt,createdAt,dialCount", ExpressionAttributeNames: { "#status": "status" }, FilterExpression: "attribute_not_exists(deletedAt)", ExclusiveStartKey: key }));
+              const out = await db.send(new QueryCommand({ TableName: process.env.LEADS_TABLE, IndexName: "LeadTimeline", KeyConditionExpression: "gsi1pk=:pk", ExpressionAttributeValues: { ":pk": "LEAD" }, ProjectionExpression: "assignedTo,#status,lastDialAt,createdAt,dialCount,callbackAt", ExpressionAttributeNames: { "#status": "status" }, FilterExpression: "attribute_not_exists(deletedAt)", ExclusiveStartKey: key }));
               for (const x of out.Items || []) {
                 total++;
-                const open = !closedStatuses.has(x.status), fresh = x.status === "new", created = typeof x.createdAt === "string" ? x.createdAt : null;
+                const open = !doneStatuses.has(x.status), fresh = x.status === "new", created = typeof x.createdAt === "string" ? x.createdAt : null;
                 if (!validUid(x.assignedTo)) {
                   if (open) unassigned.open++;
                   if (fresh) {
@@ -813,16 +937,17 @@ Resources:
                   }
                   continue;
                 }
-                const p = people[x.assignedTo] || (people[x.assignedTo] = { assigned: 0, open: 0, new: 0, calledToday: 0, calls: 0, qualified: 0, notQualified: 0, closed: 0, oldestNewAt: null, lastDialAt: null });
+                const p = people[x.assignedTo] || (people[x.assignedTo] = { assigned: 0, open: 0, new: 0, callbacksDue: 0, calledToday: 0, calls: 0, qualified: 0, notQualified: 0, closed: 0, oldestNewAt: null, lastDialAt: null });
                 p.assigned++;
                 if (open) p.open++;
                 if (fresh) {
                   p.new++;
                   if (created && (!p.oldestNewAt || created < p.oldestNewAt)) p.oldestNewAt = created;
                 }
-                if (x.status === "qualified") p.qualified++;
-                if (x.status === "not-qualified") p.notQualified++;
+                if (qualifiedStatuses.has(x.status)) p.qualified++;
+                if (notQualifiedStatuses.has(x.status)) p.notQualified++;
                 if (x.status === "closed") p.closed++;
+                if (x.status === "callback" && typeof x.callbackAt === "string" && x.callbackAt <= nowIso) p.callbacksDue++;
                 if (typeof x.dialCount === "number") p.calls += x.dialCount;
                 if (typeof x.lastDialAt === "string") {
                   if (pacificDay.format(new Date(x.lastDialAt)) === today) p.calledToday++;
@@ -834,14 +959,40 @@ Resources:
             await audit(actor, "leads.team", { count: total });
             return { people, unassigned, total };
           }
+          var attr = (item, key) => {
+            const v = item?.[key];
+            return typeof v === "string" ? v : typeof v?.S === "string" ? v.S : void 0;
+          };
+          function stageChange(b, names, values, sets, removes) {
+            if (!statuses.has(b.status)) return "Invalid stage.";
+            names["#status"] = "status";
+            values[":status"] = b.status;
+            sets.push("#status=:status");
+            if (stageReasons[b.status]) {
+              if (!stageReasons[b.status].includes(b.statusReason)) return "Please choose a reason for this stage.";
+              names["#statusReason"] = "statusReason";
+              values[":statusReason"] = b.statusReason;
+              sets.push("#statusReason=:statusReason");
+            } else removes.push("statusReason");
+            if (b.status === "callback") {
+              const at = typeof b.callbackAt === "string" && b.callbackAt.length <= 40 ? Date.parse(b.callbackAt) : NaN;
+              if (!Number.isFinite(at) || at < Date.now() - 5 * 6e4 || at > Date.now() + CALLBACK_MAX_DAYS * 864e5) return `Please choose a callback time within the next ${CALLBACK_MAX_DAYS} days.`;
+              names["#callbackAt"] = "callbackAt";
+              values[":callbackAt"] = new Date(at).toISOString();
+              sets.push("#callbackAt=:callbackAt");
+            } else removes.push("callbackAt");
+            return "";
+          }
           async function updateLead(actor, b) {
             if (!validId(b.id)) return { error: "Invalid enquiry." };
-            const names = {}, values = {}, sets = [];
+            const names = {}, values = {}, sets = [], removes = [], conditions = ["attribute_exists(id)", "attribute_not_exists(deletedAt)"];
             if (b.status !== void 0) {
-              if (!statuses.has(b.status)) return { error: "Invalid stage." };
-              names["#status"] = "status";
-              values[":status"] = b.status;
-              sets.push("#status=:status");
+              const problem = stageChange(b, names, values, sets, removes);
+              if (problem) return { error: problem };
+              if (actor.role !== "owner") {
+                conditions.push("#status<>:dnc");
+                values[":dnc"] = DO_NOT_CONTACT;
+              }
             }
             if (b.note !== void 0) {
               if (typeof b.note !== "string" || b.note.length > 2e3 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(b.note)) return { error: "Invalid note." };
@@ -850,11 +1001,19 @@ Resources:
               sets.push("#note=:note");
             }
             if (!sets.length) return { error: "Invalid update." };
+            if (actor.role === "sales") {
+              values[":me"] = actor.uid;
+              conditions.push("assignedTo=:me");
+            }
             try {
-              if (actor.role === "sales") values[":me"] = actor.uid;
-              await db.send(new TransactWriteCommand({ TransactItems: [{ Update: { TableName: process.env.LEADS_TABLE, Key: { id: b.id }, UpdateExpression: `SET ${sets.join(", ")}`, ExpressionAttributeNames: names, ExpressionAttributeValues: values, ConditionExpression: `attribute_exists(id) AND attribute_not_exists(deletedAt)${actor.role === "sales" ? " AND assignedTo=:me" : ""}` } }, { Put: { TableName: process.env.AUDIT_TABLE, Item: auditItem(actor, "leads.update", { leadId: b.id, fields: Object.keys(names).map((x) => names[x]) }), ConditionExpression: "attribute_not_exists(id)" } }] }));
+              await db.send(new TransactWriteCommand({ TransactItems: [{ Update: { TableName: process.env.LEADS_TABLE, Key: { id: b.id }, UpdateExpression: `SET ${sets.join(", ")}${removes.length ? ` REMOVE ${removes.join(", ")}` : ""}`, ExpressionAttributeNames: names, ExpressionAttributeValues: values, ConditionExpression: conditions.join(" AND "), ReturnValuesOnConditionCheckFailure: "ALL_OLD" } }, { Put: { TableName: process.env.AUDIT_TABLE, Item: auditItem(actor, "leads.update", { leadId: b.id, fields: Object.keys(names).map((x) => names[x]), ...b.status !== void 0 ? { stage: b.status } : {} }), ConditionExpression: "attribute_not_exists(id)" } }] }));
             } catch (e) {
-              if (e?.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed") return { error: "Enquiry not found.", status: 404 };
+              const reason = e?.CancellationReasons?.[0];
+              if (reason?.Code === "ConditionalCheckFailed") {
+                const old = reason.Item;
+                if (old && !attr(old, "deletedAt") && attr(old, "status") === DO_NOT_CONTACT && (actor.role !== "sales" || attr(old, "assignedTo") === actor.uid)) return { error: "This patient asked not to be contacted. Only an Owner can change this stage.", status: 409 };
+                return { error: "Enquiry not found.", status: 404 };
+              }
               throw e;
             }
             return { ok: true };
@@ -882,13 +1041,15 @@ Resources:
           }
           async function importStatuses(actor, b) {
             if (!Array.isArray(b.items) || !b.items.length || b.items.length > 50) return { error: "Import must contain between 1 and 50 rows." };
+            if (b.items.some((x) => x && typeof x === "object" && needsDetail.has(x.status) && x.status !== "not-qualified")) return { error: "Callback, Needs verification and Waiting on documents need details. Set them on the enquiry instead." };
             if (!b.items.every((x) => x && typeof x === "object" && validId(x.id) && statuses.has(x.status)) || new Set(b.items.map((x) => x.id)).size !== b.items.length) return { error: "Invalid status import." };
-            const TransactItems = b.items.map((x) => ({ Update: { TableName: process.env.LEADS_TABLE, Key: { id: x.id }, UpdateExpression: "SET #status=:status", ExpressionAttributeNames: { "#status": "status" }, ExpressionAttributeValues: { ":status": x.status }, ConditionExpression: "attribute_exists(id) AND attribute_not_exists(deletedAt)" } }));
+            const lock = actor.role !== "owner";
+            const TransactItems = b.items.map((x) => ({ Update: { TableName: process.env.LEADS_TABLE, Key: { id: x.id }, UpdateExpression: "SET #status=:status REMOVE statusReason, callbackAt", ExpressionAttributeNames: { "#status": "status" }, ExpressionAttributeValues: { ":status": x.status, ...lock ? { ":dnc": DO_NOT_CONTACT } : {} }, ConditionExpression: `attribute_exists(id) AND attribute_not_exists(deletedAt)${lock ? " AND #status<>:dnc" : ""}` } }));
             TransactItems.push({ Put: { TableName: process.env.AUDIT_TABLE, Item: auditItem(actor, "leads.status.import", { count: b.items.length, leadIds: b.items.map((x) => x.id) }), ConditionExpression: "attribute_not_exists(id)" } });
             try {
               await db.send(new TransactWriteCommand({ TransactItems }));
             } catch (e) {
-              if (e?.CancellationReasons?.some((x) => x?.Code === "ConditionalCheckFailed")) return { error: "The status import includes an enquiry that is missing or in the Recycle Bin." };
+              if (e?.CancellationReasons?.some((x) => x?.Code === "ConditionalCheckFailed")) return { error: "The status import includes an enquiry that is missing, in the Recycle Bin, or marked Do not contact." };
               throw e;
             }
             return { ok: true, updated: b.items.length };
@@ -945,6 +1106,8 @@ Resources:
             if (b.action === "leads.assign") return assignLeads(actor, b, ctx);
             if (b.action === "leads.dial") return dialLead(actor, b);
             if (b.action === "leads.team") return teamSummary(actor);
+            if (b.action === "alerts.list") return listAlerts();
+            if (b.action === "alerts.set") return setAlerts(actor, b, ctx);
             if (b.action === "leads.get") return getLead(actor, b);
             if (b.action === "leads.update") return updateLead(actor, b);
             if (b.action === "leads.delete") return deleteLead(actor, b);
@@ -998,6 +1161,265 @@ Resources:
               return response(503, origin, { error: "That did not work. Please try again." });
             }
           };
+
+  AlertsRole:
+    Type: AWS::IAM::Role
+    # Reads lead stages and times (never names or contact details) and never writes a
+    # lead. It cannot read the audit log, only add to it.
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: medville-staff-alerts
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: dynamodb:Query
+                Resource: !Sub ${LeadsTable.Arn}/index/*
+              - Effect: Allow
+                Action: [dynamodb:Scan, dynamodb:UpdateItem]
+                Resource: !GetAtt AlertsTable.Arn
+              - Effect: Allow
+                Action: dynamodb:PutItem
+                Resource: !GetAtt AuditTable.Arn
+              - Effect: Allow
+                Action: [kms:Decrypt, kms:Encrypt, kms:GenerateDataKey]
+                Resource: !GetAtt PhiKey.Arn
+              - Effect: Allow
+                Action: ses:SendEmail
+                Resource: "*"
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/medville-staff-alerts:*
+
+  AlertsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: medville-staff-alerts
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Role: !GetAtt AlertsRole.Arn
+      Timeout: 60
+      MemorySize: 256
+      KmsKeyArn: !GetAtt PhiKey.Arn
+      LoggingConfig:
+        ApplicationLogLevel: ERROR
+        SystemLogLevel: WARN
+        LogFormat: JSON
+      Environment:
+        Variables:
+          LEADS_TABLE: !Ref LeadsTable
+          AUDIT_TABLE: !Ref AuditTable
+          ALERTS_TABLE: !Ref AlertsTable
+          SENDER_EMAIL: !Ref SenderEmail
+          DASHBOARD_ORIGIN: !Select [0, !Ref AllowedOrigins]
+      Code:
+        ZipFile: |
+          "use strict";
+          var __getOwnPropNames = Object.getOwnPropertyNames;
+          var __commonJS = (cb, mod) => function __require() {
+            return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+          };
+
+          // aws/src/email.cjs
+          var require_email = __commonJS({
+            "aws/src/email.cjs"(exports2, module2) {
+              "use strict";
+              var { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
+              var ses = new SESv2Client({});
+              function confirmationMessage(kind = "eligibility") {
+                const contact = kind === "contact";
+                const heading = contact ? "We received your message" : "We received your request";
+                const intro = contact ? "Your message was submitted successfully. Our team will review your question and contact you as soon as possible." : "Your information was submitted successfully. Our team will review your request and contact you as soon as possible.";
+                const note = contact ? "Please do not reply with medical records or sensitive health information." : "Submitting a request does not guarantee insurance coverage or qualification. Please do not reply with medical records or sensitive health information.";
+                return {
+                  subject: `${heading} | Medville Diabetes`,
+                  text: `${heading}
+
+          ${intro}
+
+          ${note}
+
+          If you did not submit this request, contact us at info@medvillediabetes.com or 800-394-3917.
+
+          Medville Diabetes
+          28863 Industry Dr
+          Valencia, CA 91355`,
+                  html: `<!doctype html><html><body style="margin:0;background:#eef8fb;font-family:Arial,sans-serif;color:#00293b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef8fb"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #c7eaf2;border-radius:16px;overflow:hidden"><tr><td style="background:#00293b;padding:24px 30px"><div style="font-size:22px;font-weight:700;line-height:1.2;color:#ffffff">Medville <span style="color:#18bada">Diabetes</span></div></td></tr><tr><td style="padding:32px 30px"><p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0a6d8a">Submission received</p><h1 style="margin:0 0 18px;font-size:26px;line-height:1.25;color:#00293b">${heading}</h1><p style="margin:0 0 18px;font-size:16px;line-height:1.65;color:#264f5f">${intro}</p><div style="margin:0;padding:18px;border-radius:10px;background:#eef8fb"><p style="margin:0;font-size:14px;line-height:1.6;color:#456b79">${note}</p></div><p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#456b79">If you did not submit this request, contact us at <a href="mailto:info@medvillediabetes.com" style="color:#006b87">info@medvillediabetes.com</a> or <a href="tel:+18003943917" style="color:#006b87">800-394-3917</a>.</p></td></tr><tr><td style="border-top:1px solid #d6edf3;padding:18px 30px;font-size:12px;line-height:1.6;color:#5b7883">Medville Diabetes<br>28863 Industry Dr<br>Valencia, CA 91355</td></tr></table></td></tr></table></body></html>`
+                };
+              }
+              async function sendSubmissionConfirmation(email, kind = "eligibility") {
+                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL) throw new Error("email unavailable");
+                const message = confirmationMessage(kind);
+                await ses.send(new SendEmailCommand({
+                  FromEmailAddress: `Medville Diabetes <${process.env.SENDER_EMAIL}>`,
+                  ReplyToAddresses: [process.env.SENDER_EMAIL],
+                  Destination: { ToAddresses: [email] },
+                  Content: { Simple: { Subject: { Data: message.subject, Charset: "UTF-8" }, Body: { Text: { Data: message.text, Charset: "UTF-8" }, Html: { Data: message.html, Charset: "UTF-8" } } } }
+                }));
+              }
+              function plural(n, one, many) {
+                return `${n} ${n === 1 ? one : many}`;
+              }
+              function staffAlertMessage({ newCount = 0, assignedCount = 0, callbackCount = 0 }, dashboardUrl) {
+                const lines = [];
+                if (callbackCount) lines.push(`${plural(callbackCount, "callback is", "callbacks are")} due now.`);
+                if (assignedCount) lines.push(`${plural(assignedCount, "enquiry was", "enquiries were")} assigned to you.`);
+                if (newCount) lines.push(`${plural(newCount, "new enquiry is", "new enquiries are")} waiting to be assigned.`);
+                const subject = `${lines[0].replace(/\.$/, "")} | Medville Diabetes`;
+                const link = `${dashboardUrl.replace(/\/$/, "")}/admin`;
+                const note = "This email holds no patient details on purpose. Sign in to the dashboard to see them.";
+                return {
+                  subject,
+                  text: `${lines.join("\n")}
+
+          ${note}
+
+          ${link}
+
+          Medville Diabetes`,
+                  html: `<!doctype html><html><body style="margin:0;background:#eef8fb;font-family:Arial,sans-serif;color:#00293b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef8fb"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #c7eaf2;border-radius:16px;overflow:hidden"><tr><td style="background:#00293b;padding:24px 30px"><div style="font-size:22px;font-weight:700;line-height:1.2;color:#ffffff">Medville <span style="color:#18bada">Diabetes</span></div></td></tr><tr><td style="padding:32px 30px"><p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0a6d8a">Sales alert</p>${lines.map((line) => `<p style="margin:0 0 12px;font-size:18px;font-weight:700;line-height:1.4;color:#00293b">${line}</p>`).join("")}<p style="margin:18px 0 22px;font-size:15px;line-height:1.6;color:#264f5f">${note}</p><a href="${link}" style="display:inline-block;background:#18bada;color:#00293b;text-decoration:none;font-size:15px;font-weight:700;padding:13px 20px;border-radius:8px">Open the dashboard</a></td></tr><tr><td style="border-top:1px solid #d6edf3;padding:18px 30px;font-size:12px;line-height:1.6;color:#5b7883">You receive this because email alerts are on for your dashboard account. Your manager can turn them off.</td></tr></table></td></tr></table></body></html>`
+                };
+              }
+              async function sendStaffAlert2(email, counts, dashboardUrl) {
+                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL) throw new Error("email unavailable");
+                const message = staffAlertMessage(counts, dashboardUrl);
+                await ses.send(new SendEmailCommand({
+                  FromEmailAddress: `Medville Diabetes <${process.env.SENDER_EMAIL}>`,
+                  Destination: { ToAddresses: [email] },
+                  Content: { Simple: { Subject: { Data: message.subject, Charset: "UTF-8" }, Body: { Text: { Data: message.text, Charset: "UTF-8" }, Html: { Data: message.html, Charset: "UTF-8" } } } }
+                }));
+              }
+              module2.exports = { confirmationMessage, sendSubmissionConfirmation, staffAlertMessage, sendStaffAlert: sendStaffAlert2 };
+            }
+          });
+
+          // aws/src/alerts.cjs
+          var { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+          var { DynamoDBDocumentClient, PutCommand, QueryCommand, ScanCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
+          var { randomUUID } = require("node:crypto");
+          var { sendStaffAlert } = require_email();
+          var db = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
+          var LOOKBACK_MS = 24 * 60 * 60 * 1e3;
+          var validUid = (x) => typeof x === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(x);
+          var validEmail = (x) => typeof x === "string" && x.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x);
+          var later = (a, b) => a && (!b || a > b) ? a : b;
+          async function all(input) {
+            const items = [];
+            let key;
+            do {
+              const out = await db.send(new QueryCommand({ ...input, ExclusiveStartKey: key }));
+              items.push(...out.Items || []);
+              key = out.LastEvaluatedKey;
+            } while (key);
+            return items;
+          }
+          async function subscribers() {
+            const items = [];
+            let key;
+            do {
+              const out = await db.send(new ScanCommand({ TableName: process.env.ALERTS_TABLE, ExclusiveStartKey: key }));
+              items.push(...out.Items || []);
+              key = out.LastEvaluatedKey;
+            } while (key);
+            return items.filter((x) => x.enabled === true && validUid(x.uid) && validEmail(x.email));
+          }
+          exports.handler = async () => {
+            const subs = await subscribers();
+            if (!subs.length) return { sent: 0 };
+            const now = Date.now(), nowIso = new Date(now).toISOString(), floor = new Date(now - LOOKBACK_MS).toISOString();
+            const watchers = subs.filter((x) => x.role === "owner" || x.role === "manager");
+            let fresh = [];
+            if (watchers.length) {
+              const since = watchers.reduce((min, x) => {
+                const w = later(x.newSince, floor);
+                return w < min ? w : min;
+              }, nowIso);
+              fresh = await all({ TableName: process.env.LEADS_TABLE, IndexName: "LeadTimeline", KeyConditionExpression: "gsi1pk=:pk AND gsi1sk>:since", ExpressionAttributeValues: { ":pk": "LEAD", ":since": `${since}#\uFFFF` }, ProjectionExpression: "id,createdAt,assignedTo,deletedAt" });
+              fresh = fresh.filter((x) => !x.deletedAt && typeof x.createdAt === "string");
+            }
+            let sent = 0;
+            const touched = [];
+            for (const sub of subs) {
+              const newSince = later(sub.newSince, floor), assignedSince = later(sub.assignedSince, floor), callbackSince = later(sub.callbackSince, floor);
+              const unassignedNew = sub.role === "owner" || sub.role === "manager" ? fresh.filter((x) => x.createdAt > newSince && !x.assignedTo) : [];
+              const mine = await all({ TableName: process.env.LEADS_TABLE, IndexName: "AssigneeTimeline", KeyConditionExpression: "assignedTo=:uid", ExpressionAttributeValues: { ":uid": sub.uid }, ProjectionExpression: "id,#status,assignedAt,callbackAt,deletedAt", ExpressionAttributeNames: { "#status": "status" } });
+              const live = mine.filter((x) => !x.deletedAt);
+              const assigned = live.filter((x) => typeof x.assignedAt === "string" && x.assignedAt > assignedSince);
+              const due = live.filter((x) => x.status === "callback" && typeof x.callbackAt === "string" && x.callbackAt <= nowIso && x.callbackAt > callbackSince);
+              const counts = { newCount: unassignedNew.length, assignedCount: assigned.length, callbackCount: due.length };
+              if (!counts.newCount && !counts.assignedCount && !counts.callbackCount) continue;
+              let status = "sent";
+              try {
+                await sendStaffAlert(sub.email, counts, process.env.DASHBOARD_ORIGIN);
+                sent++;
+              } catch {
+                status = "failed";
+              }
+              if (status === "sent") {
+                touched.push(...unassignedNew.map((x) => x.id), ...assigned.map((x) => x.id), ...due.map((x) => x.id));
+              }
+              const values = { ":status": status, ":at": nowIso };
+              const sets = ["lastStatus=:status", "lastAttemptAt=:at"];
+              if (status === "sent") {
+                sets.push("lastSentAt=:at");
+                const newMark = unassignedNew.reduce((m, x) => later(x.createdAt, m), sub.newSince);
+                const assignedMark = assigned.reduce((m, x) => later(x.assignedAt, m), sub.assignedSince);
+                if (newMark) {
+                  sets.push("newSince=:newSince");
+                  values[":newSince"] = newMark;
+                }
+                if (assignedMark) {
+                  sets.push("assignedSince=:assignedSince");
+                  values[":assignedSince"] = assignedMark;
+                }
+                const callbackMark = due.reduce((m, x) => later(x.callbackAt, m), sub.callbackSince);
+                if (callbackMark) {
+                  sets.push("callbackSince=:callbackSince");
+                  values[":callbackSince"] = callbackMark;
+                }
+              }
+              await db.send(new UpdateCommand({ TableName: process.env.ALERTS_TABLE, Key: { uid: sub.uid }, UpdateExpression: `SET ${sets.join(", ")}`, ExpressionAttributeValues: values, ConditionExpression: "attribute_exists(uid)" })).catch(() => {
+                console.error("alert state update failed");
+              });
+            }
+            if (sent) {
+              const at = (/* @__PURE__ */ new Date()).toISOString(), id = randomUUID();
+              await db.send(new PutCommand({ TableName: process.env.AUDIT_TABLE, Item: { id, gsi1pk: "AUDIT", gsi1sk: `${at}#${id}`, actorUid: "system", actorEmail: "", actorRole: "system", action: "alerts.sent", count: sent, leadIds: [...new Set(touched)].slice(0, 500), at }, ConditionExpression: "attribute_not_exists(id)" }));
+            }
+            return { sent };
+          };
+
+  AlertsSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: medville-staff-alerts
+      ScheduleExpression: rate(2 minutes)
+      State: ENABLED
+      Targets:
+        - Id: alerts
+          Arn: !GetAtt AlertsFunction.Arn
+
+  AlertsSchedulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref AlertsFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt AlertsSchedule.Arn
+
+  AlertsLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: /aws/lambda/medville-staff-alerts
+      RetentionInDays: 30
 
   IntakeLogGroup:
     Type: AWS::Logs::LogGroup

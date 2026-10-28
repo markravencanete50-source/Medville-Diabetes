@@ -29,6 +29,8 @@ const AWS_ACTIONS = new Set([
   "leads.assign",
   "leads.dial",
   "leads.team",
+  "alerts.list",
+  "alerts.set",
   "leads.get",
   "leads.update",
   "leads.delete",
@@ -69,6 +71,10 @@ export interface Lead {
   note: string;
   /* The uid of the salesperson working this lead, or empty. */
   assignedTo: string;
+  /* One of STAGE_REASONS for the current stage, or empty. */
+  statusReason: string;
+  /* ISO time of a scheduled callback, or empty. */
+  callbackAt: string;
   lastDialAt: string | null;
   dialCount: number;
   /* True for the sales roles: phone and email arrive empty and the number is
@@ -79,23 +85,82 @@ export interface Lead {
   purgeAt: number | null;
 }
 
-export type LeadStatus = "new" | "contacted" | "qualified" | "not-qualified" | "closed";
+export type LeadStatus =
+  | "new" | "no-answer" | "voicemail" | "callback" | "needs-verification" | "waiting-documents"
+  | "intake-completed" | "qualified" | "not-qualified" | "not-interested" | "wrong-number"
+  | "do-not-contact" | "closed" | "contacted";
 
+/* The stages offered when changing one. "contacted" is the stage older records
+   may still hold: it keeps its label but is no longer offered. The server
+   holds the same list. */
 export const LEAD_STATUSES: LeadStatus[] = [
   "new",
-  "contacted",
+  "no-answer",
+  "voicemail",
+  "callback",
+  "needs-verification",
+  "waiting-documents",
+  "intake-completed",
   "qualified",
   "not-qualified",
+  "not-interested",
+  "wrong-number",
+  "do-not-contact",
   "closed",
 ];
 
 export const LEAD_STATUS_LABEL: Record<LeadStatus, string> = {
   new: "New",
-  contacted: "Contacted",
+  "no-answer": "No answer",
+  voicemail: "Left voicemail",
+  callback: "Callback scheduled",
+  "needs-verification": "Needs verification",
+  "waiting-documents": "Waiting on documents",
+  "intake-completed": "Intake completed",
   qualified: "Qualified",
   "not-qualified": "Not qualified",
-  closed: "Closed",
+  "not-interested": "Not interested",
+  "wrong-number": "Wrong number",
+  "do-not-contact": "Do not contact",
+  closed: "Closed, order placed",
+  contacted: "Contacted (earlier stage)",
 };
+
+/* Stages that need one fixed reason. Never free text, so a stage cannot carry
+   patient detail. Kept in step with stageReasons in aws/src/admin.cjs. */
+export const STAGE_REASONS: Partial<Record<LeadStatus, { value: string; label: string }[]>> = {
+  "needs-verification": [
+    { value: "insurance", label: "Insurance" },
+    { value: "prescription", label: "Doctor or prescription" },
+    { value: "contact-details", label: "Contact details" },
+    { value: "other", label: "Something else" },
+  ],
+  "waiting-documents": [
+    { value: "prescription", label: "Prescription" },
+    { value: "insurance-card", label: "Insurance card" },
+    { value: "photo-id", label: "Photo ID" },
+    { value: "other", label: "Something else" },
+  ],
+  "not-qualified": [
+    { value: "insurance", label: "Insurance does not cover it" },
+    { value: "criteria", label: "Does not meet the medical criteria" },
+    { value: "area", label: "Outside our service area" },
+    { value: "other", label: "Something else" },
+  ],
+};
+
+export function stageReasonLabel(status: LeadStatus, reason: string) {
+  return STAGE_REASONS[status]?.find((item) => item.value === reason)?.label ?? "";
+}
+
+/* How the work queue groups stages. */
+export type StageGroup = "new" | "callback" | "working" | "done";
+export function stageGroup(status: LeadStatus): StageGroup {
+  if (status === "new") return "new";
+  if (status === "callback") return "callback";
+  if (["intake-completed", "qualified", "not-qualified", "not-interested", "wrong-number", "do-not-contact", "closed"].includes(status)) return "done";
+  return "working";
+}
 
 export interface LeadStats {
   total: number;
@@ -139,6 +204,7 @@ export interface SalesPersonFigures {
   assigned: number;
   open: number;
   new: number;
+  callbacksDue: number;
   calledToday: number;
   calls: number;
   qualified: number;
@@ -154,6 +220,13 @@ export interface SalesTeamSummary {
   total: number;
 }
 
+export interface StaffAlert {
+  uid: string;
+  enabled: boolean;
+  lastStatus: string;
+  lastSentAt: string | null;
+}
+
 export interface Influencer {
   slug: string;
   name: string;
@@ -164,6 +237,13 @@ export interface Influencer {
   clicks: number;
   leads: number;
   createdAt: string | null;
+}
+
+export interface LeadPatch {
+  status?: LeadStatus;
+  statusReason?: string;
+  callbackAt?: string;
+  note?: string;
 }
 
 export class AdminApiError extends Error {}
@@ -183,6 +263,7 @@ const CACHE_INVALIDATING_ACTIONS = new Set([
   "leads.status.import",
   "leads.notify",
   "leads.assign",
+  "alerts.set",
   "influencers.create",
   "influencers.setActive",
   "influencers.setDeleted",
@@ -312,6 +393,12 @@ export const adminApi = {
 
   salesTeamSummary: (getToken: GetToken) => call<SalesTeamSummary>(getToken, "leads.team"),
 
+  /* Email alerts are counts only. The address is taken from the person's
+     account on the server, never from here. */
+  listAlerts: (getToken: GetToken) => call<{ alerts: StaffAlert[] }>(getToken, "alerts.list"),
+  setAlerts: (getToken: GetToken, uid: string, enabled: boolean) =>
+    call<{ ok: true }>(getToken, "alerts.set", { uid, enabled }),
+
   retryNotification: (getToken: GetToken, id: string) => call<{
     ok: true;
     notificationStatus: string;
@@ -321,7 +408,7 @@ export const adminApi = {
 
   getLead: (getToken: GetToken, id: string) => call<{ lead: Lead }>(getToken, "leads.get", { id }),
 
-  updateLead: (getToken: GetToken, id: string, patch: { status?: LeadStatus; note?: string }) =>
+  updateLead: (getToken: GetToken, id: string, patch: LeadPatch) =>
     call<{ ok: true }>(getToken, "leads.update", { id, ...patch }),
 
   deleteLead: (getToken: GetToken, id: string) =>

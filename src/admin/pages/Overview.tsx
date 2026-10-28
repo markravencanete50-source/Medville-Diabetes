@@ -4,7 +4,9 @@ import {
   AdminApiError,
   isAdminApiConfigured,
   LEAD_STATUS_LABEL,
+  stageGroup,
   type LeadStats,
+  type LeadStatus,
 } from "../api";
 import { useAdminAuth } from "../auth";
 import { Banner, Card, Empty, PageHeader, Spinner } from "../ui";
@@ -67,6 +69,10 @@ export default function Overview() {
   const productItems = toBarItems(stats.byProduct, { limit: 8, label: (key) => PRODUCT_NAME.get(key) ?? key });
   const stateItems = toBarItems(stats.byState, { limit: 8 });
   const selectedRange = rangeLabel(range);
+  const inGroup = (group: string) => Object.entries(stats.byStatus)
+    .filter(([status]) => stageGroup(status as LeadStatus) === group)
+    .reduce((sum, [, count]) => sum + count, 0);
+  const count = (...statuses: LeadStatus[]) => statuses.reduce((sum, status) => sum + (stats.byStatus[status] ?? 0), 0);
 
   return (
     <>
@@ -76,10 +82,10 @@ export default function Overview() {
       <div className="mb-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
         <StatTile label="Current products" value={productCount ?? "..."} hint="Available on the website" />
         <StatTile label="Enquiries received" value={stats.total} hint={selectedRange} />
-        <StatTile label="New" value={stats.byStatus.new ?? 0} />
-        <StatTile label="Contacted" value={stats.byStatus.contacted ?? 0} />
-        <StatTile label="Qualified" value={stats.byStatus.qualified ?? 0} />
-        <StatTile label="Not qualified" value={stats.byStatus["not-qualified"] ?? 0} />
+        <StatTile label="New" value={count("new")} />
+        <StatTile label="In progress" value={inGroup("working") + inGroup("callback")} hint="Being called or waiting on something" />
+        <StatTile label="Qualified" value={count("intake-completed", "qualified", "closed")} hint="Intake completed, qualified or ordered" />
+        <StatTile label="Not qualified" value={count("not-qualified", "not-interested", "wrong-number", "do-not-contact")} />
       </div>
 
       <Card className="mb-4">

@@ -8,9 +8,14 @@ import {
   memberName,
   LEAD_STATUSES,
   LEAD_STATUS_LABEL,
+  STAGE_REASONS,
+  stageGroup,
+  stageReasonLabel,
   type Lead,
+  type LeadPatch,
   type LeadStatus,
   type SalesMember,
+  type StageGroup,
 } from "../api";
 import { canOpen, isSalesRole, useAdminAuth } from "../auth";
 import {
@@ -59,11 +64,31 @@ const PRODUCT_NAME = new Map(builtInProducts.map((product) => [product.slug, pro
 
 const STATUS_TONE: Record<LeadStatus, "new" | "ok" | "warn" | "danger" | "quiet"> = {
   new: "new",
-  contacted: "warn",
+  "no-answer": "warn",
+  voicemail: "warn",
+  callback: "new",
+  "needs-verification": "warn",
+  "waiting-documents": "warn",
+  "intake-completed": "ok",
   qualified: "ok",
   "not-qualified": "danger",
-  closed: "quiet",
+  "not-interested": "quiet",
+  "wrong-number": "danger",
+  "do-not-contact": "danger",
+  closed: "ok",
+  contacted: "warn",
 };
+
+/* The work queue, in the order a salesperson should work it. */
+const QUEUES: { id: StageGroup | "all"; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "new", label: "New" },
+  { id: "callback", label: "Callbacks" },
+  { id: "working", label: "In progress" },
+  { id: "done", label: "Done" },
+];
+
+const isDue = (lead: Lead) => lead.status === "callback" && Boolean(lead.callbackAt) && Date.parse(lead.callbackAt) <= Date.now();
 
 export default function Leads() {
   const { getToken, session } = useAdminAuth();
@@ -76,6 +101,7 @@ export default function Leads() {
   const [leads, setLeads] = useState<Lead[] | null>(null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<LeadStatus | "all">("all");
+  const [queue, setQueue] = useState<StageGroup | "all">("all");
   const [search, setSearch] = useState("");
   const [range, setRange] = useState<DateRange>({ from: "", to: "" });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
@@ -264,7 +290,7 @@ export default function Leads() {
     void load();
   }, [load]);
 
-  const visible = useMemo(() => {
+  const searched = useMemo(() => {
     const term = search.trim().toLowerCase();
     return (leads ?? []).filter((lead) => {
       if (filter !== "all" && lead.status !== filter) return false;
@@ -280,14 +306,36 @@ export default function Leads() {
     });
   }, [leads, filter, search]);
 
-  const update = async (lead: Lead, patch: { status?: LeadStatus; note?: string }) => {
+  const queueCounts = useMemo(() => {
+    const counts: Record<StageGroup | "all", number> = { all: searched.length, new: 0, callback: 0, working: 0, done: 0 };
+    searched.forEach((lead) => { counts[stageGroup(lead.status)] += 1; });
+    return counts;
+  }, [searched]);
+  const dueCount = useMemo(() => searched.filter(isDue).length, [searched]);
+
+  /* New enquiries are worked oldest first and callbacks soonest first. Every
+     other view keeps the newest first. */
+  const visible = useMemo(() => {
+    if (queue === "all") return searched;
+    const rows = searched.filter((lead) => stageGroup(lead.status) === queue);
+    if (queue === "new") return [...rows].sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
+    if (queue === "callback") return [...rows].sort((a, b) => a.callbackAt.localeCompare(b.callbackAt));
+    return rows;
+  }, [searched, queue]);
+
+  const update = async (lead: Lead, patch: LeadPatch) => {
     setSaving(true);
     try {
       await adminApi.updateLead(getToken, lead.id, patch);
+      /* A stage change replaces the reason and the callback time with whatever
+         the new stage carries, the same way the server does. */
+      const applied: Partial<Lead> = patch.status
+        ? { ...patch, statusReason: patch.statusReason ?? "", callbackAt: patch.status === "callback" ? patch.callbackAt ?? "" : "" }
+        : { ...patch };
       setLeads((current) =>
-        (current ?? []).map((item) => (item.id === lead.id ? { ...item, ...patch } : item)),
+        (current ?? []).map((item) => (item.id === lead.id ? { ...item, ...applied } : item)),
       );
-      setOpenLead((current) => (current && current.id === lead.id ? { ...current, ...patch } : current));
+      setOpenLead((current) => (current && current.id === lead.id ? { ...current, ...applied } : current));
       toast("Enquiry updated.");
     } catch (problem) {
       toast(problem instanceof AdminApiError ? problem.message : "That did not work.", "danger");
@@ -450,6 +498,23 @@ export default function Leads() {
         </div>
       </Card>
 
+      {leads !== null && leads.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Work queue">
+          {QUEUES.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="admin-chip"
+              aria-pressed={queue === item.id}
+              onClick={() => setQueue(item.id)}
+            >
+              {item.label} ({queueCounts[item.id]})
+              {item.id === "callback" && dueCount > 0 && <span className="ml-1.5"><Badge tone="warn">{dueCount} due now</Badge></span>}
+            </button>
+          ))}
+        </div>
+      )}
+
       <Card pad={false}>
         {leads === null ? (
           <Spinner label="Loading enquiries" />
@@ -458,8 +523,8 @@ export default function Leads() {
             {!connected
               ? "Enquiries will appear here once the enquiry service is connected."
               : leads.length
-                ? "No enquiries match that search."
-                : "No enquiries have arrived yet."}
+                ? queue === "all" ? "No enquiries match that search." : "Nothing in this part of the queue."
+                : ownLeadsOnly ? "No enquiries are assigned to you yet." : "No enquiries have arrived yet."}
           </Empty>
         ) : (
           <div className="admin-table-wrap">
@@ -497,13 +562,13 @@ export default function Leads() {
                 <tr>
                   {(!salesRole || canAssign) && <th scope="col"><span className="sr-only">Select enquiry</span></th>}
                   <th scope="col">Name</th>
+                  {salesRole && <th scope="col" className="relative"><span className="sr-only">Call</span></th>}
                   <th scope="col">Received</th>
                   <th scope="col">Location</th>
                   <th scope="col">Enquiry</th>
                   <th scope="col">Influencer</th>
                   {canAssign && <th scope="col">Assigned to</th>}
                   <th scope="col">Stage</th>
-                  {salesRole && <th scope="col" className="relative"><span className="sr-only">Call</span></th>}
                 </tr>
               </thead>
               <tbody>
@@ -525,6 +590,12 @@ export default function Leads() {
                         {leadName(lead)}
                       </button>
                     </td>
+                    {/* Beside the name so it never scrolls out of view. */}
+                    {salesRole && (
+                      <td>
+                        <CallButton lead={lead} busy={dialingId === lead.id} onCall={() => void dial(lead)} />
+                      </td>
+                    )}
                     <td data-label="Received" style={{ color: "var(--a-text-muted)" }}>
                       {formatDateTime(lead.createdAt)}
                     </td>
@@ -543,15 +614,8 @@ export default function Leads() {
                       </td>
                     )}
                     <td data-label="Stage">
-                      <Badge tone={STATUS_TONE[lead.status] ?? "quiet"}>
-                        {LEAD_STATUS_LABEL[lead.status] ?? lead.status}
-                      </Badge>
+                      <StageBadge lead={lead} />
                     </td>
-                    {salesRole && (
-                      <td>
-                        <CallButton lead={lead} busy={dialingId === lead.id} onCall={() => void dial(lead)} />
-                      </td>
-                    )}
                   </tr>
                 ))}
               </tbody>
@@ -604,7 +668,7 @@ export default function Leads() {
                 <Detail label="Product">{openLead.productName || PRODUCT_NAME.get(openLead.productInterest) || openLead.productInterest || "Not sure yet"}</Detail>
                 <Detail label="Influencer">{openLead.referralCode ? `@${openLead.referralCode}` : "Direct"}</Detail>
               </>}
-              <Detail label="Company notification">Not configured. Review enquiries here.</Detail>
+              <Detail label="Staff alerts">Counts only, emailed to staff who have alerts on.</Detail>
               <Detail label="Customer confirmation">{emailStatusLabel(openLead.customerConfirmationStatus)}</Detail>
             </dl>
             {openLead.source === "contact" && <div className="rounded-lg p-4" style={{ background: "var(--a-brand-soft)" }}><p className="admin-label">Question</p><p className="mt-2 whitespace-pre-wrap text-[14px] leading-relaxed">{openLead.message}</p></div>}
@@ -630,21 +694,13 @@ export default function Leads() {
               </Field>
             )}
 
-            <Field label="Stage" htmlFor="lead-status">
-              <select
-                id="lead-status"
-                className="admin-select"
-                value={openLead.status}
-                disabled={saving}
-                onChange={(event) => void update(openLead, { status: event.target.value as LeadStatus })}
-              >
-                {LEAD_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {LEAD_STATUS_LABEL[status]}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            {openLead.status === "do-not-contact" && role !== "owner" ? (
+              <Banner tone="warn">
+                This patient asked not to be contacted. Only an Owner can change this stage.
+              </Banner>
+            ) : (
+              <StageEditor lead={openLead} saving={saving} onSave={(patch) => void update(openLead, patch)} />
+            )}
 
             <NoteEditor lead={openLead} saving={saving} onSave={(note) => void update(openLead, { note })} />
 
@@ -699,6 +755,7 @@ export default function Leads() {
 }
 
 function CallButton({ lead, busy, onCall }: { lead: Lead; busy: boolean; onCall: () => void }) {
+  if (lead.status === "do-not-contact") return <Badge tone="danger">Do not call</Badge>;
   return (
     <button
       type="button"
@@ -709,6 +766,103 @@ function CallButton({ lead, busy, onCall }: { lead: Lead; busy: boolean; onCall:
     >
       <Phone size={14} aria-hidden="true" /> {busy ? "Starting call" : "Call"}
     </button>
+  );
+}
+
+function StageBadge({ lead }: { lead: Lead }) {
+  const reason = stageReasonLabel(lead.status, lead.statusReason);
+  return (
+    <span className="inline-flex flex-col items-start gap-1">
+      <Badge tone={STATUS_TONE[lead.status] ?? "quiet"}>{LEAD_STATUS_LABEL[lead.status] ?? lead.status}</Badge>
+      {lead.status === "callback" && lead.callbackAt && (
+        <span className="text-[12px]" style={{ color: isDue(lead) ? "var(--a-warn)" : "var(--a-text-muted)" }}>
+          {isDue(lead) ? "Due now, " : ""}{formatDateTime(lead.callbackAt)}
+        </span>
+      )}
+      {reason && <span className="text-[12px]" style={{ color: "var(--a-text-muted)" }}>{reason}</span>}
+    </span>
+  );
+}
+
+/* A datetime-local value for the browser's own time zone. */
+function localInputValue(iso: string) {
+  const date = iso ? new Date(iso) : (() => { const next = new Date(); next.setDate(next.getDate() + 1); next.setHours(10, 0, 0, 0); return next; })();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/*
+  Changing the stage. A stage that needs a reason or a callback time asks for
+  it before it can be saved, so the queue never holds a callback without a
+  time. Reasons are a fixed list, never typed, so a stage carries no patient
+  detail.
+*/
+function StageEditor({ lead, saving, onSave }: { lead: Lead; saving: boolean; onSave: (patch: LeadPatch) => void }) {
+  const [status, setStatus] = useState<LeadStatus>(lead.status);
+  const [reason, setReason] = useState(lead.statusReason);
+  const [when, setWhen] = useState(() => localInputValue(lead.callbackAt));
+  useEffect(() => {
+    setStatus(lead.status);
+    setReason(lead.statusReason);
+    setWhen(localInputValue(lead.callbackAt));
+  }, [lead.id, lead.status, lead.statusReason, lead.callbackAt]);
+
+  const reasons = STAGE_REASONS[status];
+  const callbackTime = status === "callback" && when ? new Date(when) : null;
+  const callbackValid = Boolean(callbackTime && !Number.isNaN(callbackTime.getTime()) && callbackTime.getTime() > Date.now() - 5 * 60000);
+  const ready = (!reasons || reasons.some((item) => item.value === reason)) && (status !== "callback" || callbackValid);
+  const unchanged = status === lead.status && reason === lead.statusReason
+    && (status !== "callback" || (callbackTime?.toISOString() ?? "") === lead.callbackAt);
+  const offered = LEAD_STATUSES.includes(lead.status) ? LEAD_STATUSES : [lead.status, ...LEAD_STATUSES];
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Field label="Stage" htmlFor="lead-status">
+        <select
+          id="lead-status"
+          className="admin-select"
+          value={status}
+          disabled={saving}
+          onChange={(event) => {
+            const next = event.target.value as LeadStatus;
+            setStatus(next);
+            setReason(next === lead.status ? lead.statusReason : "");
+          }}
+        >
+          {offered.map((item) => (
+            <option key={item} value={item}>{LEAD_STATUS_LABEL[item]}</option>
+          ))}
+        </select>
+      </Field>
+      {reasons && (
+        <Field label="Reason" htmlFor="lead-reason">
+          <select id="lead-reason" className="admin-select" value={reason} disabled={saving} onChange={(event) => setReason(event.target.value)}>
+            <option value="">Choose a reason</option>
+            {reasons.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
+        </Field>
+      )}
+      {status === "callback" && (
+        <Field label="Call back on" htmlFor="lead-callback" help="Your own time zone. The salesperson gets an email when it is due.">
+          <input id="lead-callback" type="datetime-local" className="admin-input" value={when} disabled={saving} onChange={(event) => setWhen(event.target.value)} />
+        </Field>
+      )}
+      {status === "do-not-contact" && status !== lead.status && (
+        <p className="admin-help">The Call button is removed for this patient. Only an Owner can change this stage afterwards.</p>
+      )}
+      <button
+        type="button"
+        className="admin-btn admin-btn-primary"
+        disabled={saving || !ready || unchanged}
+        onClick={() => onSave({
+          status,
+          ...(reasons ? { statusReason: reason } : {}),
+          ...(status === "callback" && callbackTime ? { callbackAt: callbackTime.toISOString() } : {}),
+        })}
+      >
+        Save stage
+      </button>
+    </div>
   );
 }
 
