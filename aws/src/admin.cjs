@@ -17,7 +17,7 @@ const CALLBACK_MAX_DAYS=90;
 const validId=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(x);
 const validUid=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(x);
 const validDay=x=>x===undefined||x===''||(typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(`${x}T00:00:00Z`)));
-const features={'alerts.list':'salesTeam','alerts.set':'salesTeam','leads.assign':'salesTeam','leads.team':'salesTeam','leads.dial':'leads','leads.list':'leads','leads.get':'leads','leads.update':'leads','leads.delete':'leads','leads.restore':'leads','leads.status.import':'leads','leads.stats':'overview','leads.export':'leads','leads.notify':'leads','audit.list':'audit','influencers.counts':'influencers'};
+const features={'leads.history':'leads','alerts.list':'salesTeam','alerts.set':'salesTeam','leads.assign':'salesTeam','leads.team':'salesTeam','leads.dial':'leads','leads.list':'leads','leads.get':'leads','leads.update':'leads','leads.delete':'leads','leads.restore':'leads','leads.status.import':'leads','leads.stats':'overview','leads.export':'leads','leads.notify':'leads','audit.list':'audit','influencers.counts':'influencers'};
 // Sales staff work leads without holding the list. Both sales roles see contact
 // details masked and dial through leads.dial; a salesperson reaches only the leads
 // assigned to them. Export, delete, restore and bulk import stay with Owner and Marketing.
@@ -67,6 +67,15 @@ function auditItem(actor,action,detail={}){
  const at=new Date().toISOString(),id=randomUUID();
  return{id,gsi1pk:'AUDIT',gsi1sk:`${at}#${id}`,actorUid:actor.uid,actorEmail:actor.email||'',actorRole:actor.role,action,...detail,at};
 }
+// Per-lead history: what was done to one lead, by whom, and when, in fixed fields only. It
+// never holds a note's text or a patient answer. Each entry is written in the same
+// transaction as the change it describes, so the history cannot disagree with the lead.
+function historyItem(actor,leadId,action,detail={}){
+ const at=new Date().toISOString(),id=randomUUID();
+ return{Put:{TableName:process.env.HISTORY_TABLE,Item:{leadId,sk:`${at}#${id}`,at,action,actorUid:actor.uid,actorEmail:actor.email||'',actorRole:actor.role,...detail},ConditionExpression:'attribute_not_exists(leadId)'}};
+}
+// Transactions hold at most 100 writes: a change, its history entry, and one audit entry.
+const BATCH_LIMIT=45;
 async function audit(actor,action,detail={}){await db.send(new PutCommand({TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,action,detail),ConditionExpression:'attribute_not_exists(id)'}))}
 function applyRange(input,b){
  if(!validDay(b.from)||!validDay(b.to)||(b.from&&b.to&&b.from>b.to))throw new Error('invalid range');
@@ -109,6 +118,17 @@ async function getLead(actor,b){
  if(!item)return{error:'Enquiry not found.',status:404};
  await audit(actor,'leads.read',{leadId:b.id});return{lead:lead(item,actor)};
 }
+// One lead's history, newest first, for anyone allowed to open that lead. Reading it is audited.
+const historyActions=new Set(['stage','note','assign','call','delete','restore']);
+async function leadHistory(actor,b){
+ if(!validId(b.id))return{error:'Invalid enquiry.'};
+ const item=await readable(actor,b.id,'leads.history');
+ if(!item)return{error:'Enquiry not found.',status:404};
+ const out=await db.send(new QueryCommand({TableName:process.env.HISTORY_TABLE,KeyConditionExpression:'leadId=:id',ExpressionAttributeValues:{':id':b.id},ScanIndexForward:false,Limit:100}));
+ await audit(actor,'leads.history.read',{leadId:b.id,count:out.Items?.length||0});
+ const text=x=>typeof x==='string'?x:'';
+ return{history:(out.Items||[]).filter(x=>historyActions.has(x.action)).map(x=>({at:text(x.at),action:x.action,actorUid:text(x.actorUid),actorEmail:text(x.actorEmail),actorRole:text(x.actorRole),status:text(x.status),statusReason:text(x.statusReason),callbackAt:text(x.callbackAt),assignee:text(x.assignee),source:text(x.source)}))};
+}
 // Ask the identity service who is on the sales team. Only the staff member's own token travels.
 async function teamMembers(header,origin){
  const r=await fetch(process.env.IDENTITY_VERIFY_URL,{method:'POST',headers:{Authorization:header,'Content-Type':'application/json',Origin:origin},body:JSON.stringify({action:'team.members'}),signal:AbortSignal.timeout(5000)});
@@ -118,7 +138,7 @@ async function teamMembers(header,origin){
  return members.filter(m=>m&&validUid(m.uid)&&(m.role==='sales'||m.role==='manager'));
 }
 async function assignLeads(actor,b,ctx){
- if(!Array.isArray(b.ids)||!b.ids.length||b.ids.length>50||!b.ids.every(validId)||new Set(b.ids).size!==b.ids.length)return{error:'Choose between 1 and 50 enquiries.'};
+ if(!Array.isArray(b.ids)||!b.ids.length||b.ids.length>BATCH_LIMIT||!b.ids.every(validId)||new Set(b.ids).size!==b.ids.length)return{error:`Choose between 1 and ${BATCH_LIMIT} enquiries.`};
  const to=b.assignee===''?'':b.assignee;
  if(to!==''&&!validUid(to))return{error:'Invalid salesperson.'};
  if(to){const member=(await teamMembers(ctx.header,ctx.origin)).find(m=>m.uid===to);if(!member||member.disabled)return{error:'Choose an active member of the sales team.'};}
@@ -128,6 +148,7 @@ async function assignLeads(actor,b,ctx){
  // The stage must still be the one the work key was taken from, or the assignment is refused.
  const TransactItems=b.ids.map((id,i)=>({Update:{TableName:process.env.LEADS_TABLE,Key:{id},...(to?{UpdateExpression:'SET assignedTo=:to, assignedAt=:at, assignedBy=:by, workSk=:work',ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt) AND #status=:status',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':to':to,':at':at,':by':actor.uid,':work':workKey(current[i].status,current[i].gsi1sk),':status':current[i].status}}:{UpdateExpression:'REMOVE assignedTo, assignedAt, assignedBy, workSk',ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt)'})}}));
  TransactItems.push({Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.assign',{count:b.ids.length,leadIds:b.ids,assignee:to||'none'}),ConditionExpression:'attribute_not_exists(id)'}});
+ TransactItems.push(...b.ids.map(id=>historyItem(actor,id,'assign',{assignee:to})));
  try{await db.send(new TransactWriteCommand({TransactItems}));}catch(e){if(e?.CancellationReasons?.some(x=>x?.Code==='ConditionalCheckFailed'))return{error:'One of those enquiries changed or moved to the Recycle Bin. Refresh and try again.'};throw e;}
  return{ok:true,assigned:b.ids.length};
 }
@@ -152,6 +173,7 @@ async function dialLead(actor,b){
    {Update:{TableName:process.env.RATE_TABLE,Key:{id:`dial#${actor.uid}#${Math.floor(now/3600000)}`},UpdateExpression:'SET expiresAt=:expiry ADD #count :one',ConditionExpression:'attribute_not_exists(#count) OR #count < :limit',ExpressionAttributeNames:{'#count':'count'},ExpressionAttributeValues:{':expiry':Math.floor(now/1000)+7200,':one':1,':limit':DIAL_LIMIT_PER_HOUR}}},
    {Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:'SET lastDialAt=:at, lastDialBy=:uid ADD dialCount :one',ConditionExpression:`attribute_exists(id) AND attribute_not_exists(deletedAt)${own?' AND assignedTo=:uid':''}`,ExpressionAttributeValues:{':at':at,':uid':actor.uid,':one':1}}},
    {Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.dial',{leadId:b.id}),ConditionExpression:'attribute_not_exists(id)'}},
+   historyItem(actor,b.id,'call'),
   ]}));
  }catch(e){
   const reasons=e?.CancellationReasons;
@@ -243,7 +265,10 @@ async function updateLead(actor,b){
  if(actor.role==='sales'){values[':me']=actor.uid;conditions.push('assignedTo=:me');}
  try{
   // The change and its audit commit together. Audit failure cannot leave an unrecorded change.
-  await db.send(new TransactWriteCommand({TransactItems:[{Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:`SET ${sets.join(', ')}${removes.length?` REMOVE ${removes.join(', ')}`:''}`,ExpressionAttributeNames:names,ExpressionAttributeValues:values,ConditionExpression:conditions.join(' AND '),ReturnValuesOnConditionCheckFailure:'ALL_OLD'}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.update',{leadId:b.id,fields:Object.keys(names).map(x=>names[x]),...(b.status!==undefined?{stage:b.status}:{})}),ConditionExpression:'attribute_not_exists(id)'}}]}));
+  const history=[];
+  if(b.status!==undefined)history.push(historyItem(actor,b.id,'stage',{status:b.status,...(values[':statusReason']?{statusReason:values[':statusReason']}:{}),...(values[':callbackAt']?{callbackAt:values[':callbackAt']}:{})}));
+  if(b.note!==undefined)history.push(historyItem(actor,b.id,'note'));
+  await db.send(new TransactWriteCommand({TransactItems:[{Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:`SET ${sets.join(', ')}${removes.length?` REMOVE ${removes.join(', ')}`:''}`,ExpressionAttributeNames:names,ExpressionAttributeValues:values,ConditionExpression:conditions.join(' AND '),ReturnValuesOnConditionCheckFailure:'ALL_OLD'}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.update',{leadId:b.id,fields:Object.keys(names).map(x=>names[x]),...(b.status!==undefined?{stage:b.status}:{})}),ConditionExpression:'attribute_not_exists(id)'}},...history]}));
  }catch(e){
   const reason=e?.CancellationReasons?.[0];
   if(reason?.Code==='ConditionalCheckFailed'){
@@ -259,18 +284,18 @@ async function deleteLead(actor,b){
  if(!validId(b.id))return{error:'Invalid enquiry.'};
  const deletedAt=new Date().toISOString(),purgeAt=Math.floor(Date.now()/1000)+(7*24*60*60);
  try{
-  await db.send(new TransactWriteCommand({TransactItems:[{Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:'SET deletedAt=:deletedAt, purgeAt=:purgeAt, deletedBy=:deletedBy',ExpressionAttributeValues:{':deletedAt':deletedAt,':purgeAt':purgeAt,':deletedBy':actor.uid},ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt)'}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.delete',{leadId:b.id,purgeAt}),ConditionExpression:'attribute_not_exists(id)'}}]}));
+  await db.send(new TransactWriteCommand({TransactItems:[{Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:'SET deletedAt=:deletedAt, purgeAt=:purgeAt, deletedBy=:deletedBy',ExpressionAttributeValues:{':deletedAt':deletedAt,':purgeAt':purgeAt,':deletedBy':actor.uid},ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt)'}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.delete',{leadId:b.id,purgeAt}),ConditionExpression:'attribute_not_exists(id)'}},historyItem(actor,b.id,'delete')]}));
  }catch(e){if(e?.CancellationReasons?.[0]?.Code==='ConditionalCheckFailed')return{error:'Enquiry not found.',status:404};throw e;}
  return{ok:true};
 }
 async function restoreLead(actor,b){
  if(!validId(b.id))return{error:'Invalid enquiry.'};
- try{await db.send(new TransactWriteCommand({TransactItems:[{Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:'REMOVE deletedAt, purgeAt, deletedBy',ConditionExpression:'attribute_exists(id) AND attribute_exists(deletedAt)'}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.restore',{leadId:b.id}),ConditionExpression:'attribute_not_exists(id)'}}]}));}
+ try{await db.send(new TransactWriteCommand({TransactItems:[{Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:'REMOVE deletedAt, purgeAt, deletedBy',ConditionExpression:'attribute_exists(id) AND attribute_exists(deletedAt)'}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.restore',{leadId:b.id}),ConditionExpression:'attribute_not_exists(id)'}},historyItem(actor,b.id,'restore')]}));}
  catch(e){if(e?.CancellationReasons?.[0]?.Code==='ConditionalCheckFailed')return{error:'Deleted enquiry not found.',status:404};throw e;}
  return{ok:true};
 }
 async function importStatuses(actor,b){
- if(!Array.isArray(b.items)||!b.items.length||b.items.length>50)return{error:'Import must contain between 1 and 50 rows.'};
+ if(!Array.isArray(b.items)||!b.items.length||b.items.length>BATCH_LIMIT)return{error:`Import must contain between 1 and ${BATCH_LIMIT} rows.`};
  // A stage that needs a reason or a callback time is set on the enquiry itself, not by import.
  if(b.items.some(x=>x&&typeof x==='object'&&needsDetail.has(x.status)&&x.status!=='not-qualified'))return{error:'Callback, Needs verification and Waiting on documents need details. Set them on the enquiry instead.'};
  if(!b.items.every(x=>x&&typeof x==='object'&&validId(x.id)&&statuses.has(x.status))||new Set(b.items.map(x=>x.id)).size!==b.items.length)return{error:'Invalid status import.'};
@@ -279,6 +304,7 @@ async function importStatuses(actor,b){
  if(!current)return{error:'The status import includes an enquiry that is missing, in the Recycle Bin, or marked Do not contact.'};
  const TransactItems=b.items.map((x,i)=>({Update:{TableName:process.env.LEADS_TABLE,Key:{id:x.id},UpdateExpression:'SET #status=:status, workSk=:work REMOVE statusReason, callbackAt',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':status':x.status,':work':workKey(x.status,current[i].gsi1sk),...(lock?{':dnc':DO_NOT_CONTACT}:{})},ConditionExpression:`attribute_exists(id) AND attribute_not_exists(deletedAt)${lock?' AND #status<>:dnc':''}`}}));
  TransactItems.push({Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.status.import',{count:b.items.length,leadIds:b.items.map(x=>x.id)}),ConditionExpression:'attribute_not_exists(id)'}});
+ TransactItems.push(...b.items.map(x=>historyItem(actor,x.id,'stage',{status:x.status,source:'import'})));
  try{await db.send(new TransactWriteCommand({TransactItems}));}catch(e){if(e?.CancellationReasons?.some(x=>x?.Code==='ConditionalCheckFailed'))return{error:'The status import includes an enquiry that is missing, in the Recycle Bin, or marked Do not contact.'};throw e;}
  return{ok:true,updated:b.items.length};
 }
@@ -311,6 +337,7 @@ async function route(actor,b,ctx){
  if(b.action==='leads.list')return listLeads(actor,b);
  if(b.action==='leads.assign')return assignLeads(actor,b,ctx);
  if(b.action==='leads.dial')return dialLead(actor,b);
+ if(b.action==='leads.history')return leadHistory(actor,b);
  if(b.action==='leads.team')return teamSummary(actor);
  if(b.action==='alerts.list')return listAlerts();
  if(b.action==='alerts.set')return setAlerts(actor,b,ctx);

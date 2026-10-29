@@ -204,6 +204,19 @@ only change made to their wording.
   move a lead out of it, and Call is refused for it. `contacted` is the
   older stage and stays valid for old records but is not offered. The
   status CSV import cannot set the three stages that need details.
+- Per-lead history, since 2026-10-29. `medville-phi-lead-history` (key
+  `leadId`, sort `sk` = time and a random id) holds one entry per stage
+  change, assignment, call, note edit, delete and restore, written by
+  `historyItem` in `aws/src/admin.cjs` inside the same transaction as the
+  change. Entries carry fixed fields only (who, when, stage, reason, callback
+  time, assignee); a note's text is never copied. It is protected like the
+  lead and audit tables (KMS, point-in-time recovery, deletion protection).
+  `leads.history` returns it to anyone who can open the lead and is audited.
+  Because each lead's history entry shares the transaction, bulk assignment
+  and the status import take at most 45 leads (`BATCH_LIMIT`, in
+  `aws/src/admin.cjs` and `src/admin/api.ts`), within DynamoDB's 100 writes
+  per transaction. The panel closes with the arrival of the enquiry, taken
+  from the lead itself.
 - Staff email alerts, since 2026-10-28. `aws/src/alerts.cjs` runs every two
   minutes. It reads only open leads (the "open#" part of `workSk`), and only
   their keys, stages, assignment and times, so its cost follows the open work

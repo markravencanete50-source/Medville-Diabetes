@@ -119,7 +119,7 @@ export function parseStatusImport(text: string, leads: StatusCsvLead[]): StatusC
     throw new StatusCsvError("Use the status template, or a full enquiry export with Received, Email, and Stage columns.");
   }
   if (!rows.length) throw new StatusCsvError("The CSV does not contain any status updates.");
-  if (rows.length > 50) throw new StatusCsvError("Import no more than 50 status updates at a time.");
+  if (rows.length > 45) throw new StatusCsvError("Import no more than 45 status updates at a time.");
 
   const seen = new Set<string>();
   return rows.map((row, index) => {

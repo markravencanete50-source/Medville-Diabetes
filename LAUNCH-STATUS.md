@@ -40,6 +40,11 @@ function (new `team.members` route and the `manager` role). Firestore and Storag
 rules also changed so the manager role keeps product access. The new index builds
 in the background after the update; the sales views fail until it is active.
 
+Per-lead history (2026-10-29): the same CloudFormation update adds the
+`medville-phi-lead-history` table, with KMS encryption, point-in-time recovery
+and deletion protection. Bulk assignment and status import now take at most 45
+enquiries at a time.
+
 The step-by-step commands for this release, in deploy order with checks and a
 rollback, are in `DEPLOY-SALES-TEAM.md`.
 

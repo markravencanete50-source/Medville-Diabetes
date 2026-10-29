@@ -28,6 +28,7 @@ const AWS_ACTIONS = new Set([
   "leads.list",
   "leads.assign",
   "leads.dial",
+  "leads.history",
   "leads.team",
   "alerts.list",
   "alerts.set",
@@ -220,6 +221,25 @@ export interface SalesTeamSummary {
   total: number;
 }
 
+/* One entry in a lead's history. Fixed facts only: never a note's text. */
+export interface LeadHistoryEntry {
+  at: string;
+  action: "stage" | "note" | "assign" | "call" | "delete" | "restore";
+  actorUid: string;
+  actorEmail: string;
+  actorRole: string;
+  status: string;
+  statusReason: string;
+  callbackAt: string;
+  assignee: string;
+  source: string;
+}
+
+/* The most enquiries one assignment or status import may touch. Each needs
+   its own history entry, and a database transaction holds 100 writes. Kept
+   in step with BATCH_LIMIT in aws/src/admin.cjs. */
+export const BATCH_LIMIT = 45;
+
 export interface StaffAlert {
   uid: string;
   enabled: boolean;
@@ -385,6 +405,11 @@ export const adminApi = {
   /* Releases one phone number for one call. Each release is written to the
      access log and counted against an hourly limit. */
   dialLead: (getToken: GetToken, id: string) => call<{ dial: string }>(getToken, "leads.dial", { id }),
+
+  /* Who did what to one enquiry, newest first. Reading it is recorded in the
+     access log. */
+  leadHistory: (getToken: GetToken, id: string) =>
+    call<{ history: LeadHistoryEntry[] }>(getToken, "leads.history", { id }),
 
   assignLeads: (getToken: GetToken, ids: string[], assignee: string) =>
     call<{ ok: true; assigned: number }>(getToken, "leads.assign", { ids, assignee }),

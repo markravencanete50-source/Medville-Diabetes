@@ -1,7 +1,8 @@
 # Deploying the sales team release
 
 This release adds the Sales manager role, lead assignment, hidden phone numbers
-with Call, the new lead stages, the callback queue and staff email alerts. The
+with Call, the new lead stages, the callback queue, staff email alerts and the
+per-lead history panel. The
 code is on branch `ccr-a5ce61e9-vm0grs`. Nothing in it is live yet.
 
 Deploy in this order. Each step is safe to stop after, because the old website
@@ -77,6 +78,8 @@ aws dynamodb create-backup --table-name medville-phi-audit \
   --backup-name before-sales-team-$(date +%Y%m%d)
 ```
 
+The new `medville-phi-lead-history` table starts empty, so it needs no backup.
+
 Point-in-time recovery is already on for both tables. The backups are an
 extra, named restore point.
 
@@ -118,7 +121,7 @@ What the table should show:
 
 | Action | Resource | Replacement |
 |---|---|---|
-| Add | AlertsTable, AlertsRole, AlertsFunction, AlertsLogGroup, AlertsSchedule, AlertsSchedulePermission | |
+| Add | HistoryTable, AlertsTable, AlertsRole, AlertsFunction, AlertsLogGroup, AlertsSchedule, AlertsSchedulePermission | |
 | Modify | LeadsTable (adds the AssigneeTimeline index) | **False** |
 | Modify | LambdaRole, AdminFunction, IntakeFunction | False |
 
@@ -259,6 +262,8 @@ As an Owner, on the dashboard:
    - there is no Export, Status template, Import or Recycle Bin for enquiries
    - Call opens the dialler (Five9 on the sales computers)
    - a stage change to "Callback scheduled" asks for a time and saves
+   - the History section at the foot of the enquiry lists the assignment, the
+     call and the stage change, newest first
 5. Move the test enquiry to the Recycle Bin as the Owner. Its audit entries stay.
 
 Email alerts need the two SES steps in `LAUNCH-STATUS.md`: the three DKIM

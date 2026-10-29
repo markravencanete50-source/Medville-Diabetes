@@ -3,6 +3,7 @@ import { Download, Phone, RefreshCw, Search, Trash2, Upload, UserCheck } from "l
 import {
   adminApi,
   AdminApiError,
+  BATCH_LIMIT,
   isAdminApiConfigured,
   leadName,
   memberName,
@@ -12,6 +13,7 @@ import {
   stageGroup,
   stageReasonLabel,
   type Lead,
+  type LeadHistoryEntry,
   type LeadPatch,
   type LeadStatus,
   type SalesMember,
@@ -118,6 +120,9 @@ export default function Leads() {
   const [assignTo, setAssignTo] = useState("");
   const [members, setMembers] = useState<SalesMember[]>([]);
   const [dialingId, setDialingId] = useState("");
+  /* Bumped after every change made from this screen, so an open history panel
+     shows the entry just written. */
+  const [historyVersion, setHistoryVersion] = useState(0);
   const connected = isAdminApiConfigured();
   const memberByUid = useMemo(() => new Map(members.map((member) => [member.uid, member])), [members]);
   const assignable = useMemo(() => members.filter((member) => !member.disabled), [members]);
@@ -178,6 +183,7 @@ export default function Leads() {
       link.href = `tel:${result.dial}`;
       link.click();
       const touched = { lastDialAt: new Date().toISOString(), dialCount: lead.dialCount + 1 };
+      setHistoryVersion((value) => value + 1);
       setLeads((current) => (current ?? []).map((item) => item.id === lead.id ? { ...item, ...touched } : item));
       setOpenLead((current) => current && current.id === lead.id ? { ...current, ...touched } : current);
     } catch (problem) {
@@ -191,13 +197,14 @@ export default function Leads() {
     if (!ids.length) return;
     setSaving(true);
     try {
-      for (let start = 0; start < ids.length; start += 50) {
-        await adminApi.assignLeads(getToken, ids.slice(start, start + 50), to);
+      for (let start = 0; start < ids.length; start += BATCH_LIMIT) {
+        await adminApi.assignLeads(getToken, ids.slice(start, start + BATCH_LIMIT), to);
       }
       const moved = new Set(ids);
       setLeads((current) => (current ?? []).map((lead) => moved.has(lead.id) ? { ...lead, assignedTo: to } : lead));
       setOpenLead((current) => current && moved.has(current.id) ? { ...current, assignedTo: to } : current);
       setSelectedIds(new Set());
+      setHistoryVersion((value) => value + 1);
       toast(to
         ? `${ids.length} ${ids.length === 1 ? "enquiry" : "enquiries"} assigned to ${memberName(memberByUid.get(to))}.`
         : `${ids.length} ${ids.length === 1 ? "enquiry is" : "enquiries are"} now unassigned.`);
@@ -336,6 +343,7 @@ export default function Leads() {
         (current ?? []).map((item) => (item.id === lead.id ? { ...item, ...applied } : item)),
       );
       setOpenLead((current) => (current && current.id === lead.id ? { ...current, ...applied } : current));
+      setHistoryVersion((value) => value + 1);
       toast("Enquiry updated.");
     } catch (problem) {
       toast(problem instanceof AdminApiError ? problem.message : "That did not work.", "danger");
@@ -709,6 +717,14 @@ export default function Leads() {
               name and the time.
             </p>
 
+            <HistoryPanel
+              key={openLead.id}
+              lead={openLead}
+              version={historyVersion}
+              myUid={session!.user.uid}
+              memberByUid={memberByUid}
+            />
+
             {!salesRole && (
               <div className="border-t pt-4" style={{ borderColor: "var(--a-line)" }}>
                 <button type="button" className="admin-btn admin-btn-danger w-full" disabled={saving} onClick={() => setDeleteCandidates([openLead])}>
@@ -863,6 +879,103 @@ function StageEditor({ lead, saving, onSave }: { lead: Lead; saving: boolean; on
         Save stage
       </button>
     </div>
+  );
+}
+
+const ROLE_NAME: Record<string, string> = {
+  owner: "An Owner",
+  marketing: "Marketing",
+  manager: "The sales manager",
+  sales: "A salesperson",
+};
+
+/* Who did it, as plainly as this viewer can be told: "You", a teammate's
+   name where the team list is loaded, otherwise their sign-in address. */
+function historyActor(entry: LeadHistoryEntry, myUid: string, members: Map<string, SalesMember>) {
+  if (entry.actorUid === myUid) return "You";
+  const member = members.get(entry.actorUid);
+  if (member) return memberName(member);
+  return entry.actorEmail || ROLE_NAME[entry.actorRole] || "Someone";
+}
+
+function historyText(entry: LeadHistoryEntry, myUid: string, members: Map<string, SalesMember>) {
+  if (entry.action === "stage") {
+    const status = entry.status as LeadStatus;
+    const label = LEAD_STATUS_LABEL[status] ?? entry.status;
+    const reason = stageReasonLabel(status, entry.statusReason);
+    const when = entry.callbackAt ? `, for ${formatDateTime(entry.callbackAt)}` : "";
+    return `changed the stage to ${label}${reason ? `: ${reason}` : ""}${when}${entry.source === "import" ? ", by import" : ""}.`;
+  }
+  if (entry.action === "assign") {
+    if (!entry.assignee) return "removed the assignment.";
+    if (entry.assignee === myUid) return "assigned it to you.";
+    const member = members.get(entry.assignee);
+    /* A salesperson has no team list, so a colleague is named generically. */
+    return `assigned it to ${member ? memberName(member) : members.size ? "a former team member" : "a teammate"}.`;
+  }
+  if (entry.action === "call") return "started a call.";
+  if (entry.action === "note") return "updated the internal note.";
+  if (entry.action === "delete") return "moved it to the Recycle Bin.";
+  return "restored it from the Recycle Bin.";
+}
+
+/*
+  The lead's history: every stage change, assignment, call and note edit, with
+  who and when, newest first. It closes with the enquiry arriving, which comes
+  from the lead itself. Entries hold fixed facts only, never a note's text.
+*/
+function HistoryPanel({
+  lead,
+  version,
+  myUid,
+  memberByUid,
+}: {
+  lead: Lead;
+  version: number;
+  myUid: string;
+  memberByUid: Map<string, SalesMember>;
+}) {
+  const { getToken } = useAdminAuth();
+  const [entries, setEntries] = useState<LeadHistoryEntry[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    setFailed(false);
+    adminApi.leadHistory(getToken, lead.id)
+      .then((result) => live && setEntries(result.history))
+      .catch(() => { if (live) { setEntries([]); setFailed(true); } });
+    return () => { live = false; };
+  }, [getToken, lead.id, version]);
+
+  const arrival = lead.source === "contact"
+    ? "The contact form question arrived."
+    : lead.referralCode
+      ? `The eligibility form arrived through @${lead.referralCode}.`
+      : "The eligibility form arrived.";
+
+  return (
+    <section aria-labelledby="lead-history-title" className="border-t pt-4" style={{ borderColor: "var(--a-line)" }}>
+      <h3 id="lead-history-title" className="admin-label">History</h3>
+      {entries === null ? (
+        <p className="admin-help" role="status">Loading the history.</p>
+      ) : (
+        <ol className="m-0 mt-2 flex list-none flex-col gap-3 p-0">
+          {failed && <li className="admin-help">The history could not be loaded. Close and reopen the enquiry to try again.</li>}
+          {entries.map((entry) => (
+            <li key={`${entry.at}-${entry.action}-${entry.actorUid}`} className="text-[14px] leading-snug">
+              <span className="font-semibold">{historyActor(entry, myUid, memberByUid)}</span>{" "}
+              {historyText(entry, myUid, memberByUid)}
+              <span className="block text-[12px]" style={{ color: "var(--a-text-muted)" }}>{formatDateTime(entry.at)}</span>
+            </li>
+          ))}
+          <li className="text-[14px] leading-snug">
+            {arrival}
+            <span className="block text-[12px]" style={{ color: "var(--a-text-muted)" }}>{formatDateTime(lead.createdAt)}</span>
+          </li>
+        </ol>
+      )}
+    </section>
   );
 }
 
