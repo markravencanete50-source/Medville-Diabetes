@@ -1230,6 +1230,9 @@ Resources:
 
   AlertsFunction:
     Type: AWS::Lambda::Function
+    # The schedule invokes the function within minutes. If the function existed before its
+    # log group, its first run would create the group and this stack's create would fail.
+    DependsOn: AlertsLogGroup
     Properties:
       FunctionName: medville-staff-alerts
       Runtime: nodejs22.x

@@ -40,6 +40,9 @@ function (new `team.members` route and the `manager` role). Firestore and Storag
 rules also changed so the manager role keeps product access. The new index builds
 in the background after the update; the sales views fail until it is active.
 
+The step-by-step commands for this release, in deploy order with checks and a
+rollback, are in `DEPLOY-SALES-TEAM.md`.
+
 Lead stages and staff alerts (2026-10-28): the CloudFormation update also adds the
 `medville-staff-alerts` table, the `medville-staff-alerts` Lambda and its two-minute
 EventBridge schedule. Alerts send through the same SES identity as customer
