@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createAdminHandler } from "../functions/admin/handler.js";
-import { normalizeRole, roleChangeError } from "../functions/admin/roles.js";
+import { normalizeFeatures, normalizeRole, roleChangeError } from "../functions/admin/roles.js";
 import { passwordEmailMessage, sendAdminPasswordEmail } from "../functions/admin/password-email.js";
 const origin = "https://www.medvillediabetes.com";
 async function request({ role = "owner", body = { action: "leads.get" }, failAudit = false, failRun = false, requestOrigin = origin, method = "POST" } = {}) {
@@ -55,6 +55,12 @@ test("audit failure remains generic and cannot expose a record", async () => { c
 test("route failure remains generic", async () => { const r = await request({ failRun: true }); assert.equal(r.code, 500); assert.equal(JSON.stringify(r.body).includes("private"), false); });
 test("foreign origins and GET requests are refused", async () => { assert.equal((await request({ requestOrigin: "https://evil.invalid" })).code, 403); assert.equal((await request({ method: "GET" })).code, 405); });
 test("legacy role names map to the replacement roles", () => { assert.equal(normalizeRole("editor"), "marketing"); assert.equal(normalizeRole("agent"), "sales"); });
+test("the sales manager role is recognised and starts with the sales team screen", () => {
+  assert.equal(normalizeRole("manager"), "manager");
+  assert.deepEqual(normalizeFeatures(undefined, "manager"), ["leads", "salesTeam", "products"]);
+  assert.equal(normalizeFeatures(undefined, "sales").includes("salesTeam"), false);
+  assert.equal(roleChangeError({ actorRole: "owner", targetRole: "sales", nextRole: "manager" }), "");
+});
 test("marketing cannot grant, remove or alter Owner access", () => {
   assert.match(roleChangeError({ actorRole: "marketing", nextRole: "owner" }), /Owner/);
   assert.match(roleChangeError({ actorRole: "marketing", targetRole: "owner", nextRole: "sales" }), /Owner/);
@@ -105,4 +111,28 @@ test("password email is sent from the configured Medville address", async () => 
     if (previousFrom === undefined) delete process.env.NOTIFICATION_FROM;
     else process.env.NOTIFICATION_FROM = previousFrom;
   }
+});
+test("newsletter access is granted separately and kept for the live campaign worker", async () => {
+  assert.deepEqual(normalizeFeatures(["newsletter", "blog"], "marketing"), ["newsletter", "blog"]);
+  assert.equal(normalizeFeatures(undefined, "marketing").includes("newsletter"), false);
+  assert.equal(normalizeFeatures(undefined, "owner").includes("newsletter"), true);
+  const { readFile } = await import("node:fs/promises");
+  const index = await readFile(new URL("../functions/admin/index.js", import.meta.url), "utf8");
+  for (const action of ["newsletter.list", "newsletter.send", "newsletter.resume"]) {
+    assert.match(index, new RegExp(`"${action.replace(".", "\\.")}": \\{ roles: ADMIN_ROLES, feature: "newsletter"`));
+  }
+  assert.match(index, /export const newsletterCampaignWorker = onDocumentWritten\(/);
+});
+test("the deploy guide lists every setting the admin functions read", async () => {
+  const { readFile, readdir } = await import("node:fs/promises");
+  const dir = new URL("../functions/admin/", import.meta.url);
+  const names = new Set();
+  for (const file of (await readdir(dir)).filter((name) => name.endsWith(".js"))) {
+    for (const match of (await readFile(new URL(file, dir), "utf8")).matchAll(/process\.env\.([A-Z_]+)/g)) names.add(match[1]);
+  }
+  names.delete("RESEND_API_KEY"); // a Secret Manager secret, never in the .env file
+  const guide = await readFile(new URL("../DEPLOY-SALES-TEAM.md", import.meta.url), "utf8");
+  const listed = guide.slice(guide.indexOf("### 3b."), guide.indexOf("### 3c."));
+  assert.deepEqual([...names].sort(), ["ALLOWED_ORIGIN", "CLOUDINARY_API_KEY", "CLOUDINARY_CLOUD_NAME", "NOTIFICATION_FROM", "PUBLIC_SITE_URL"]);
+  for (const name of names) assert.match(listed, new RegExp(`- \`${name}\``));
 });

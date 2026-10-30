@@ -31,3 +31,25 @@ test("the website cannot silently fall back to the legacy Google intake", () => 
   assert.match(adminApi, /VITE_AWS_ADMIN_API/);
   assert.match(adminApi, /AWS_ACTIONS/);
 });
+
+test("AWS template has each section once and every reference resolves", () => {
+  const text = template.replace(/\r\n/g, "\n");
+  const sections = [...text.matchAll(/^([A-Za-z]+):/gm)].map((m) => m[1]);
+  assert.equal(new Set(sections).size, sections.length, `duplicate top-level section in ${sections.join(", ")}`);
+  const block = (name) => {
+    const start = text.indexOf(`\n${name}:\n`);
+    const rest = text.slice(start + name.length + 3);
+    const end = rest.search(/\n[A-Za-z]+:/);
+    return end < 0 ? rest : rest.slice(0, end);
+  };
+  const names = (section) => [...block(section).matchAll(/^ {2}([A-Za-z0-9]+):/gm)].map((m) => m[1]);
+  const known = new Set([...names("Parameters"), ...names("Resources")]);
+  /* Inline function code is not template syntax, so it is left out. */
+  const config = text.replace(/ZipFile: \|\n(?: {10}.*\n|\n)*/g, "");
+  const refs = [
+    ...[...config.matchAll(/!Ref ([A-Za-z0-9]+)/g)].map((m) => m[1]),
+    ...[...config.matchAll(/!GetAtt ([A-Za-z0-9]+)\./g)].map((m) => m[1]),
+    ...[...config.matchAll(/\$\{([A-Za-z0-9]+)(?:\.[A-Za-z]+)?\}/g)].map((m) => m[1]),
+  ];
+  for (const ref of refs) assert.ok(known.has(ref), `unresolved reference ${ref}`);
+});

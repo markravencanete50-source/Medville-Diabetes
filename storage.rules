@@ -24,7 +24,7 @@ service firebase.storage {
     function hasFeature(feature) {
       let features = request.auth != null ? request.auth.token.get('features', null) : null;
       let marketing = role() == 'marketing' || role() == 'editor';
-      let sales = role() == 'sales' || role() == 'agent';
+      let sales = role() == 'sales' || role() == 'agent' || role() == 'manager';
       return role() == 'owner' || ((marketing || sales) && (
         (features is list && feature in features)
         || (features == null && (marketing || (sales && feature == 'products')))

@@ -1,4 +1,8 @@
-export type StatusCsvStatus = "new" | "contacted" | "qualified" | "not-qualified" | "closed";
+/* Stages an import may set. Callback, Needs verification and Waiting on
+   documents need a time or a reason, so they are set on the enquiry itself. */
+export type StatusCsvStatus =
+  | "new" | "contacted" | "no-answer" | "voicemail" | "intake-completed" | "qualified"
+  | "not-qualified" | "not-interested" | "wrong-number" | "do-not-contact" | "closed";
 
 export interface StatusCsvLead {
   id: string;
@@ -16,8 +20,14 @@ export class StatusCsvError extends Error {}
 const VALID_STATUSES = new Set<StatusCsvStatus>([
   "new",
   "contacted",
+  "no-answer",
+  "voicemail",
+  "intake-completed",
   "qualified",
   "not-qualified",
+  "not-interested",
+  "wrong-number",
+  "do-not-contact",
   "closed",
 ]);
 
@@ -34,6 +44,16 @@ function statusValue(value: string): StatusCsvStatus | null {
     "not-qualified": "not-qualified",
     notqualified: "not-qualified",
     closed: "closed",
+    "closed,-order-placed": "closed",
+    "no-answer": "no-answer",
+    noanswer: "no-answer",
+    voicemail: "voicemail",
+    "left-voicemail": "voicemail",
+    "intake-completed": "intake-completed",
+    "not-interested": "not-interested",
+    "wrong-number": "wrong-number",
+    "do-not-contact": "do-not-contact",
+    "contacted-(earlier-stage)": "contacted",
   };
   const status = aliases[normalized];
   return status && VALID_STATUSES.has(status) ? status : null;
@@ -99,14 +119,14 @@ export function parseStatusImport(text: string, leads: StatusCsvLead[]): StatusC
     throw new StatusCsvError("Use the status template, or a full enquiry export with Received, Email, and Stage columns.");
   }
   if (!rows.length) throw new StatusCsvError("The CSV does not contain any status updates.");
-  if (rows.length > 50) throw new StatusCsvError("Import no more than 50 status updates at a time.");
+  if (rows.length > 45) throw new StatusCsvError("Import no more than 45 status updates at a time.");
 
   const seen = new Set<string>();
   return rows.map((row, index) => {
     const rowNumber = index + 2;
     const status = statusValue(row[statusIndex] ?? "");
     if (!status) {
-      throw new StatusCsvError(`Row ${rowNumber} has an invalid stage. Use New, Contacted, Qualified, Not qualified, or Closed.`);
+      throw new StatusCsvError(`Row ${rowNumber} has an invalid stage. Use New, No answer, Left voicemail, Intake completed, Qualified, Not qualified, Not interested, Wrong number, Do not contact or Closed. Set a callback, a verification or missing documents on the enquiry itself.`);
     }
 
     let id = idIndex === undefined ? "" : (row[idIndex] ?? "").trim();

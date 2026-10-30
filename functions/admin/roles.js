@@ -1,19 +1,24 @@
-export const ADMIN_ROLES = ["owner", "marketing", "sales"];
+export const ADMIN_ROLES = ["owner", "marketing", "manager", "sales"];
 
 export const ADMIN_FEATURES = [
-  "overview", "leads", "influencers", "products", "content", "blog",
+  "overview", "leads", "salesTeam", "influencers", "products", "content", "blog", "newsletter",
   "appearance", "faqs", "testimonials", "team", "audit",
 ];
 
+/* Sales staff call leads but never hold the list: a salesperson sees only the
+   leads assigned to them, and neither sales role can export, delete or bulk
+   import. The AWS lead service enforces the same split. */
 export const ROLE_FEATURES = {
   owner: ADMIN_FEATURES,
   marketing: ["overview", "leads", "influencers", "products", "content", "blog", "appearance", "faqs", "testimonials"],
+  manager: ["leads", "salesTeam", "products"],
   sales: ["leads", "products"],
 };
 
 export function normalizeRole(role) {
   if (role === "owner") return "owner";
   if (role === "marketing" || role === "editor") return "marketing";
+  if (role === "manager") return "manager";
   if (role === "sales" || role === "agent") return "sales";
   return null;
 }

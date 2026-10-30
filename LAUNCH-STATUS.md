@@ -23,7 +23,66 @@ Identity Platform supplies workforce identity only. AWS sends the workforce bear
 token to the existing Google admin service with the fixed action `auth.session`.
 That service checks token revocation, disabled accounts, one-hour authentication
 age and current role/feature claims. No lead ID, patient field or patient action
-is forwarded. An identity outage denies access.
+is forwarded. An identity outage denies access. Before assigning a lead, AWS also
+asks the same service for `team.members` (staff uids, names and roles only) so a
+lead can only be assigned to an active member of the sales team.
+
+Sales roles (2026-10-27): `manager` assigns leads and sees per-person counts;
+`sales` sees only the leads assigned to them. Both receive phone and email
+removed. Call releases one number per click through `leads.dial`, which is
+audited and limited to 60 per person per hour. Neither role can export, delete,
+restore or bulk import enquiries.
+
+Deploying this change needs the CloudFormation update (it adds the
+`AssigneeTimeline` index to the leads table, gives the admin Lambda `RATE_TABLE`
+and update access to the limits table) and a redeploy of the Google `adminApi`
+function (new `team.members` route and the `manager` role). Firestore and Storage
+rules also changed so the manager role keeps product access. The new index builds
+in the background after the update; the sales views fail until it is active.
+
+Per-lead history (2026-10-29): the same CloudFormation update adds the
+`medville-phi-lead-history` table, with KMS encryption, point-in-time recovery
+and deletion protection. Bulk assignment and status import now take at most 45
+enquiries at a time.
+
+Live email, reconciled 2026-10-30: the AWS stack was found to hold a company
+email feature deployed outside Git. It is now in the repository:
+`aws/src/notification.cjs` emails `info@medvillediabetes.com` through SES (the
+`medville-phi-company` configuration set, TLS required) that a new lead exists,
+with a dashboard link and no answers; `aws/src/notificationEvent.cjs` records
+SES delivery, bounce, rejection, delay and complaint events on the lead. The
+live snapshot and the recovered files are on branch `live-aws-20261030`.
+
+Live newsletter, reconciled 2026-10-30: the Google `adminApi` was also found to
+hold code deployed outside Git: newsletter list, send and resume routes behind
+a separate `newsletter` feature, and a `newsletterCampaignWorker` function that
+emails a published article to blog subscribers through Resend in pages of 50.
+It is now in `functions/admin/newsletter-campaign.js` and
+`editorial-catalog.js`. Subscribers are blog readers, not leads, so no patient
+data is involved. The snapshot is on branch `codex/live-adminapi-20261030`. The
+dashboard has no newsletter screen yet. Owners hold the feature automatically;
+the Administrators screen cannot grant it to anyone else, but it keeps the
+feature on an account that already has it when other features are switched.
+
+Open compliance question: the live intake sends the customer's receipt through
+Resend (`aws/src/confirmation.cjs`, `ResendApiKey` stack parameter), not AWS
+SES. The receipt holds no answers, but Resend receives the patient's email
+address and the fact that they submitted a diabetes eligibility request, which
+is PHI. Confirm that Medville has a signed BAA with Resend, or switch the receipt
+to SES once SES production access is granted. That is a change to
+`confirmation.cjs` only.
+
+The step-by-step commands for this release, in deploy order with checks and a
+rollback, are in `DEPLOY-SALES-TEAM.md`.
+
+Lead stages and staff alerts (2026-10-28): the CloudFormation update also adds the
+`medville-staff-alerts` table, the `medville-staff-alerts` Lambda and its two-minute
+EventBridge schedule. Alerts send through the same SES identity as customer
+receipts, so the same two gates apply: the DKIM records in GoDaddy and SES
+production access. Until production access is granted, every staff address that
+should receive alerts must be verified in SES one by one, or the dashboard shows
+"On, last email failed" for that person. A run that finds nothing reads lead
+stages and times but sends nothing and writes no audit entry.
 
 AWS obtains only public product names/availability and campaign active state from
 `intakeConfig`. It never forwards form answers. Campaign conversion counts are

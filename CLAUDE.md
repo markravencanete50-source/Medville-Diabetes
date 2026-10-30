@@ -4,8 +4,12 @@ Read this file completely before making any change.
 
 Current launch status and activation requirements are in `LAUNCH-STATUS.md`.
 That file supersedes older operational statements here. Production eligibility and
-contact intake are enabled on AWS. Enquiry email notifications are not configured;
-staff review the protected dashboard. The function runtime target is Node.js 22.
+contact intake are enabled on AWS. Staff email alerts (counts only, never patient
+details) are sent by the `medville-staff-alerts` Lambda to staff who switch them on;
+the protected dashboard holds the details. Each new lead also emails the company
+inbox through SES (`aws/src/notification.cjs`, no answers), and the customer's
+receipt goes through Resend (`aws/src/confirmation.cjs`); whether Resend is
+covered by a BAA is open in LAUNCH-STATUS.md. The function runtime target is Node.js 22.
 
 ## What this project is
 
@@ -171,9 +175,64 @@ only change made to their wording.
   reason is the audit log, which names the account that acted; a shared login
   reduces every entry to "somebody at this company". Taking access away is
   never refused, so the rule cannot strand an account that already exists.
-  The role each person gets: `owner` for the two business owners, `agent` for
-  the sales team, which reaches enquiries and nothing else, and `editor` for
-  anyone writing content, which reaches no patient data at all.
+  The role each person gets: `owner` for the two business owners, `marketing`
+  for anyone writing content, `manager` for the sales team manager, and
+  `sales` for each salesperson. (`editor` and `agent` are older names that
+  still map to `marketing` and `sales`.)
+- The sales team, since 2026-10-27 on the client's instruction. Salespeople
+  call leads but must not hold the list, because the owner does not want
+  leads taken to competitors. A `sales` account sees only the enquiries
+  assigned to it. Both sales roles receive phone and email already removed by
+  the AWS lead service, so the numbers are not in the page at all. Call asks
+  `leads.dial` for one number, which is audited, counted against a limit of
+  60 per person per hour, and handed straight to the computer's dialler
+  (Five9 on the client's machines) without being drawn. Neither sales role
+  can export, delete, restore or bulk import; the AWS service refuses those
+  as well as the dashboard hiding them. The `manager` role assigns leads
+  (`leads.assign`, which checks the assignee against the identity service's
+  `team.members` list) and reads per-person figures on the Sales team screen
+  (`leads.team`, counts only). A salesperson's list is read from the sparse
+  `AssigneeTimeline` index on `assignedTo`, sorted by `workSk`: "open#" or
+  "done#" followed by the lead's `gsi1sk`. Every write that assigns a lead or
+  changes its stage (update, assign, status import) must also write `workSk`
+  from the stage it writes, or the alert job will miss or overcount it. Five9 itself can still show the
+  dialled number during a call; that is a Five9 setting, not this site.
+- Lead stages, since 2026-10-28. The list lives in `statuses` in
+  `aws/src/admin.cjs` and `LEAD_STATUSES` in `src/admin/api.ts`, and the two
+  must agree. Needs verification, Waiting on documents and Not qualified take
+  a reason from a fixed list (`stageReasons` / `STAGE_REASONS`), never typed
+  text, so a stage cannot carry patient detail. Callback scheduled takes a
+  time within 90 days. A stage change sets or clears its own reason and
+  callback time on the server. Do not contact is locked: only an Owner can
+  move a lead out of it, and Call is refused for it. `contacted` is the
+  older stage and stays valid for old records but is not offered. The
+  status CSV import cannot set the three stages that need details.
+- Per-lead history, since 2026-10-29. `medville-phi-lead-history` (key
+  `leadId`, sort `sk` = time and a random id) holds one entry per stage
+  change, assignment, call, note edit, delete and restore, written by
+  `historyItem` in `aws/src/admin.cjs` inside the same transaction as the
+  change. Entries carry fixed fields only (who, when, stage, reason, callback
+  time, assignee); a note's text is never copied. It is protected like the
+  lead and audit tables (KMS, point-in-time recovery, deletion protection).
+  `leads.history` returns it to anyone who can open the lead and is audited.
+  Because each lead's history entry shares the transaction, bulk assignment
+  and the status import take at most 45 leads (`BATCH_LIMIT`, in
+  `aws/src/admin.cjs` and `src/admin/api.ts`), within DynamoDB's 100 writes
+  per transaction. The panel closes with the arrival of the enquiry, taken
+  from the lead itself.
+- Staff email alerts, since 2026-10-28. `aws/src/alerts.cjs` runs every two
+  minutes. It reads only open leads (the "open#" part of `workSk`), and only
+  their keys, stages, assignment and times, so its cost follows the open work
+  rather than the whole history. It emails
+  each subscribed person one message of counts: new enquiries waiting to be
+  assigned (Owner and Sales manager), enquiries assigned to them, and their
+  callbacks now due. A person's watermark moves only after their email is
+  accepted, so a failed send retries. Each run that sends writes one
+  `alerts.sent` audit entry naming the counted records. Alerts are switched
+  on per person by an Owner or the Sales manager on the Sales team screen;
+  the address always comes from the identity service, never the browser.
+  The staff address and on/off state live in `medville-staff-alerts`, which
+  holds no patient data.
 - Administrator invitations. An owner invites by email from the dashboard's
   Administrators screen. `admins.invite` in `functions/admin/index.js` creates
   the Identity Platform account and sets the role claim but never a password,
