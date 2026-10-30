@@ -226,26 +226,25 @@ for FN in adminApi newsletterCampaignWorker; do
 done
 ```
 
-Some variables are set by Google or Firebase for each function on every
-deploy, and differ between the two functions by design. Firebase refuses a
-`.env` file that contains them, so leave them all out:
+The live functions also carry variables that Google and Firebase set for
+themselves on every deploy (`FUNCTION_TARGET`, `FUNCTION_REGION`,
+`FUNCTION_SIGNATURE_TYPE`, `LOG_EXECUTION_ID` and others). Firebase refuses a
+`.env` file that contains any of them, so do not copy the list as it stands.
+Copy only the variables the code reads, which are these five and no others:
 
-- `FUNCTION_TARGET`, `FUNCTION_SIGNATURE_TYPE` (the entry point and trigger
-  type of each function)
-- `FIREBASE_CONFIG`, `GCLOUD_PROJECT`, `EVENTARC_CLOUD_EVENT_SOURCE`,
-  `LOG_EXECUTION_ID`
-- anything else that starts with `FIREBASE_`, `X_GOOGLE_`, `EXT_` or `K_`, and
-  `PORT`
+- `NOTIFICATION_FROM`
+- `ALLOWED_ORIGIN`
+- `PUBLIC_SITE_URL`
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
 
-Every other variable belongs in `functions/admin/.env.medville-diabetes`, one
-`NAME=value` per line. Copy only what is live; never invent a value. On
-2026-10-30 the live functions had no `CLOUDINARY_CLOUD_NAME` or
-`CLOUDINARY_API_KEY`, so picture uploads through the dashboard are not signed
-today and pasting a picture address is the route that works. Leaving them out
-keeps that unchanged. The Firebase deploy in 3c redeploys both functions from this
-one file, so take the union of the two lists. If a variable outside the list
-above is set on both functions with different values, stop and report it: one
-file cannot hold both.
+Write each one that is set on either function into
+`functions/admin/.env.medville-diabetes`, one `NAME=value` per line. Leave out
+any that are not set. Never invent a value. On 2026-10-30 the live functions
+had no `CLOUDINARY_CLOUD_NAME` or `CLOUDINARY_API_KEY`, so picture uploads
+through the dashboard are not signed today and pasting a picture address is
+the route that works. Leaving them out keeps that unchanged. If one of the five
+is set on both functions with different values, stop and report its name.
 
 The file is ignored by Git. Never commit it. The two secrets,
 `RESEND_API_KEY` and `CLOUDINARY_API_SECRET`, stay in Secret Manager and are not

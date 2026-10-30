@@ -123,3 +123,16 @@ test("newsletter access is granted separately and kept for the live campaign wor
   }
   assert.match(index, /export const newsletterCampaignWorker = onDocumentWritten\(/);
 });
+test("the deploy guide lists every setting the admin functions read", async () => {
+  const { readFile, readdir } = await import("node:fs/promises");
+  const dir = new URL("../functions/admin/", import.meta.url);
+  const names = new Set();
+  for (const file of (await readdir(dir)).filter((name) => name.endsWith(".js"))) {
+    for (const match of (await readFile(new URL(file, dir), "utf8")).matchAll(/process\.env\.([A-Z_]+)/g)) names.add(match[1]);
+  }
+  names.delete("RESEND_API_KEY"); // a Secret Manager secret, never in the .env file
+  const guide = await readFile(new URL("../DEPLOY-SALES-TEAM.md", import.meta.url), "utf8");
+  const listed = guide.slice(guide.indexOf("### 3b."), guide.indexOf("### 3c."));
+  assert.deepEqual([...names].sort(), ["ALLOWED_ORIGIN", "CLOUDINARY_API_KEY", "CLOUDINARY_CLOUD_NAME", "NOTIFICATION_FROM", "PUBLIC_SITE_URL"]);
+  for (const name of names) assert.match(listed, new RegExp(`- \`${name}\``));
+});
