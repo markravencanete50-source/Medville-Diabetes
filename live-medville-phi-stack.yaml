@@ -1,0 +1,1184 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Medville Diabetes HIPAA intake and lead administration
+
+Parameters:
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Default: https://www.medvillediabetes.com,https://medvillediabetes.com,https://medville-diabetes.web.app
+  FirebaseProjectId:
+    Type: String
+    Default: medville-diabetes
+  IntakeEnabled:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+  SenderEmail:
+    Type: String
+    Default: info@medvillediabetes.com
+  SenderDomain:
+    Type: String
+    Default: medvillediabetes.com
+  ResendApiKey:
+    Type: String
+    NoEcho: true
+
+Resources:
+  SenderEmailIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref SenderDomain
+
+  CompanyEmailConfiguration:
+    Type: AWS::SES::ConfigurationSet
+    Properties:
+      Name: medville-phi-company
+      DeliveryOptions:
+        TlsPolicy: REQUIRE
+
+  CompanyEmailEventDestination:
+    Type: AWS::SES::ConfigurationSetEventDestination
+    DependsOn: CompanyEmailEventPermission
+    Properties:
+      ConfigurationSetName: !Ref CompanyEmailConfiguration
+      EventDestination:
+        Name: medville-phi-delivery-events
+        Enabled: true
+        MatchingEventTypes: [DELIVERY, BOUNCE, REJECT, DELIVERY_DELAY, COMPLAINT]
+        EventBridgeDestination:
+          EventBusArn: !Sub arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:event-bus/default
+
+  PhiKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Encrypts Medville eligibility and access records
+      EnableKeyRotation: true
+      PendingWindowInDays: 30
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: RootAdministration
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: "*"
+
+  PhiKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/medville-phi
+      TargetKeyId: !Ref PhiKey
+
+  LeadsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: medville-phi-leads
+      BillingMode: PAY_PER_REQUEST
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !GetAtt PhiKey.Arn
+      TimeToLiveSpecification:
+        AttributeName: purgeAt
+        Enabled: true
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: gsi1pk
+          AttributeType: S
+        - AttributeName: gsi1sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: LeadTimeline
+          KeySchema:
+            - AttributeName: gsi1pk
+              KeyType: HASH
+            - AttributeName: gsi1sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  AuditTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: medville-phi-audit
+      BillingMode: PAY_PER_REQUEST
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !GetAtt PhiKey.Arn
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: gsi1pk
+          AttributeType: S
+        - AttributeName: gsi1sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: AuditTimeline
+          KeySchema:
+            - AttributeName: gsi1pk
+              KeyType: HASH
+            - AttributeName: gsi1sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  RateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: medville-intake-limits
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !GetAtt PhiKey.Arn
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: medville-phi-api-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: medville-phi-table-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:TransactWriteItems
+                Resource:
+                  - !GetAtt LeadsTable.Arn
+                  - !Sub ${LeadsTable.Arn}/index/*
+                  - !GetAtt AuditTable.Arn
+                  - !Sub ${AuditTable.Arn}/index/*
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:Encrypt
+                  - kms:GenerateDataKey
+                Resource: !GetAtt PhiKey.Arn
+              - Effect: Allow
+                Action: ses:SendEmail
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/medville-phi-*:*
+
+  IntakeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: medville-intake-only
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem]
+                Resource: !GetAtt LeadsTable.Arn
+              - Effect: Allow
+                Action: [dynamodb:UpdateItem]
+                Resource: !GetAtt RateTable.Arn
+              - Effect: Allow
+                Action: [kms:Decrypt, kms:Encrypt, kms:GenerateDataKey]
+                Resource: !GetAtt PhiKey.Arn
+              - Effect: Allow
+                Action: ses:SendEmail
+                Resource: "*"
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/medville-phi-intake:*
+
+  IntakeFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: medville-phi-intake
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Role: !GetAtt IntakeRole.Arn
+      Timeout: 15
+      MemorySize: 256
+      KmsKeyArn: !GetAtt PhiKey.Arn
+      LoggingConfig:
+        ApplicationLogLevel: ERROR
+        SystemLogLevel: WARN
+        LogFormat: JSON
+      Environment:
+        Variables:
+          ALLOWED_ORIGINS: !Join [",", !Ref AllowedOrigins]
+          INTAKE_ENABLED: !Ref IntakeEnabled
+          LEADS_TABLE: !Ref LeadsTable
+          RATE_TABLE: !Ref RateTable
+          INTAKE_CONFIG_URL: https://us-central1-medville-diabetes.cloudfunctions.net/intakeConfig
+          SENDER_EMAIL: !Ref SenderEmail
+          SES_CONFIG_SET: !Ref CompanyEmailConfiguration
+          RESEND_API_KEY: !Ref ResendApiKey
+      Code:
+        ZipFile: |
+          "use strict";
+          var __defProp = Object.defineProperty;
+          var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+          var __getOwnPropNames = Object.getOwnPropertyNames;
+          var __hasOwnProp = Object.prototype.hasOwnProperty;
+          var __esm = (fn, res) => function __init() {
+            return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+          };
+          var __commonJS = (cb, mod) => function __require() {
+            return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+          };
+          var __export = (target, all) => {
+            for (var name in all)
+              __defProp(target, name, { get: all[name], enumerable: true });
+          };
+          var __copyProps = (to, from, except, desc) => {
+            if (from && typeof from === "object" || typeof from === "function") {
+              for (let key of __getOwnPropNames(from))
+                if (!__hasOwnProp.call(to, key) && key !== except)
+                  __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+            }
+            return to;
+          };
+          var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+          // functions/intake.js
+          var intake_exports = {};
+          __export(intake_exports, {
+            createIntakeHandler: () => createIntakeHandler,
+            validateSubmission: () => validateSubmission
+          });
+          function validateSubmission(b) {
+            if (!b || typeof b !== "object" || Array.isArray(b)) return null;
+            if (!text(b.firstName, 80) || !text(b.lastName, 80) || !text(b.city, 80) || !text(b.email, 160) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email.trim()) || !text(b.phone, 25) || !/^[0-9+() .-]+$/.test(b.phone) || b.phone.replace(/\D/g, "").length < 7 || !STATES.has(b.state) || !["yes", "no"].includes(b.injectsInsulinDaily) || typeof b.submissionId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(b.submissionId) || typeof b.productInterest !== "string" || !/^[a-z0-9][a-z0-9-]{0,59}$/.test(b.productInterest) || b.consentAccepted !== true || b.referralCode !== void 0 && (typeof b.referralCode !== "string" || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(b.referralCode)) || b.website !== void 0 && b.website !== "") return null;
+            return {
+              firstName: b.firstName.trim(),
+              lastName: b.lastName.trim(),
+              email: b.email.trim().toLowerCase(),
+              phone: b.phone.trim(),
+              city: b.city.trim(),
+              state: b.state,
+              injectsInsulinDaily: b.injectsInsulinDaily,
+              productInterest: b.productInterest,
+              consentAccepted: true,
+              referralCode: b.referralCode || "",
+              submissionId: b.submissionId
+            };
+          }
+          function createIntakeHandler({ enabled, origins: origins2, resolveProduct, save, notify }) {
+            return async (req, res) => {
+              res.set("Cache-Control", "no-store");
+              res.set("X-Content-Type-Options", "nosniff");
+              res.set("Vary", "Origin");
+              const origin = req.get("Origin") || "";
+              if (!origins2.includes(origin)) return res.status(403).json({ error: "Request not allowed." });
+              res.set("Access-Control-Allow-Origin", origin);
+              if (req.method === "OPTIONS") {
+                res.set("Access-Control-Allow-Methods", "POST");
+                res.set("Access-Control-Allow-Headers", "Content-Type");
+                res.set("Access-Control-Max-Age", "3600");
+                return res.status(204).send("");
+              }
+              if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
+              if (!enabled) return res.status(503).json({ error: "Online submissions are not open yet." });
+              if (!(req.get("Content-Type") || "").toLowerCase().startsWith("application/json")) return res.status(415).json({ error: "JSON required." });
+              if (Number(req.get("Content-Length")) > 8192 || (req.rawBody?.length || 0) > 8192) return res.status(413).json({ error: "Request too large." });
+              const data = validateSubmission(req.body);
+              if (!data) return res.status(400).json({ error: "Please check the form fields." });
+              try {
+                const product = await resolveProduct(data.productInterest);
+                if (!product) return res.status(400).json({ error: "Please choose an available product." });
+                const result = await save({ ...data, productName: product.name }, req.ip || "unknown");
+                if (result.limited) {
+                  res.set("Retry-After", "3600");
+                  return res.status(429).json({ error: "Please try again later or call our team." });
+                }
+                try {
+                  await notify(data.submissionId);
+                } catch {
+                }
+                return res.status(200).json({ ok: true });
+              } catch {
+                return res.status(503).json({ error: "The submission could not be saved. Please try again." });
+              }
+            };
+          }
+          var STATES, text;
+          var init_intake = __esm({
+            "functions/intake.js"() {
+              "use strict";
+              STATES = new Set("Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|District of Columbia|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|Wisconsin|Wyoming".split("|"));
+              text = (v, max) => typeof v === "string" && v.trim().length > 0 && v.trim().length <= max && !/[\u0000-\u001f\u007f]/.test(v);
+            }
+          });
+
+          // functions/contact.js
+          var contact_exports = {};
+          __export(contact_exports, {
+            createContactHandler: () => createContactHandler,
+            validateContactSubmission: () => validateContactSubmission
+          });
+          function validateContactSubmission(body) {
+            if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+            if (!singleLine(body.firstName, 80) || !singleLine(body.lastName, 80) || !singleLine(body.city, 80) || !singleLine(body.email, 160) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim()) || !singleLine(body.phone, 25) || !/^[0-9+() .-]+$/.test(body.phone) || body.phone.replace(/\D/g, "").length < 7 || !STATES2.has(body.state) || !messageText(body.message) || body.privacyAccepted !== true || typeof body.submissionId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.submissionId) || body.website !== void 0 && body.website !== "") return null;
+            return {
+              firstName: body.firstName.trim(),
+              lastName: body.lastName.trim(),
+              email: body.email.trim().toLowerCase(),
+              phone: body.phone.trim(),
+              city: body.city.trim(),
+              state: body.state,
+              message: body.message.trim(),
+              privacyAccepted: true,
+              submissionId: body.submissionId
+            };
+          }
+          function createContactHandler({ enabled, origins: origins2, save, notify }) {
+            return async (req, res) => {
+              res.set("Cache-Control", "no-store");
+              res.set("X-Content-Type-Options", "nosniff");
+              res.set("Vary", "Origin");
+              const origin = (req.get("Origin") || "").replace(/\/$/, "");
+              if (!origins2.includes(origin)) return res.status(403).json({ error: "Request not allowed." });
+              res.set("Access-Control-Allow-Origin", origin);
+              if (req.method === "OPTIONS") {
+                res.set("Access-Control-Allow-Methods", "POST");
+                res.set("Access-Control-Allow-Headers", "Content-Type");
+                res.set("Access-Control-Max-Age", "3600");
+                return res.status(204).send("");
+              }
+              if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
+              const available = typeof enabled === "function" ? enabled() : enabled;
+              if (!available) return res.status(503).json({ error: "The contact form is not available yet." });
+              if (!(req.get("Content-Type") || "").toLowerCase().startsWith("application/json")) {
+                return res.status(415).json({ error: "JSON required." });
+              }
+              if (Number(req.get("Content-Length")) > 8192 || (req.rawBody?.length || 0) > 8192) {
+                return res.status(413).json({ error: "Request too large." });
+              }
+              const data = validateContactSubmission(req.body);
+              if (!data) return res.status(400).json({ error: "Please check the form fields." });
+              try {
+                const result = await save(data, req.ip || "unknown");
+                if (result.limited) {
+                  res.set("Retry-After", "3600");
+                  return res.status(429).json({ error: "Please try again later or call our team." });
+                }
+                try {
+                  await notify(data.submissionId);
+                } catch {
+                }
+                return res.status(200).json({ ok: true });
+              } catch {
+                return res.status(503).json({ error: "The message could not be saved. Please try again." });
+              }
+            };
+          }
+          var STATES2, singleLine, messageText;
+          var init_contact = __esm({
+            "functions/contact.js"() {
+              "use strict";
+              STATES2 = new Set("Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|District of Columbia|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|Wisconsin|Wyoming".split("|"));
+              singleLine = (value, max) => typeof value === "string" && value.trim().length > 0 && value.trim().length <= max && !/[\u0000-\u001f\u007f]/.test(value);
+              messageText = (value) => typeof value === "string" && value.trim().length >= 10 && value.trim().length <= 1200 && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value);
+            }
+          });
+
+          // aws/src/notification.cjs
+          var require_notification = __commonJS({
+            "aws/src/notification.cjs"(exports2, module2) {
+              "use strict";
+              var { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
+              var ses = new SESv2Client({});
+              var COMPANY_EMAIL = "info@medvillediabetes.com";
+              function companyMessage() {
+                return {
+                  subject: "New Medville Diabetes form submission",
+                  text: "A new form submission is available in the protected dashboard.\n\nSign in to review it:\nhttps://www.medvillediabetes.com/admin#leads"
+                };
+              }
+              async function sendCompanyNotification2(lead, client = ses) {
+                if (!process.env.SENDER_EMAIL || !process.env.SES_CONFIG_SET) throw new Error("notification unavailable");
+                const message = companyMessage(lead);
+                const result = await client.send(new SendEmailCommand({
+                  FromEmailAddress: process.env.SENDER_EMAIL,
+                  Destination: { ToAddresses: [COMPANY_EMAIL] },
+                  ConfigurationSetName: process.env.SES_CONFIG_SET,
+                  EmailTags: [{ Name: "lead_id", Value: lead.id }],
+                  Content: { Simple: {
+                    Subject: { Data: message.subject, Charset: "UTF-8" },
+                    Body: { Text: { Data: message.text, Charset: "UTF-8" } }
+                  } }
+                }));
+                return result.MessageId;
+              }
+              module2.exports = { companyMessage, sendCompanyNotification: sendCompanyNotification2 };
+            }
+          });
+
+          // aws/src/intake.cjs
+          var { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+          var { DynamoDBDocumentClient, GetCommand, TransactWriteCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
+          var { createHash } = require("node:crypto");
+          var { validateSubmission: validateSubmission2 } = (init_intake(), __toCommonJS(intake_exports));
+          var { validateContactSubmission: validateContactSubmission2 } = (init_contact(), __toCommonJS(contact_exports));
+          var { sendCompanyNotification } = require_notification();
+          var db = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
+          var origins = new Set((process.env.ALLOWED_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean));
+          function response(statusCode, origin, body, extra = {}) {
+            return { statusCode, headers: { "Cache-Control": "no-store", "Content-Type": "application/json", "X-Content-Type-Options": "nosniff", Vary: "Origin", ...origin ? { "Access-Control-Allow-Origin": origin } : {}, ...extra }, body: JSON.stringify(body) };
+          }
+          async function config(data) {
+            const res = await fetch(process.env.INTAKE_CONFIG_URL, { method: "POST", headers: { "Content-Type": "application/json", Origin: [...origins][0] }, body: JSON.stringify({ productInterest: data.productInterest, referralCode: data.referralCode }), signal: AbortSignal.timeout(1e4) });
+            if (!res.ok) throw new Error("catalog unavailable");
+            const value = await res.json();
+            if (!value || typeof value !== "object") throw new Error("invalid catalog response");
+            return value;
+          }
+          function fingerprint(data) {
+            return createHash("sha256").update(JSON.stringify(data)).digest("hex");
+          }
+          function duplicate(existing, data) {
+            if (!existing) return null;
+            const matches = existing.requestHash ? existing.requestHash === fingerprint(data) : Object.entries(data).every(([k, v]) => k === "submissionId" || existing[k] === v);
+            return matches ? 200 : 409;
+          }
+          function confirmationMessage(kind='eligibility'){
+           const contact=kind==='contact';
+           const heading=contact?'We received your message':'We received your request';
+           const intro=contact
+            ?'Your message was submitted successfully. Our team will review your question and contact you as soon as possible.'
+            :'Your information was submitted successfully. Our team will review your request and contact you as soon as possible.';
+           const note=contact
+            ?'Please do not reply with medical records or sensitive health information.'
+            :'Submitting a request does not guarantee insurance coverage or qualification. Please do not reply with medical records or sensitive health information.';
+           return{
+            subject:`${heading} | Medville Diabetes`,
+            text:`${heading}\n\n${intro}\n\n${note}\n\nIf you did not submit this request, contact us at info@medvillediabetes.com or 800-394-3917.\n\nMedville Diabetes\n28863 Industry Dr\nValencia, CA 91355`,
+            html:`<!doctype html><html><body style="margin:0;background:#eef8fb;font-family:Arial,sans-serif;color:#00293b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef8fb"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #c7eaf2;border-radius:16px;overflow:hidden"><tr><td style="background:#00293b;padding:24px 30px"><div style="font-size:22px;font-weight:700;line-height:1.2;color:#ffffff">Medville <span style="color:#18bada">Diabetes</span></div></td></tr><tr><td style="padding:32px 30px"><p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0a6d8a">Submission received</p><h1 style="margin:0 0 18px;font-size:26px;line-height:1.25;color:#00293b">${heading}</h1><p style="margin:0 0 18px;font-size:16px;line-height:1.65;color:#264f5f">${intro}</p><div style="margin:0;padding:18px;border-radius:10px;background:#eef8fb"><p style="margin:0;font-size:14px;line-height:1.6;color:#456b79">${note}</p></div><p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#456b79">If you did not submit this request, contact us at <a href="mailto:info@medvillediabetes.com" style="color:#006b87">info@medvillediabetes.com</a> or <a href="tel:+18003943917" style="color:#006b87">800-394-3917</a>.</p></td></tr><tr><td style="border-top:1px solid #d6edf3;padding:18px 30px;font-size:12px;line-height:1.6;color:#5b7883">Medville Diabetes<br>28863 Industry Dr<br>Valencia, CA 91355</td></tr></table></td></tr></table></body></html>`,
+           };
+          }
+          
+          async function sendSubmissionConfirmation(email,kind='eligibility',submissionId='',fetcher=fetch){
+           if(typeof email!=='string'||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!process.env.SENDER_EMAIL||!process.env.RESEND_API_KEY)throw new Error('email unavailable');
+           const message=confirmationMessage(kind);
+           const result=await fetcher('https://api.resend.com/emails',{
+            method:'POST',
+            headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`,'Content-Type':'application/json',...(submissionId?{'Idempotency-Key':`medville-confirmation-${submissionId}`}:{})},
+            body:JSON.stringify({from:`Medville Diabetes <${process.env.SENDER_EMAIL}>`,to:[email],reply_to:[process.env.SENDER_EMAIL],subject:message.subject,text:message.text,html:message.html}),
+           });
+           if(!result?.ok)throw new Error('email unavailable');
+          }
+          async function confirm(lead) {
+            let status = "failed";
+            try { await sendSubmissionConfirmation(lead.email, lead.source === "contact" ? "contact" : "eligibility", lead.id); status = "sent"; } catch (error) { console.error("customer confirmation rejected by Resend", { name: error?.name }); }
+            try { await db.send(new UpdateCommand({ TableName: process.env.LEADS_TABLE, Key: { id: lead.id }, UpdateExpression: "SET customerConfirmationStatus=:status, customerConfirmationUpdatedAt=:at", ExpressionAttributeValues: { ":status": status, ":at": new Date().toISOString() }, ConditionExpression: "attribute_exists(id)" })); } catch { console.error("confirmation status update failed"); }
+            return status === "sent";
+          }
+          async function notifyCompany(lead) {
+            let status = "failed";
+            let messageId;
+            try {
+              messageId = await sendCompanyNotification(lead);
+              status = "sent";
+            } catch (error) {
+              console.error("company notification rejected by SES", { name: error?.name });
+            }
+            try {
+              await db.send(new UpdateCommand({ TableName: process.env.LEADS_TABLE, Key: { id: lead.id }, UpdateExpression: "SET notificationStatus=:status, notificationUpdatedAt=:at" + (messageId ? ", notificationMessageId=:messageId" : ""), ExpressionAttributeValues: { ":status": status, ":at": (/* @__PURE__ */ new Date()).toISOString(), ...messageId ? { ":messageId": messageId } : {} }, ConditionExpression: "attribute_exists(id)" }));
+            } catch {
+              console.error("notification status update failed");
+            }
+            return status === "sent";
+          }
+          exports.handler = async (event) => {
+            const origin = event.headers?.origin || event.headers?.Origin || "";
+            if (!origins.has(origin)) return response(403, "", { error: "Request not allowed." });
+            if (event.requestContext?.http?.method !== "POST") return response(405, origin, { error: "Method not allowed." });
+            if (process.env.INTAKE_ENABLED !== "true") return response(503, origin, { error: "Online submissions are not open yet." });
+            if (!(event.headers?.["content-type"] || event.headers?.["Content-Type"] || "").toLowerCase().startsWith("application/json")) return response(415, origin, { error: "JSON required." });
+            let raw = event.body || "";
+            if (event.isBase64Encoded) raw = Buffer.from(raw, "base64").toString("utf8");
+            if (Buffer.byteLength(raw) > 8192) return response(413, origin, { error: "Request too large." });
+            let parsed;
+            try {
+              parsed = JSON.parse(raw);
+            } catch {
+              return response(400, origin, { error: "Please check the form fields." });
+            }
+            const contact = event.rawPath === "/contact";
+            const data = contact ? validateContactSubmission2(parsed) : validateSubmission2(parsed);
+            if (!data) return response(400, origin, { error: "Please check the form fields." });
+            data.submissionId = data.submissionId.toLowerCase();
+            const get = () => db.send(new GetCommand({ TableName: process.env.LEADS_TABLE, Key: { id: data.submissionId }, ConsistentRead: true }));
+            const receipt = (code, confirmationSent = false) => response(code, origin, code === 200 ? { ok: true, confirmationSent } : { error: "This submission was already saved. Please refresh before sending a new enquiry." });
+            try {
+              const existing = (await get()).Item;
+              const prior = duplicate(existing, data);
+              if (prior) return receipt(prior, existing?.customerConfirmationStatus === "sent");
+              const catalog = contact ? {} : await config(data);
+              if (!contact && (!catalog.product || typeof catalog.product.name !== "string")) return response(400, origin, { error: "Please choose an available product." });
+              const createdAt = (/* @__PURE__ */ new Date()).toISOString(), now = Date.now(), bucket = Math.floor(now / 36e5), minute = Math.floor(now / 6e4);
+              const ip = event.requestContext?.http?.sourceIp;
+              if (!ip) return response(503, origin, { error: "The submission could not be saved. Please try again." });
+              const rateId = createHash("sha256").update(`${bucket}:${ip}`).digest("hex");
+              const minuteRateId = createHash("sha256").update(`minute:${minute}:${ip}`).digest("hex");
+              const { submissionId, ...answers } = data;
+              const referralCode = catalog.referralActive === true ? data.referralCode : "";
+              const lead = { id: submissionId, ...answers, referralCode, source: contact ? "contact" : referralCode ? "influencer" : "qualify", status: "new", note: "", message: contact ? data.message : "", productInterest: contact ? "" : data.productInterest, productName: contact ? "General question" : catalog.product.name, injectsInsulinDaily: contact ? "" : data.injectsInsulinDaily, consentVersion: "2026-08-26", consentAt: createdAt, createdAt, notificationStatus: "pending", customerConfirmationStatus: "pending", requestHash: fingerprint(data), gsi1pk: "LEAD", gsi1sk: `${createdAt}#${submissionId}` };
+              try {
+                await db.send(new TransactWriteCommand({ TransactItems: [{ Put: { TableName: process.env.LEADS_TABLE, Item: lead, ConditionExpression: "attribute_not_exists(id)" } }, { Update: { TableName: process.env.RATE_TABLE, Key: { id: rateId }, UpdateExpression: "SET expiresAt=:expiry ADD #count :one", ConditionExpression: "attribute_not_exists(#count) OR #count < :limit", ExpressionAttributeNames: { "#count": "count" }, ExpressionAttributeValues: { ":expiry": Math.floor(now / 1e3) + 7200, ":one": 1, ":limit": 100 } } }, { Update: { TableName: process.env.RATE_TABLE, Key: { id: minuteRateId }, UpdateExpression: "SET expiresAt=:expiry ADD #count :one", ConditionExpression: "attribute_not_exists(#count) OR #count < :limit", ExpressionAttributeNames: { "#count": "count" }, ExpressionAttributeValues: { ":expiry": Math.floor(now / 1e3) + 120, ":one": 1, ":limit": 3 } } }] }));
+                await notifyCompany(lead);
+                return receipt(200, await confirm(lead));
+              } catch (error) {
+                const after = duplicate((await get()).Item, data);
+                if (after) return receipt(after);
+                if (error?.CancellationReasons?.[1]?.Code === "ConditionalCheckFailed" || error?.CancellationReasons?.[2]?.Code === "ConditionalCheckFailed") return response(429, origin, { error: "Please try again later or call our team." }, { "Retry-After": error?.CancellationReasons?.[2]?.Code === "ConditionalCheckFailed" ? String(Math.ceil(((minute + 1) * 6e4 - now) / 1e3)) : "3600" });
+                throw error;
+              }
+            } catch {
+              console.error("intake failure", { requestId: event.requestContext?.requestId });
+              return response(503, origin, { error: "The submission could not be saved. Please try again." });
+            }
+          };
+
+  AdminFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: medville-phi-admin
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Role: !GetAtt LambdaRole.Arn
+      Timeout: 20
+      MemorySize: 384
+      KmsKeyArn: !GetAtt PhiKey.Arn
+      LoggingConfig:
+        ApplicationLogLevel: ERROR
+        SystemLogLevel: WARN
+        LogFormat: JSON
+      Environment:
+        Variables:
+          ALLOWED_ORIGINS: !Join [",", !Ref AllowedOrigins]
+          FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
+          LEADS_TABLE: !Ref LeadsTable
+          AUDIT_TABLE: !Ref AuditTable
+          IDENTITY_VERIFY_URL: https://us-central1-medville-diabetes.cloudfunctions.net/adminApi
+          SENDER_EMAIL: !Ref SenderEmail
+          SES_CONFIG_SET: !Ref CompanyEmailConfiguration
+          RESEND_API_KEY: !Ref ResendApiKey
+      Code:
+        ZipFile: |
+          "use strict";
+          var __getOwnPropNames = Object.getOwnPropertyNames;
+          var __commonJS = (cb, mod) => function __require() {
+            return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+          };
+
+          // aws/src/notification.cjs
+          var require_notification = __commonJS({
+            "aws/src/notification.cjs"(exports2, module2) {
+              "use strict";
+              var { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
+              var ses = new SESv2Client({});
+              var COMPANY_EMAIL = "info@medvillediabetes.com";
+              function companyMessage() {
+                return {
+                  subject: "New Medville Diabetes form submission",
+                  text: "A new form submission is available in the protected dashboard.\n\nSign in to review it:\nhttps://www.medvillediabetes.com/admin#leads"
+                };
+              }
+              async function sendCompanyNotification2(lead2, client = ses) {
+                if (!process.env.SENDER_EMAIL || !process.env.SES_CONFIG_SET) throw new Error("notification unavailable");
+                const message = companyMessage(lead2);
+                const result = await client.send(new SendEmailCommand({
+                  FromEmailAddress: process.env.SENDER_EMAIL,
+                  Destination: { ToAddresses: [COMPANY_EMAIL] },
+                  ConfigurationSetName: process.env.SES_CONFIG_SET,
+                  EmailTags: [{ Name: "lead_id", Value: lead2.id }],
+                  Content: { Simple: {
+                    Subject: { Data: message.subject, Charset: "UTF-8" },
+                    Body: { Text: { Data: message.text, Charset: "UTF-8" } }
+                  } }
+                }));
+                return result.MessageId;
+              }
+              module2.exports = { companyMessage, sendCompanyNotification: sendCompanyNotification2 };
+            }
+          });
+
+          // aws/src/admin.cjs
+          var { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+          var { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, TransactWriteCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
+          var { randomUUID } = require("node:crypto");
+          var { sendCompanyNotification } = require_notification();
+          var db = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
+          var origins = new Set((process.env.ALLOWED_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean));
+          var statuses = /* @__PURE__ */ new Set(["new", "contacted", "qualified", "not-qualified", "closed"]);
+          var validId = (x) => typeof x === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(x);
+          var validDay = (x) => x === void 0 || x === "" || typeof x === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x) && !Number.isNaN(Date.parse(`${x}T00:00:00Z`));
+          var features = { "leads.list": "leads", "leads.get": "leads", "leads.update": "leads", "leads.delete": "leads", "leads.restore": "recycle", "leads.status.import": "leads", "leads.stats": "overview", "leads.export": "leads", "leads.notify": "leads", "leads.confirmation.retry": "leads", "audit.list": "audit", "influencers.counts": "influencers" };
+          async function authenticate(header, origin) {
+            if (typeof header !== "string" || !header.startsWith("Bearer ") || header.length > 1e4) return null;
+            const r = await fetch(process.env.IDENTITY_VERIFY_URL, { method: "POST", headers: { Authorization: header, "Content-Type": "application/json", Origin: origin }, body: JSON.stringify({ action: "auth.session" }), signal: AbortSignal.timeout(5e3) });
+            if (r.status === 401 || r.status === 403) return null;
+            if (!r.ok) throw new Error("identity unavailable");
+            const { actor } = await r.json();
+            if (!actor || typeof actor.uid !== "string" || !["owner", "marketing", "sales"].includes(actor.role) || !Array.isArray(actor.features)) return null;
+            return actor;
+          }
+          function response(statusCode, origin, body) {
+            return { statusCode, headers: { "Cache-Control": "no-store", "Content-Type": "application/json", "X-Content-Type-Options": "nosniff", Vary: "Origin", ...origin ? { "Access-Control-Allow-Origin": origin } : {} }, body: JSON.stringify(body) };
+          }
+          function lead(item) {
+            const fields = ["id", "firstName", "lastName", "email", "phone", "city", "state", "injectsInsulinDaily", "productInterest", "productName", "referralCode", "source", "message", "notificationStatus", "customerConfirmationStatus", "status", "note"];
+            return { ...Object.fromEntries(fields.map((k) => [k, typeof item[k] === "string" ? item[k] : ""])), createdAt: typeof item.createdAt === "string" ? item.createdAt : null, deletedAt: typeof item.deletedAt === "string" ? item.deletedAt : null, purgeAt: typeof item.purgeAt === "number" ? item.purgeAt : null };
+          }
+          function cursor(value) {
+            if (value === void 0) return void 0;
+            if (typeof value !== "string" || value.length > 1200) throw new Error("invalid cursor");
+            const out = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
+            if (!out || !validId(out.id) || out.gsi1pk !== "LEAD" || typeof out.gsi1sk !== "string" || out.gsi1sk.length > 100 || Object.keys(out).length !== 3) throw new Error("invalid cursor");
+            return out;
+          }
+          var next = (value) => value ? Buffer.from(JSON.stringify(value)).toString("base64url") : null;
+          function auditItem(actor, action, detail = {}) {
+            const at = (/* @__PURE__ */ new Date()).toISOString(), id = randomUUID();
+            return { id, gsi1pk: "AUDIT", gsi1sk: `${at}#${id}`, actorUid: actor.uid, actorEmail: actor.email || "", actorRole: actor.role, action, ...detail, at };
+          }
+          async function audit(actor, action, detail = {}) {
+            await db.send(new PutCommand({ TableName: process.env.AUDIT_TABLE, Item: auditItem(actor, action, detail), ConditionExpression: "attribute_not_exists(id)" }));
+          }
+          function applyRange(input, b) {
+            if (!validDay(b.from) || !validDay(b.to) || b.from && b.to && b.from > b.to) throw new Error("invalid range");
+            if (b.from && b.to) {
+              input.KeyConditionExpression += " AND gsi1sk BETWEEN :from AND :to";
+              input.ExpressionAttributeValues[":from"] = `${b.from}T00:00:00.000Z#`;
+              input.ExpressionAttributeValues[":to"] = `${b.to}T23:59:59.999Z#\uFFFF`;
+            } else if (b.from) {
+              input.KeyConditionExpression += " AND gsi1sk >= :from";
+              input.ExpressionAttributeValues[":from"] = `${b.from}T00:00:00.000Z#`;
+            } else if (b.to) {
+              input.KeyConditionExpression += " AND gsi1sk <= :to";
+              input.ExpressionAttributeValues[":to"] = `${b.to}T23:59:59.999Z#\uFFFF`;
+            }
+          }
+          async function listLeads(actor, b) {
+            let key;
+            try {
+              key = cursor(b.cursor);
+            } catch {
+              return { error: "Invalid page." };
+            }
+            ;
+            const input = { TableName: process.env.LEADS_TABLE, IndexName: "LeadTimeline", KeyConditionExpression: "gsi1pk=:pk", ExpressionAttributeValues: { ":pk": "LEAD" }, ScanIndexForward: false, Limit: 50, ExclusiveStartKey: key };
+            try {
+              applyRange(input, b);
+            } catch {
+              return { error: "Invalid date range." };
+            }
+            ;
+            const filters = [];
+            input.ExpressionAttributeNames = {};
+            if (b.status) {
+              if (!statuses.has(b.status)) return { error: "Invalid stage." };
+              filters.push("#status=:status");
+              input.ExpressionAttributeNames["#status"] = "status";
+              input.ExpressionAttributeValues[":status"] = b.status;
+            }
+            filters.push(b.deleted === true ? "attribute_exists(deletedAt)" : "attribute_not_exists(deletedAt)");
+            input.FilterExpression = filters.join(" AND ");
+            if (!Object.keys(input.ExpressionAttributeNames).length) delete input.ExpressionAttributeNames;
+            const out = await db.send(new QueryCommand(input));
+            await audit(actor, b.deleted === true ? "leads.trash.list" : "leads.list", { count: out.Items?.length || 0, leadIds: (out.Items || []).map((x) => x.id) });
+            return { leads: (out.Items || []).map(lead), nextCursor: next(out.LastEvaluatedKey) };
+          }
+          async function getLead(actor, b) {
+            if (!validId(b.id)) return { error: "Invalid enquiry." };
+            const out = await db.send(new GetCommand({ TableName: process.env.LEADS_TABLE, Key: { id: b.id }, ConsistentRead: true }));
+            if (!out.Item || out.Item.deletedAt) return { error: "Enquiry not found.", status: 404 };
+            await audit(actor, "leads.read", { leadId: b.id });
+            return { lead: lead(out.Item) };
+          }
+          async function updateLead(actor, b) {
+            if (!validId(b.id)) return { error: "Invalid enquiry." };
+            const names = {}, values = {}, sets = [];
+            if (b.status !== void 0) {
+              if (!statuses.has(b.status)) return { error: "Invalid stage." };
+              names["#status"] = "status";
+              values[":status"] = b.status;
+              sets.push("#status=:status");
+            }
+            if (b.note !== void 0) {
+              if (typeof b.note !== "string" || b.note.length > 2e3 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(b.note)) return { error: "Invalid note." };
+              names["#note"] = "note";
+              values[":note"] = b.note;
+              sets.push("#note=:note");
+            }
+            if (!sets.length) return { error: "Invalid update." };
+            try {
+              await db.send(new TransactWriteCommand({ TransactItems: [{ Update: { TableName: process.env.LEADS_TABLE, Key: { id: b.id }, UpdateExpression: `SET ${sets.join(", ")}`, ExpressionAttributeNames: names, ExpressionAttributeValues: values, ConditionExpression: "attribute_exists(id) AND attribute_not_exists(deletedAt)" } }, { Put: { TableName: process.env.AUDIT_TABLE, Item: auditItem(actor, "leads.update", { leadId: b.id, fields: Object.keys(names).map((x) => names[x]) }), ConditionExpression: "attribute_not_exists(id)" } }] }));
+            } catch (e) {
+              if (e?.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed") return { error: "Enquiry not found.", status: 404 };
+              throw e;
+            }
+            return { ok: true };
+          }
+          async function deleteLead(actor, b) {
+            if (!validId(b.id)) return { error: "Invalid enquiry." };
+            const deletedAt = (/* @__PURE__ */ new Date()).toISOString(), purgeAt = Math.floor(Date.now() / 1e3) + 7 * 24 * 60 * 60;
+            try {
+              await db.send(new TransactWriteCommand({ TransactItems: [{ Update: { TableName: process.env.LEADS_TABLE, Key: { id: b.id }, UpdateExpression: "SET deletedAt=:deletedAt, purgeAt=:purgeAt, deletedBy=:deletedBy", ExpressionAttributeValues: { ":deletedAt": deletedAt, ":purgeAt": purgeAt, ":deletedBy": actor.uid }, ConditionExpression: "attribute_exists(id) AND attribute_not_exists(deletedAt)" } }, { Put: { TableName: process.env.AUDIT_TABLE, Item: auditItem(actor, "leads.delete", { leadId: b.id, purgeAt }), ConditionExpression: "attribute_not_exists(id)" } }] }));
+            } catch (e) {
+              if (e?.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed") return { error: "Enquiry not found.", status: 404 };
+              throw e;
+            }
+            return { ok: true };
+          }
+          async function restoreLead(actor, b) {
+            if (!validId(b.id)) return { error: "Invalid enquiry." };
+            try {
+              await db.send(new TransactWriteCommand({ TransactItems: [{ Update: { TableName: process.env.LEADS_TABLE, Key: { id: b.id }, UpdateExpression: "REMOVE deletedAt, purgeAt, deletedBy", ConditionExpression: "attribute_exists(id) AND attribute_exists(deletedAt)" } }, { Put: { TableName: process.env.AUDIT_TABLE, Item: auditItem(actor, "leads.restore", { leadId: b.id }), ConditionExpression: "attribute_not_exists(id)" } }] }));
+            } catch (e) {
+              if (e?.CancellationReasons?.[0]?.Code === "ConditionalCheckFailed") return { error: "Deleted enquiry not found.", status: 404 };
+              throw e;
+            }
+            return { ok: true };
+          }
+          async function importStatuses(actor, b) {
+            if (!Array.isArray(b.items) || !b.items.length || b.items.length > 50) return { error: "Import must contain between 1 and 50 rows." };
+            if (!b.items.every((x) => x && typeof x === "object" && validId(x.id) && statuses.has(x.status)) || new Set(b.items.map((x) => x.id)).size !== b.items.length) return { error: "Invalid status import." };
+            const TransactItems = b.items.map((x) => ({ Update: { TableName: process.env.LEADS_TABLE, Key: { id: x.id }, UpdateExpression: "SET #status=:status", ExpressionAttributeNames: { "#status": "status" }, ExpressionAttributeValues: { ":status": x.status }, ConditionExpression: "attribute_exists(id) AND attribute_not_exists(deletedAt)" } }));
+            TransactItems.push({ Put: { TableName: process.env.AUDIT_TABLE, Item: auditItem(actor, "leads.status.import", { count: b.items.length, leadIds: b.items.map((x) => x.id) }), ConditionExpression: "attribute_not_exists(id)" } });
+            try {
+              await db.send(new TransactWriteCommand({ TransactItems }));
+            } catch (e) {
+              if (e?.CancellationReasons?.some((x) => x?.Code === "ConditionalCheckFailed")) return { error: "The status import includes an enquiry that is missing or in the Recycle Bin." };
+              throw e;
+            }
+            return { ok: true, updated: b.items.length };
+          }
+          async function retryNotification(actor, b) {
+            if (!validId(b.id)) return { error: "Invalid enquiry." };
+            const out = await db.send(new GetCommand({ TableName: process.env.LEADS_TABLE, Key: { id: b.id }, ConsistentRead: true }));
+            if (!out.Item || out.Item.deletedAt) return { error: "Enquiry not found.", status: 404 };
+            await audit(actor, "leads.companyNotification.requested", { leadId: b.id });
+            let status = "failed";
+            let messageId;
+            try {
+              messageId = await sendCompanyNotification(out.Item);
+              status = "sent";
+            } catch (error) {
+              console.error("company notification rejected by SES", { name: error?.name });
+            }
+            await db.send(new UpdateCommand({ TableName: process.env.LEADS_TABLE, Key: { id: b.id }, UpdateExpression: "SET notificationStatus=:status, notificationUpdatedAt=:at" + (messageId ? ", notificationMessageId=:messageId" : ""), ExpressionAttributeValues: { ":status": status, ":at": (/* @__PURE__ */ new Date()).toISOString(), ...messageId ? { ":messageId": messageId } : {} }, ConditionExpression: "attribute_exists(id) AND attribute_not_exists(deletedAt)" }));
+            await audit(actor, "leads.companyNotification.completed", { leadId: b.id, status });
+            return { ok: true, notificationStatus: status, customerConfirmationStatus: out.Item.customerConfirmationStatus || "pending" };
+          }
+          function confirmationMessage(kind='eligibility'){
+           const contact=kind==='contact';
+           const heading=contact?'We received your message':'We received your request';
+           const intro=contact
+            ?'Your message was submitted successfully. Our team will review your question and contact you as soon as possible.'
+            :'Your information was submitted successfully. Our team will review your request and contact you as soon as possible.';
+           const note=contact
+            ?'Please do not reply with medical records or sensitive health information.'
+            :'Submitting a request does not guarantee insurance coverage or qualification. Please do not reply with medical records or sensitive health information.';
+           return{
+            subject:`${heading} | Medville Diabetes`,
+            text:`${heading}\n\n${intro}\n\n${note}\n\nIf you did not submit this request, contact us at info@medvillediabetes.com or 800-394-3917.\n\nMedville Diabetes\n28863 Industry Dr\nValencia, CA 91355`,
+            html:`<!doctype html><html><body style="margin:0;background:#eef8fb;font-family:Arial,sans-serif;color:#00293b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef8fb"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #c7eaf2;border-radius:16px;overflow:hidden"><tr><td style="background:#00293b;padding:24px 30px"><div style="font-size:22px;font-weight:700;line-height:1.2;color:#ffffff">Medville <span style="color:#18bada">Diabetes</span></div></td></tr><tr><td style="padding:32px 30px"><p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0a6d8a">Submission received</p><h1 style="margin:0 0 18px;font-size:26px;line-height:1.25;color:#00293b">${heading}</h1><p style="margin:0 0 18px;font-size:16px;line-height:1.65;color:#264f5f">${intro}</p><div style="margin:0;padding:18px;border-radius:10px;background:#eef8fb"><p style="margin:0;font-size:14px;line-height:1.6;color:#456b79">${note}</p></div><p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#456b79">If you did not submit this request, contact us at <a href="mailto:info@medvillediabetes.com" style="color:#006b87">info@medvillediabetes.com</a> or <a href="tel:+18003943917" style="color:#006b87">800-394-3917</a>.</p></td></tr><tr><td style="border-top:1px solid #d6edf3;padding:18px 30px;font-size:12px;line-height:1.6;color:#5b7883">Medville Diabetes<br>28863 Industry Dr<br>Valencia, CA 91355</td></tr></table></td></tr></table></body></html>`,
+           };
+          }
+          
+          async function sendSubmissionConfirmation(email,kind='eligibility',submissionId='',fetcher=fetch){
+           if(typeof email!=='string'||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!process.env.SENDER_EMAIL||!process.env.RESEND_API_KEY)throw new Error('email unavailable');
+           const message=confirmationMessage(kind);
+           const result=await fetcher('https://api.resend.com/emails',{
+            method:'POST',
+            headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`,'Content-Type':'application/json',...(submissionId?{'Idempotency-Key':`medville-confirmation-${submissionId}`}:{})},
+            body:JSON.stringify({from:`Medville Diabetes <${process.env.SENDER_EMAIL}>`,to:[email],reply_to:[process.env.SENDER_EMAIL],subject:message.subject,text:message.text,html:message.html}),
+           });
+           if(!result?.ok)throw new Error('email unavailable');
+          }
+          async function retryConfirmation(actor, b) {
+            if (!validId(b.id)) return { error: "Invalid enquiry." };
+            const out = await db.send(new GetCommand({ TableName: process.env.LEADS_TABLE, Key: { id: b.id }, ConsistentRead: true }));
+            if (!out.Item || out.Item.deletedAt) return { error: "Enquiry not found.", status: 404 };
+            if (out.Item.customerConfirmationStatus === "sent") return { ok: true, customerConfirmationStatus: "sent" };
+            await audit(actor, "leads.confirmation.requested", { leadId: b.id });
+            let status = "failed";
+            try { await sendSubmissionConfirmation(out.Item.email, out.Item.source === "contact" ? "contact" : "eligibility", out.Item.id); status = "sent"; } catch (error) { console.error("customer confirmation rejected by Resend", { name: error?.name }); }
+            await db.send(new UpdateCommand({ TableName: process.env.LEADS_TABLE, Key: { id: b.id }, UpdateExpression: "SET customerConfirmationStatus=:status, customerConfirmationUpdatedAt=:at", ExpressionAttributeValues: { ":status": status, ":at": new Date().toISOString() }, ConditionExpression: "attribute_exists(id) AND attribute_not_exists(deletedAt)" }));
+            await audit(actor, "leads.confirmation.completed", { leadId: b.id, status });
+            return { ok: true, customerConfirmationStatus: status };
+          }
+          async function stats(actor, countsOnly = false, b = {}) {
+            let key, total = 0;
+            const result = { total: 0, insulinYes: 0, byStatus: {}, byState: {}, byProduct: {}, byDay: {} };
+            const counts = {};
+            do {
+              const input = { TableName: process.env.LEADS_TABLE, IndexName: "LeadTimeline", KeyConditionExpression: "gsi1pk=:pk", ExpressionAttributeValues: { ":pk": "LEAD" }, ProjectionExpression: countsOnly ? "referralCode" : "#status,#state,productName,injectsInsulinDaily,createdAt", FilterExpression: "attribute_not_exists(deletedAt)", ...countsOnly ? {} : { ExpressionAttributeNames: { "#status": "status", "#state": "state" } }, ExclusiveStartKey: key };
+              if (!countsOnly) try {
+                applyRange(input, b);
+              } catch {
+                return { error: "Invalid date range." };
+              }
+              ;
+              const out = await db.send(new QueryCommand(input));
+              for (const x of out.Items || []) {
+                total++;
+                if (countsOnly) {
+                  if (x.referralCode) counts[x.referralCode] = (counts[x.referralCode] || 0) + 1;
+                  continue;
+                }
+                if (x.injectsInsulinDaily === "yes") result.insulinYes++;
+                for (const [map, k] of [[result.byStatus, x.status], [result.byState, x.state], [result.byProduct, x.productName]]) if (k) map[k] = (map[k] || 0) + 1;
+                const day = typeof x.createdAt === "string" ? x.createdAt.slice(0, 10) : "";
+                if (day) result.byDay[day] = (result.byDay[day] || 0) + 1;
+              }
+              key = out.LastEvaluatedKey;
+            } while (key);
+            await audit(actor, countsOnly ? "influencers.counts" : "leads.stats", { count: total });
+            result.total = total;
+            return countsOnly ? { counts } : result;
+          }
+          async function route(actor, b) {
+            if (b.action === "leads.list") return listLeads(actor, b);
+            if (b.action === "leads.get") return getLead(actor, b);
+            if (b.action === "leads.update") return updateLead(actor, b);
+            if (b.action === "leads.delete") return deleteLead(actor, b);
+            if (b.action === "leads.restore") return restoreLead(actor, b);
+            if (b.action === "leads.status.import") return importStatuses(actor, b);
+            if (b.action === "leads.stats") return stats(actor, false, b);
+            if (b.action === "influencers.counts") return stats(actor, true);
+            if (b.action === "leads.export") {
+              if (!Array.isArray(b.ids) || !b.ids.length || b.ids.length > 500 || !b.ids.every(validId) || new Set(b.ids).size !== b.ids.length) return { error: "Invalid export." };
+              await audit(actor, "leads.export", { count: b.ids.length, leadIds: b.ids });
+              return { ok: true };
+            }
+            if (b.action === "leads.notify") return retryNotification(actor, b);
+            if (b.action === "leads.confirmation.retry") return retryConfirmation(actor, b);
+            if (b.action === "audit.list") {
+              const out = await db.send(new QueryCommand({ TableName: process.env.AUDIT_TABLE, IndexName: "AuditTimeline", KeyConditionExpression: "gsi1pk=:pk", ExpressionAttributeValues: { ":pk": "AUDIT" }, ScanIndexForward: false, Limit: 200 }));
+              await audit(actor, "audit.list", { count: out.Items?.length || 0 });
+              return { entries: (out.Items || []).map(({ gsi1pk, gsi1sk, ...item }) => item) };
+            }
+          }
+          exports.handler = async (event) => {
+            const origin = event.headers?.origin || event.headers?.Origin || "";
+            if (!origins.has(origin)) return response(403, "", { error: "Request not allowed." });
+            if (event.requestContext?.http?.method !== "POST") return response(405, origin, { error: "Method not allowed." });
+            if (!(event.headers?.["content-type"] || event.headers?.["Content-Type"] || "").toLowerCase().startsWith("application/json")) return response(415, origin, { error: "JSON required." });
+            let raw = event.body || "";
+            if (event.isBase64Encoded) raw = Buffer.from(raw, "base64").toString("utf8");
+            if (Buffer.byteLength(raw) > 16384) return response(413, origin, { error: "Request too large." });
+            let body;
+            try {
+              body = JSON.parse(raw);
+            } catch {
+              return response(400, origin, { error: "Invalid request." });
+            }
+            if (!body || typeof body !== "object" || Array.isArray(body) || typeof body.action !== "string" || !Object.hasOwn(features, body.action)) return response(400, origin, { error: "Invalid request." });
+            let actor;
+            try {
+              actor = await authenticate(event.headers?.authorization || event.headers?.Authorization, origin);
+            } catch {
+              return response(503, origin, { error: "The identity service is temporarily unavailable." });
+            }
+            if (!actor) return response(401, origin, { error: "Your session has expired. Please sign in again." });
+            try {
+              const requiredFeature = body.action === "leads.list" && body.deleted === true ? "recycle" : features[body.action];
+              if (body.action === "audit.list" && actor.role !== "owner" || actor.role !== "owner" && !actor.features.includes(requiredFeature)) {
+                await audit(actor, "access.denied", { attempted: body.action });
+                return response(403, origin, { error: "You do not have access to that." });
+              }
+              const result = await route(actor, body);
+              return response(result.status || ("error" in result ? 400 : 200), origin, result);
+            } catch {
+              console.error("admin failure", { requestId: event.requestContext?.requestId });
+              return response(503, origin, { error: "That did not work. Please try again." });
+            }
+          };
+
+  IntakeLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: /aws/lambda/medville-phi-intake
+      RetentionInDays: 30
+
+  AdminLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: /aws/lambda/medville-phi-admin
+      RetentionInDays: 30
+
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: medville-phi-api
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowCredentials: false
+        AllowHeaders: [Authorization, Content-Type]
+        AllowMethods: [POST, OPTIONS]
+        AllowOrigins: !Ref AllowedOrigins
+        MaxAge: 3600
+
+  IntakeIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt IntakeFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  AdminIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt AdminFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  IntakeRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /intake
+      Target: !Sub integrations/${IntakeIntegration}
+
+  AdminRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /admin
+      Target: !Sub integrations/${AdminIntegration}
+
+  ContactRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /contact
+      Target: !Sub integrations/${IntakeIntegration}
+
+  ContactPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref IntakeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/POST/contact
+
+  DefaultStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: $default
+      AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 10
+
+  IntakePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref IntakeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/POST/intake
+
+  AdminPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref AdminFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/POST/admin
+
+  CompanyEmailEventLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/medville-phi-email-events
+      RetentionInDays: 7
+
+  CompanyEmailEventRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: medville-email-event-status
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:UpdateItem]
+                Resource: !GetAtt LeadsTable.Arn
+              - Effect: Allow
+                Action: [kms:Decrypt, kms:Encrypt, kms:GenerateDataKey]
+                Resource: !GetAtt PhiKey.Arn
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/medville-phi-email-events:*
+
+  CompanyEmailEventFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: CompanyEmailEventLogGroup
+    Properties:
+      FunctionName: medville-phi-email-events
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Role: !GetAtt CompanyEmailEventRole.Arn
+      Timeout: 10
+      MemorySize: 128
+      KmsKeyArn: !GetAtt PhiKey.Arn
+      LoggingConfig:
+        ApplicationLogLevel: INFO
+        SystemLogLevel: WARN
+        LogFormat: JSON
+      Environment:
+        Variables:
+          LEADS_TABLE: !Ref LeadsTable
+      Code:
+        ZipFile: |
+          "use strict";
+
+          // aws/src/notificationEvent.cjs
+          var { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+          var { DynamoDBDocumentClient, GetCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
+          var statuses = {
+            "Email Delivered": "delivered",
+            "Email Bounced": "bounced",
+            "Email Rejected": "rejected",
+            "Email Delivery Delayed": "delayed",
+            "Email Complaint Received": "complained"
+          };
+          var validId = (value) => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value);
+          function createHandler(db2) {
+            return async (event) => {
+              const status = statuses[event?.["detail-type"]];
+              const messageId = event?.detail?.mail?.messageId;
+              const id = event?.detail?.mail?.tags?.lead_id?.[0];
+              if (status && typeof messageId === "string") console.info("SES company notification event", { status, messageId });
+              if (!status || !validId(id) || typeof messageId !== "string" || messageId.length > 256) return;
+              const table = process.env.LEADS_TABLE;
+              if (!table) throw new Error("Lead table unavailable");
+              const { Item: lead } = await db2.send(new GetCommand({ TableName: table, Key: { id }, ConsistentRead: true }));
+              if (!lead || lead.deletedAt) return;
+              if (!lead.notificationMessageId) throw new Error("SES message ID not recorded yet");
+              if (lead.notificationMessageId !== messageId) return;
+              if (status === "delayed" && lead.notificationStatus === "delivered") return;
+              try {
+                await db2.send(new UpdateCommand({
+                  TableName: table,
+                  Key: { id },
+                  UpdateExpression: "SET notificationStatus=:status, notificationUpdatedAt=:at",
+                  ConditionExpression: "notificationMessageId=:messageId AND attribute_not_exists(deletedAt)",
+                  ExpressionAttributeValues: { ":status": status, ":at": event.time || (/* @__PURE__ */ new Date()).toISOString(), ":messageId": messageId }
+                }));
+              } catch (error) {
+                if (error?.name === "ConditionalCheckFailedException") return;
+                throw error;
+              }
+            };
+          }
+          var db = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
+          exports.handler = createHandler(db);
+          exports.createHandler = createHandler;
+
+  CompanyEmailEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: medville-phi-email-status
+      EventPattern:
+        source: [aws.ses]
+        detail-type: [Email Delivered, Email Bounced, Email Rejected, Email Delivery Delayed, Email Complaint Received]
+        detail:
+          mail:
+            tags:
+              "ses:configuration-set": [medville-phi-company]
+      Targets:
+        - Id: update-company-email-status
+          Arn: !GetAtt CompanyEmailEventFunction.Arn
+
+  CompanyEmailEventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref CompanyEmailEventFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt CompanyEmailEventRule.Arn
+
+Outputs:
+  IntakeEndpoint:
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/intake
+  AdminEndpoint:
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/admin
+  IntakeState:
+    Value: !Ref IntakeEnabled
+  LeadsTableName:
+    Value: !Ref LeadsTable
+  SesDkimName1:
+    Value: !GetAtt SenderEmailIdentity.DkimDNSTokenName1
+  SesDkimValue1:
+    Value: !GetAtt SenderEmailIdentity.DkimDNSTokenValue1
+  SesDkimName2:
+    Value: !GetAtt SenderEmailIdentity.DkimDNSTokenName2
+  SesDkimValue2:
+    Value: !GetAtt SenderEmailIdentity.DkimDNSTokenValue2
+  SesDkimName3:
+    Value: !GetAtt SenderEmailIdentity.DkimDNSTokenName3
+  SesDkimValue3:
+    Value: !GetAtt SenderEmailIdentity.DkimDNSTokenValue3
+
