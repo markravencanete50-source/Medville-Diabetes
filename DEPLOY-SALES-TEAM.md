@@ -266,15 +266,30 @@ gcloud auth list
 ```
 
 A `403` naming `serviceusage.services.use` means the signed-in account is not
-allowed to deploy to the project. Nothing has changed when this happens. Either
-sign in with an Owner account (`firebase login --reauth`), or have an Owner
-grant the deploying account these roles in Google Cloud console, IAM, and try
-again:
+allowed to deploy to the project. Nothing has changed when this happens. See
+which roles the account holds:
 
-- Service Usage Consumer
-- Cloud Functions Admin
-- Service Account User
-- Firebase Viewer (or Firebase Admin)
+```bash
+gcloud projects get-iam-policy medville-diabetes \
+  --flatten="bindings[].members" \
+  --filter="bindings.members:user:$(gcloud config get-value account)" \
+  --format="value(bindings.role)"
+```
+
+Deploying second-generation functions with a Firestore trigger touches Cloud
+Functions, Cloud Run, Cloud Build, Artifact Registry, Eventarc and Service
+Usage, so the simplest fix is for a project Owner to give the deploying account
+the Editor role for the duration of the deploy:
+
+```bash
+# Run by an Owner, in their own Cloud Shell.
+gcloud projects add-iam-policy-binding medville-diabetes \
+  --member="user:DEPLOYING_ACCOUNT" --role="roles/editor"
+```
+
+Wait two minutes for it to take effect, then deploy. Afterwards the Owner can
+remove it again with `remove-iam-policy-binding` and the same arguments.
+Alternatively, the Owner runs 3b and 3c themselves.
 
 If this function was last deployed with `gcloud` rather than Firebase, deploy
 the same way instead. A `gcloud` redeploy keeps the existing settings and
