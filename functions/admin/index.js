@@ -26,11 +26,12 @@
 
   Roles, taken from the Identity Platform custom claim:
     owner: every feature, including the access log and Owner management
-    marketing: every feature except the access log; cannot grant or change Owner access
+    marketing: website and enquiry features by default; newsletter access is separately granted
     sales: products and enquiries only
 */
 
 import { onRequest } from "firebase-functions/v2/https";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { defineSecret } from "firebase-functions/params";
 import { Firestore, FieldValue } from "@google-cloud/firestore";
 import { getAuth } from "firebase-admin/auth";
@@ -41,6 +42,7 @@ import { createAdminHandler } from "./handler.js";
 import { ADMIN_ROLES, normalizeFeatures, normalizeRole, roleChangeError } from "./roles.js";
 import { validateInfluencerInput } from "./influencers.js";
 import { imageUploadSignature } from "./images.js";
+import { listNewsletter, startNewsletterCampaign, resumeNewsletterCampaign, processNewsletterCampaign } from "./newsletter-campaign.js";
 
 initializeApp({ credential: applicationDefault() });
 
@@ -588,6 +590,9 @@ const ROUTES = {
   "influencers.create": { roles: ADMIN_ROLES, feature: "influencers", run: createInfluencer },
   "influencers.setActive": { roles: ADMIN_ROLES, feature: "influencers", run: setInfluencerActive },
   "influencers.setDeleted": { roles: ADMIN_ROLES, feature: "influencers", run: setInfluencerDeleted },
+  "newsletter.list": { roles: ADMIN_ROLES, feature: "newsletter", run: (actor, body) => listNewsletter(db, actor, audit, body.cursor) },
+  "newsletter.send": { roles: ADMIN_ROLES, feature: "newsletter", run: (actor, body) => startNewsletterCampaign(db, actor, audit, body.slug) },
+  "newsletter.resume": { roles: ADMIN_ROLES, feature: "newsletter", run: (actor, body) => resumeNewsletterCampaign(db, actor, audit, body.slug) },
   "audit.list": { roles: ["owner"], feature: "audit", run: listAudit },
   "admins.list": { roles: ["owner"], feature: "team", run: listAdmins },
   "admins.setRole": { roles: ["owner"], feature: "team", run: setAdminRole },
@@ -621,3 +626,15 @@ export const adminApi = onRequest({
   routes: Object.fromEntries(Object.entries(ROUTES).filter(([action]) => !action.startsWith('leads.') && action !== 'audit.list')),
   origins: ALLOWED_ORIGINS,
 }));
+
+// A campaign runs only after an authenticated administrator queues one. Each
+// invocation sends one bounded page and requeues the next page through the
+// campaign document, so the dashboard request returns immediately.
+export const newsletterCampaignWorker = onDocumentWritten({
+  document: "newsletterCampaigns/{slug}",
+  region: "us-central1", memory: "256MiB", timeoutSeconds: 300,
+  maxInstances: 1, secrets: [resendApiKey],
+}, async (event) => {
+  if (event.data?.after?.data()?.status !== "queued") return;
+  await processNewsletterCampaign(db, event.params.slug);
+});
