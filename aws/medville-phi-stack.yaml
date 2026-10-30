@@ -1423,8 +1423,6 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !GetAtt CompanyEmailEventRule.Arn
 
-Outputs:
-
   AlertsRole:
     Type: AWS::IAM::Role
     # Reads lead stages and times (never names or contact details) and never writes a

@@ -53,6 +53,10 @@ npm test
 # Expect: "# fail 0". This also confirms the AWS template matches aws/src.
 
 npx tsc -b && npx vite build
+
+# AWS's own template checker. Warning W3037 (about TransactWriteItems) is
+# expected and also appears on the live template; any E error means stop.
+pip install cfn-lint && cfn-lint aws/medville-phi-stack.yaml
 ```
 
 Optional but recommended, the same rules tests CI runs (needs Java 21):
