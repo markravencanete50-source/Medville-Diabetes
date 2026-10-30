@@ -39,6 +39,7 @@ const AWS_ACTIONS = new Set([
   "leads.status.import",
   "leads.stats",
   "leads.notify",
+  "leads.confirmation.retry",
   "leads.export",
   "audit.list",
   "influencers.counts",
@@ -282,6 +283,7 @@ const CACHE_INVALIDATING_ACTIONS = new Set([
   "leads.restore",
   "leads.status.import",
   "leads.notify",
+  "leads.confirmation.retry",
   "leads.assign",
   "alerts.set",
   "influencers.create",
@@ -424,11 +426,18 @@ export const adminApi = {
   setAlerts: (getToken: GetToken, uid: string, enabled: boolean) =>
     call<{ ok: true }>(getToken, "alerts.set", { uid, enabled }),
 
+  /* Resends the company inbox notice for one lead. The notice says a lead
+     exists and never carries its answers. */
   retryNotification: (getToken: GetToken, id: string) => call<{
     ok: true;
     notificationStatus: string;
     customerConfirmationStatus: string;
   }>(getToken, "leads.notify", { id }),
+  /* Resends the customer's receipt for their form. */
+  retryConfirmation: (getToken: GetToken, id: string) => call<{
+    ok: true;
+    customerConfirmationStatus: string;
+  }>(getToken, "leads.confirmation.retry", { id }),
   auditExport: (getToken: GetToken, ids: string[]) => call<{ ok: true }>(getToken, "leads.export", { ids }),
 
   getLead: (getToken: GetToken, id: string) => call<{ lead: Lead }>(getToken, "leads.get", { id }),

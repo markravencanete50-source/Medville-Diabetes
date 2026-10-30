@@ -109,7 +109,8 @@ aws cloudformation create-change-set \
     ParameterKey=FirebaseProjectId,UsePreviousValue=true \
     ParameterKey=IntakeEnabled,UsePreviousValue=true \
     ParameterKey=SenderEmail,UsePreviousValue=true \
-    ParameterKey=SenderDomain,UsePreviousValue=true
+    ParameterKey=SenderDomain,UsePreviousValue=true \
+    ParameterKey=ResendApiKey,UsePreviousValue=true
 
 CS=sales-team-$(date +%Y%m%d)
 aws cloudformation wait change-set-create-complete --stack-name medville-phi --change-set-name "$CS"
@@ -124,6 +125,13 @@ What the table should show:
 | Add | HistoryTable, AlertsTable, AlertsRole, AlertsFunction, AlertsLogGroup, AlertsSchedule, AlertsSchedulePermission | |
 | Modify | LeadsTable (adds the AssigneeTimeline index) | **False** |
 | Modify | LambdaRole, AdminFunction, IntakeFunction | False |
+| Modify, possibly | AdminIntegration, IntakeIntegration, IntakeRole, CompanyEmail resources (only because they refer to resources above) | False |
+| Remove | **nothing** | |
+
+The live stack was found on 2026-10-30 to hold a company email feature
+(`CompanyEmail*` resources and the `ResendApiKey` parameter) deployed outside
+Git. It is now part of this template. If any `CompanyEmail*` resource shows
+`Remove`, the template is out of date with the live stack again: stop.
 
 **Stop and do not execute** if `LeadsTable` or `AuditTable` shows Replacement
 `True` or `Conditional`, or if anything shows `Remove`. Delete the change set
@@ -174,7 +182,27 @@ The Firebase CLI sets a function's environment variables from
 them would remove the Cloudinary and email settings from the live function. Copy
 them from the live function first.
 
-### 3a. Save the live settings
+### 3a. Check the live function matches the repository
+
+The AWS stack was found to differ from Git on 2026-10-30. Check the Google
+function the same way before replacing it:
+
+```bash
+BUCKET=$(gcloud functions describe adminApi --region=us-central1 --gen2 --format="value(buildConfig.source.storageSource.bucket)")
+OBJECT=$(gcloud functions describe adminApi --region=us-central1 --gen2 --format="value(buildConfig.source.storageSource.object)")
+rm -rf /tmp/live-adminapi /tmp/repo-main && mkdir -p /tmp/live-adminapi /tmp/repo-main
+gsutil cp "gs://$BUCKET/$OBJECT" /tmp/live-adminapi/source.zip
+(cd /tmp/live-adminapi && unzip -oq source.zip && rm source.zip)
+git archive origin/main functions/admin | tar -x -C /tmp/repo-main
+diff -r -x node_modules -x package-lock.json -x '.env*' /tmp/repo-main/functions/admin /tmp/live-adminapi
+# No output means the live function matches main.
+```
+
+Compare every `.js` file in `/tmp/live-adminapi` with `functions/admin` on
+`main`. If any differs, stop: push the live files to a new branch (as was done
+for AWS in `live-aws-20261030`) so they can be merged into this release first.
+
+### 3b. Save the live settings
 
 ```bash
 gcloud functions describe adminApi --region=us-central1 --gen2 \
@@ -190,7 +218,7 @@ one `NAME=value` per line, leaving out the ones Google adds itself
 `RESEND_API_KEY` and `CLOUDINARY_API_SECRET`, stay in Secret Manager and are not
 copied.
 
-### 3b. Deploy
+### 3c. Deploy
 
 ```bash
 firebase deploy --only functions:admin --project medville-diabetes
@@ -207,7 +235,7 @@ gcloud functions deploy adminApi --gen2 --region=us-central1 \
 cd ../..
 ```
 
-### 3c. Check
+### 3d. Check
 
 ```bash
 gcloud functions describe adminApi --region=us-central1 --gen2 \

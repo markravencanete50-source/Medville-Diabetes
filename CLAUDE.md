@@ -6,7 +6,10 @@ Current launch status and activation requirements are in `LAUNCH-STATUS.md`.
 That file supersedes older operational statements here. Production eligibility and
 contact intake are enabled on AWS. Staff email alerts (counts only, never patient
 details) are sent by the `medville-staff-alerts` Lambda to staff who switch them on;
-the protected dashboard holds the details. The function runtime target is Node.js 22.
+the protected dashboard holds the details. Each new lead also emails the company
+inbox through SES (`aws/src/notification.cjs`, no answers), and the customer's
+receipt goes through Resend (`aws/src/confirmation.cjs`); whether Resend is
+covered by a BAA is open in LAUNCH-STATUS.md. The function runtime target is Node.js 22.
 
 ## What this project is
 

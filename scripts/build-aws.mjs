@@ -1,7 +1,7 @@
 import {build} from 'esbuild';
 import {readFile,writeFile} from 'node:fs/promises';
 let template=(await readFile('aws/medville-phi-stack.yaml','utf8')).replace(/\r\n/g,'\n');
-for(const [resource,name] of [['IntakeFunction','intake'],['AdminFunction','admin'],['AlertsFunction','alerts']]){
+for(const [resource,name] of [['IntakeFunction','intake'],['AdminFunction','admin'],['AlertsFunction','alerts'],['CompanyEmailEventFunction','notificationEvent']]){
  const result=await build({entryPoints:[`aws/src/${name}.cjs`],bundle:true,platform:'node',target:'node22',format:'cjs',external:['@aws-sdk/*'],write:false});
  const start=template.indexOf('        ZipFile: |',template.indexOf(`  ${resource}:`));
  const offset=template.slice(start).search(/\n  [A-Za-z]\w*:\n/);

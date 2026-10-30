@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw, RotateCcw } from "lucide-react";
 import { adminApi, leadName, type Influencer, type Lead } from "../api";
-import { canOpen, isSalesRole, useAdminAuth } from "../auth";
+import { canOpen, useAdminAuth } from "../auth";
 import { loadTrash, restoreTrash, type TrashKind, type TrashRecord } from "../data";
 import { Banner, Card, Empty, PageHeader, Spinner, formatDateTime, useToast } from "../ui";
 
@@ -39,7 +39,9 @@ export default function RecycleBin() {
   const features = session!.features;
   const kinds = (["products", "faqs", "testimonials", "blog"] as TrashKind[])
     .filter((kind) => canOpen(role, kind, features));
-  const canSeeLeads = canOpen(role, "leads", features) && !isSalesRole(role);
+  /* The AWS lead service requires the recycle permission for deleted
+     enquiries, which only an Owner holds today. */
+  const canSeeLeads = role === "owner";
   const canSeeInfluencers = canOpen(role, "influencers", features);
 
   const refresh = useCallback(async () => {

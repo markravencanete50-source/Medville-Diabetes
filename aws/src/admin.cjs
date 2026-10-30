@@ -1,7 +1,8 @@
 const {DynamoDBClient}=require('@aws-sdk/client-dynamodb');
 const {DynamoDBDocumentClient,GetCommand,PutCommand,QueryCommand,ScanCommand,TransactWriteCommand,UpdateCommand}=require('@aws-sdk/lib-dynamodb');
 const {randomUUID}=require('node:crypto');
-const {sendSubmissionConfirmation}=require('./email.cjs');
+const {sendSubmissionConfirmation}=require('./confirmation.cjs');
+const {sendCompanyNotification}=require('./notification.cjs');
 const db=DynamoDBDocumentClient.from(new DynamoDBClient({}),{marshallOptions:{removeUndefinedValues:true}});
 const origins=new Set((process.env.ALLOWED_ORIGINS||'').split(',').map(x=>x.trim()).filter(Boolean));
 // The sales stages. 'contacted' is the stage older records may still hold; it stays valid
@@ -17,7 +18,7 @@ const CALLBACK_MAX_DAYS=90;
 const validId=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(x);
 const validUid=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(x);
 const validDay=x=>x===undefined||x===''||(typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(`${x}T00:00:00Z`)));
-const features={'leads.history':'leads','alerts.list':'salesTeam','alerts.set':'salesTeam','leads.assign':'salesTeam','leads.team':'salesTeam','leads.dial':'leads','leads.list':'leads','leads.get':'leads','leads.update':'leads','leads.delete':'leads','leads.restore':'leads','leads.status.import':'leads','leads.stats':'overview','leads.export':'leads','leads.notify':'leads','audit.list':'audit','influencers.counts':'influencers'};
+const features={'leads.history':'leads','alerts.list':'salesTeam','alerts.set':'salesTeam','leads.assign':'salesTeam','leads.team':'salesTeam','leads.dial':'leads','leads.list':'leads','leads.get':'leads','leads.update':'leads','leads.delete':'leads','leads.restore':'recycle','leads.confirmation.retry':'leads','leads.status.import':'leads','leads.stats':'overview','leads.export':'leads','leads.notify':'leads','audit.list':'audit','influencers.counts':'influencers'};
 // Sales staff work leads without holding the list. Both sales roles see contact
 // details masked and dial through leads.dial; a salesperson reaches only the leads
 // assigned to them. Export, delete, restore and bulk import stay with Owner and Marketing.
@@ -308,18 +309,30 @@ async function importStatuses(actor,b){
  try{await db.send(new TransactWriteCommand({TransactItems}));}catch(e){if(e?.CancellationReasons?.some(x=>x?.Code==='ConditionalCheckFailed'))return{error:'The status import includes an enquiry that is missing, in the Recycle Bin, or marked Do not contact.'};throw e;}
  return{ok:true,updated:b.items.length};
 }
-async function retryConfirmation(actor,b){
+// Resends the company inbox notice for one lead. The notice never holds the answers.
+async function retryNotification(actor,b){
  if(!validId(b.id))return{error:'Invalid enquiry.'};
  const item=await readable(actor,b.id,'leads.notify');
  if(!item)return{error:'Enquiry not found.',status:404};
+ await audit(actor,'leads.companyNotification.requested',{leadId:b.id});
+ let status='failed',messageId;
+ try{messageId=await sendCompanyNotification(item);status='sent'}catch(error){console.error('company notification rejected by SES',{name:error?.name})}
+ await db.send(new UpdateCommand({TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:'SET notificationStatus=:status, notificationUpdatedAt=:at'+(messageId?', notificationMessageId=:messageId':''),ExpressionAttributeValues:{':status':status,':at':new Date().toISOString(),...(messageId?{':messageId':messageId}:{})},ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt)'}));
+ await audit(actor,'leads.companyNotification.completed',{leadId:b.id,status});
+ return{ok:true,notificationStatus:status,customerConfirmationStatus:item.customerConfirmationStatus||'pending'};
+}
+async function retryConfirmation(actor,b){
+ if(!validId(b.id))return{error:'Invalid enquiry.'};
+ const item=await readable(actor,b.id,'leads.confirmation.retry');
+ if(!item)return{error:'Enquiry not found.',status:404};
  const out={Item:item};
- if(out.Item.customerConfirmationStatus==='sent')return{ok:true,notificationStatus:'not-configured',customerConfirmationStatus:'sent'};
+ if(out.Item.customerConfirmationStatus==='sent')return{ok:true,customerConfirmationStatus:'sent'};
  await audit(actor,'leads.confirmation.requested',{leadId:b.id});
  let status='failed';
- try{await sendSubmissionConfirmation(out.Item.email,out.Item.source==='contact'?'contact':'eligibility');status='sent'}catch{}
+ try{await sendSubmissionConfirmation(out.Item.email,out.Item.source==='contact'?'contact':'eligibility',out.Item.id);status='sent'}catch(error){console.error('customer confirmation rejected by Resend',{name:error?.name})}
  await db.send(new UpdateCommand({TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:'SET customerConfirmationStatus=:status, customerConfirmationUpdatedAt=:at',ExpressionAttributeValues:{':status':status,':at':new Date().toISOString()},ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt)'}));
  await audit(actor,'leads.confirmation.completed',{leadId:b.id,status});
- return{ok:true,notificationStatus:'not-configured',customerConfirmationStatus:status};
+ return{ok:true,customerConfirmationStatus:status};
 }
 async function stats(actor,countsOnly=false,b={}){
  let key,total=0;const result={total:0,insulinYes:0,byStatus:{},byState:{},byProduct:{},byDay:{}};const counts={};
@@ -352,7 +365,8 @@ async function route(actor,b,ctx){
   if(!Array.isArray(b.ids)||!b.ids.length||b.ids.length>500||!b.ids.every(validId)||new Set(b.ids).size!==b.ids.length)return{error:'Invalid export.'};
   await audit(actor,'leads.export',{count:b.ids.length,leadIds:b.ids});return{ok:true};
  }
- if(b.action==='leads.notify')return retryConfirmation(actor,b);
+ if(b.action==='leads.notify')return retryNotification(actor,b);
+ if(b.action==='leads.confirmation.retry')return retryConfirmation(actor,b);
  if(b.action==='audit.list'){
   const out=await db.send(new QueryCommand({TableName:process.env.AUDIT_TABLE,IndexName:'AuditTimeline',KeyConditionExpression:'gsi1pk=:pk',ExpressionAttributeValues:{':pk':'AUDIT'},ScanIndexForward:false,Limit:200}));
   await audit(actor,'audit.list',{count:out.Items?.length||0});
@@ -371,7 +385,7 @@ exports.handler=async(event)=>{
  let actor;try{actor=await authenticate(event.headers?.authorization||event.headers?.Authorization,origin)}catch{return response(503,origin,{error:'The identity service is temporarily unavailable.'})}
  if(!actor)return response(401,origin,{error:'Your session has expired. Please sign in again.'});
  try{
-  if((body.action==='audit.list'&&actor.role!=='owner')||(actor.role!=='owner'&&!actor.features.includes(features[body.action]))||(features[body.action]==='salesTeam'&&actor.role!=='owner'&&actor.role!=='manager')||(hidesContact(actor)&&(recordActions.has(body.action)||(body.action==='leads.list'&&body.deleted===true)))){await audit(actor,'access.denied',{attempted:body.action});return response(403,origin,{error:'You do not have access to that.'});}
+  if((body.action==='audit.list'&&actor.role!=='owner')||(actor.role!=='owner'&&!actor.features.includes(body.action==='leads.list'&&body.deleted===true?'recycle':features[body.action]))||(features[body.action]==='salesTeam'&&actor.role!=='owner'&&actor.role!=='manager')||(hidesContact(actor)&&(recordActions.has(body.action)||(body.action==='leads.list'&&body.deleted===true)))){await audit(actor,'access.denied',{attempted:body.action});return response(403,origin,{error:'You do not have access to that.'});}
   const result=await route(actor,body,{header:event.headers?.authorization||event.headers?.Authorization,origin});return response(result.status||('error' in result?400:200),origin,result);
  }catch{console.error('admin failure',{requestId:event.requestContext?.requestId});return response(503,origin,{error:'That did not work. Please try again.'});}
 };

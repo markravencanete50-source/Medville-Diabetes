@@ -45,6 +45,22 @@ Per-lead history (2026-10-29): the same CloudFormation update adds the
 and deletion protection. Bulk assignment and status import now take at most 45
 enquiries at a time.
 
+Live email, reconciled 2026-10-30: the AWS stack was found to hold a company
+email feature deployed outside Git. It is now in the repository:
+`aws/src/notification.cjs` emails `info@medvillediabetes.com` through SES (the
+`medville-phi-company` configuration set, TLS required) that a new lead exists,
+with a dashboard link and no answers; `aws/src/notificationEvent.cjs` records
+SES delivery, bounce, rejection, delay and complaint events on the lead. The
+live snapshot and the recovered files are on branch `live-aws-20261030`.
+
+Open compliance question: the live intake sends the customer's receipt through
+Resend (`aws/src/confirmation.cjs`, `ResendApiKey` stack parameter), not AWS
+SES. The receipt holds no answers, but Resend receives the patient's email
+address and the fact that they submitted a diabetes eligibility request, which
+is PHI. Confirm that Medville has a signed BAA with Resend, or switch the receipt
+to SES once SES production access is granted. That is a change to
+`confirmation.cjs` only.
+
 The step-by-step commands for this release, in deploy order with checks and a
 rollback, are in `DEPLOY-SALES-TEAM.md`.
 

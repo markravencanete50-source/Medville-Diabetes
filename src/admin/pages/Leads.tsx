@@ -215,21 +215,33 @@ export default function Leads() {
     }
   };
 
+  const replaceLead = (updated: Lead) => {
+    setOpenLead(updated);
+    setLeads((current) => (current ?? []).map((lead) => lead.id === updated.id ? updated : lead));
+  };
+
+  const retryConfirmation = async () => {
+    if (!openLead) return;
+    setSaving(true);
+    try {
+      const result = await adminApi.retryConfirmation(getToken, openLead.id);
+      replaceLead({ ...openLead, customerConfirmationStatus: result.customerConfirmationStatus });
+      if (result.customerConfirmationStatus === "sent") toast("Customer confirmation sent.");
+      else toast("The customer confirmation could not be sent. Please try again.", "danger");
+    } catch { toast("The customer confirmation could not be sent. Contact the site administrator.", "danger"); }
+    finally { setSaving(false); }
+  };
+
+  /* The company inbox notice says a lead exists. It never carries the answers. */
   const retryNotification = async () => {
     if (!openLead) return;
     setSaving(true);
     try {
       const result = await adminApi.retryNotification(getToken, openLead.id);
-      const updated = {
-        ...openLead,
-        notificationStatus: result.notificationStatus,
-        customerConfirmationStatus: result.customerConfirmationStatus,
-      };
-      setOpenLead(updated);
-      setLeads((current) => (current ?? []).map((lead) => lead.id === updated.id ? updated : lead));
-      if (result.customerConfirmationStatus === "sent") toast("Customer confirmation sent.");
-      else toast("The customer confirmation could not be sent. Please try again.", "danger");
-    } catch { toast("The notification could not be sent. Contact the site administrator.", "danger"); }
+      replaceLead({ ...openLead, notificationStatus: result.notificationStatus });
+      if (result.notificationStatus === "sent") toast("Company email sent.");
+      else toast("The company email could not be sent. Please try again.", "danger");
+    } catch { toast("The company email could not be sent. Contact the site administrator.", "danger"); }
     finally { setSaving(false); }
   };
 
@@ -676,11 +688,12 @@ export default function Leads() {
                 <Detail label="Product">{openLead.productName || PRODUCT_NAME.get(openLead.productInterest) || openLead.productInterest || "Not sure yet"}</Detail>
                 <Detail label="Influencer">{openLead.referralCode ? `@${openLead.referralCode}` : "Direct"}</Detail>
               </>}
-              <Detail label="Staff alerts">Counts only, emailed to staff who have alerts on.</Detail>
+              <Detail label="Company email">{companyEmailLabel(openLead.notificationStatus)}</Detail>
               <Detail label="Customer confirmation">{emailStatusLabel(openLead.customerConfirmationStatus)}</Detail>
             </dl>
             {openLead.source === "contact" && <div className="rounded-lg p-4" style={{ background: "var(--a-brand-soft)" }}><p className="admin-label">Question</p><p className="mt-2 whitespace-pre-wrap text-[14px] leading-relaxed">{openLead.message}</p></div>}
-            {openLead.customerConfirmationStatus !== "sent" && <button type="button" className="admin-btn admin-btn-quiet" disabled={saving} onClick={() => void retryNotification()}>Retry customer confirmation</button>}
+            {!salesRole && openLead.customerConfirmationStatus !== "sent" && <button type="button" className="admin-btn admin-btn-quiet" disabled={saving} onClick={() => void retryConfirmation()}>Retry customer confirmation</button>}
+            {!salesRole && ["failed", "bounced", "rejected", "complained", "pending"].includes(openLead.notificationStatus) && <button type="button" className="admin-btn admin-btn-quiet" disabled={saving} onClick={() => void retryNotification()}>Resend company email</button>}
 
             {canAssign && (
               <Field label="Assigned to" htmlFor="lead-assign">
@@ -977,6 +990,21 @@ function HistoryPanel({
       )}
     </section>
   );
+}
+
+/* Delivery of the company inbox notice, as SES reports it back. */
+function companyEmailLabel(status: string) {
+  const labels: Record<string, string> = {
+    pending: "Waiting to send",
+    sent: "Sent",
+    delivered: "Delivered",
+    delayed: "Delayed, still trying",
+    bounced: "Bounced",
+    rejected: "Rejected",
+    complained: "Marked as spam",
+    failed: "Delivery failed",
+  };
+  return labels[status] ?? "Not sent";
 }
 
 function emailStatusLabel(status: string) {

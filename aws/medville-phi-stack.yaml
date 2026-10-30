@@ -18,12 +18,34 @@ Parameters:
   SenderDomain:
     Type: String
     Default: medvillediabetes.com
+  ResendApiKey:
+    Type: String
+    NoEcho: true
 
 Resources:
   SenderEmailIdentity:
     Type: AWS::SES::EmailIdentity
     Properties:
       EmailIdentity: !Ref SenderDomain
+
+  CompanyEmailConfiguration:
+    Type: AWS::SES::ConfigurationSet
+    Properties:
+      Name: medville-phi-company
+      DeliveryOptions:
+        TlsPolicy: REQUIRE
+
+  CompanyEmailEventDestination:
+    Type: AWS::SES::ConfigurationSetEventDestination
+    DependsOn: CompanyEmailEventPermission
+    Properties:
+      ConfigurationSetName: !Ref CompanyEmailConfiguration
+      EventDestination:
+        Name: medville-phi-delivery-events
+        Enabled: true
+        MatchingEventTypes: [DELIVERY, BOUNCE, REJECT, DELIVERY_DELAY, COMPLAINT]
+        EventBridgeDestination:
+          EventBusArn: !Sub arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:event-bus/default
 
   PhiKey:
     Type: AWS::KMS::Key
@@ -298,6 +320,8 @@ Resources:
       Environment:
         Variables:
           ALLOWED_ORIGINS: !Join [",", !Ref AllowedOrigins]
+          SES_CONFIG_SET: !Ref CompanyEmailConfiguration
+          RESEND_API_KEY: !Ref ResendApiKey
           INTAKE_ENABLED: !Ref IntakeEnabled
           LEADS_TABLE: !Ref LeadsTable
           RATE_TABLE: !Ref RateTable
@@ -472,12 +496,10 @@ Resources:
             }
           });
 
-          // aws/src/email.cjs
-          var require_email = __commonJS({
-            "aws/src/email.cjs"(exports2, module2) {
+          // aws/src/confirmation.cjs
+          var require_confirmation = __commonJS({
+            "aws/src/confirmation.cjs"(exports2, module2) {
               "use strict";
-              var { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
-              var ses = new SESv2Client({});
               function confirmationMessage(kind = "eligibility") {
                 const contact = kind === "contact";
                 const heading = contact ? "We received your message" : "We received your request";
@@ -499,49 +521,49 @@ Resources:
                   html: `<!doctype html><html><body style="margin:0;background:#eef8fb;font-family:Arial,sans-serif;color:#00293b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef8fb"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #c7eaf2;border-radius:16px;overflow:hidden"><tr><td style="background:#00293b;padding:24px 30px"><div style="font-size:22px;font-weight:700;line-height:1.2;color:#ffffff">Medville <span style="color:#18bada">Diabetes</span></div></td></tr><tr><td style="padding:32px 30px"><p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0a6d8a">Submission received</p><h1 style="margin:0 0 18px;font-size:26px;line-height:1.25;color:#00293b">${heading}</h1><p style="margin:0 0 18px;font-size:16px;line-height:1.65;color:#264f5f">${intro}</p><div style="margin:0;padding:18px;border-radius:10px;background:#eef8fb"><p style="margin:0;font-size:14px;line-height:1.6;color:#456b79">${note}</p></div><p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#456b79">If you did not submit this request, contact us at <a href="mailto:info@medvillediabetes.com" style="color:#006b87">info@medvillediabetes.com</a> or <a href="tel:+18003943917" style="color:#006b87">800-394-3917</a>.</p></td></tr><tr><td style="border-top:1px solid #d6edf3;padding:18px 30px;font-size:12px;line-height:1.6;color:#5b7883">Medville Diabetes<br>28863 Industry Dr<br>Valencia, CA 91355</td></tr></table></td></tr></table></body></html>`
                 };
               }
-              async function sendSubmissionConfirmation2(email, kind = "eligibility") {
-                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL) throw new Error("email unavailable");
+              async function sendSubmissionConfirmation2(email, kind = "eligibility", submissionId = "", fetcher = fetch) {
+                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL || !process.env.RESEND_API_KEY) throw new Error("email unavailable");
                 const message = confirmationMessage(kind);
-                await ses.send(new SendEmailCommand({
-                  FromEmailAddress: `Medville Diabetes <${process.env.SENDER_EMAIL}>`,
-                  ReplyToAddresses: [process.env.SENDER_EMAIL],
-                  Destination: { ToAddresses: [email] },
-                  Content: { Simple: { Subject: { Data: message.subject, Charset: "UTF-8" }, Body: { Text: { Data: message.text, Charset: "UTF-8" }, Html: { Data: message.html, Charset: "UTF-8" } } } }
-                }));
+                const result = await fetcher("https://api.resend.com/emails", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json", ...submissionId ? { "Idempotency-Key": `medville-confirmation-${submissionId}` } : {} },
+                  body: JSON.stringify({ from: `Medville Diabetes <${process.env.SENDER_EMAIL}>`, to: [email], reply_to: [process.env.SENDER_EMAIL], subject: message.subject, text: message.text, html: message.html })
+                });
+                if (!result?.ok) throw new Error("email unavailable");
               }
-              function plural(n, one, many) {
-                return `${n} ${n === 1 ? one : many}`;
-              }
-              function staffAlertMessage({ newCount = 0, assignedCount = 0, callbackCount = 0 }, dashboardUrl) {
-                const lines = [];
-                if (callbackCount) lines.push(`${plural(callbackCount, "callback is", "callbacks are")} due now.`);
-                if (assignedCount) lines.push(`${plural(assignedCount, "enquiry was", "enquiries were")} assigned to you.`);
-                if (newCount) lines.push(`${plural(newCount, "new enquiry is", "new enquiries are")} waiting to be assigned.`);
-                const subject = `${lines[0].replace(/\.$/, "")} | Medville Diabetes`;
-                const link = `${dashboardUrl.replace(/\/$/, "")}/admin`;
-                const note = "This email holds no patient details on purpose. Sign in to the dashboard to see them.";
+              module2.exports = { confirmationMessage, sendSubmissionConfirmation: sendSubmissionConfirmation2 };
+            }
+          });
+
+          // aws/src/notification.cjs
+          var require_notification = __commonJS({
+            "aws/src/notification.cjs"(exports2, module2) {
+              "use strict";
+              var { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
+              var ses = new SESv2Client({});
+              var COMPANY_EMAIL = "info@medvillediabetes.com";
+              function companyMessage() {
                 return {
-                  subject,
-                  text: `${lines.join("\n")}
-
-          ${note}
-
-          ${link}
-
-          Medville Diabetes`,
-                  html: `<!doctype html><html><body style="margin:0;background:#eef8fb;font-family:Arial,sans-serif;color:#00293b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef8fb"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #c7eaf2;border-radius:16px;overflow:hidden"><tr><td style="background:#00293b;padding:24px 30px"><div style="font-size:22px;font-weight:700;line-height:1.2;color:#ffffff">Medville <span style="color:#18bada">Diabetes</span></div></td></tr><tr><td style="padding:32px 30px"><p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0a6d8a">Sales alert</p>${lines.map((line) => `<p style="margin:0 0 12px;font-size:18px;font-weight:700;line-height:1.4;color:#00293b">${line}</p>`).join("")}<p style="margin:18px 0 22px;font-size:15px;line-height:1.6;color:#264f5f">${note}</p><a href="${link}" style="display:inline-block;background:#18bada;color:#00293b;text-decoration:none;font-size:15px;font-weight:700;padding:13px 20px;border-radius:8px">Open the dashboard</a></td></tr><tr><td style="border-top:1px solid #d6edf3;padding:18px 30px;font-size:12px;line-height:1.6;color:#5b7883">You receive this because email alerts are on for your dashboard account. Your manager can turn them off.</td></tr></table></td></tr></table></body></html>`
+                  subject: "New Medville Diabetes form submission",
+                  text: "A new form submission is available in the protected dashboard.\n\nSign in to review it:\nhttps://www.medvillediabetes.com/admin#leads"
                 };
               }
-              async function sendStaffAlert(email, counts, dashboardUrl) {
-                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL) throw new Error("email unavailable");
-                const message = staffAlertMessage(counts, dashboardUrl);
-                await ses.send(new SendEmailCommand({
-                  FromEmailAddress: `Medville Diabetes <${process.env.SENDER_EMAIL}>`,
-                  Destination: { ToAddresses: [email] },
-                  Content: { Simple: { Subject: { Data: message.subject, Charset: "UTF-8" }, Body: { Text: { Data: message.text, Charset: "UTF-8" }, Html: { Data: message.html, Charset: "UTF-8" } } } }
+              async function sendCompanyNotification2(lead, client = ses) {
+                if (!process.env.SENDER_EMAIL || !process.env.SES_CONFIG_SET) throw new Error("notification unavailable");
+                const message = companyMessage();
+                const result = await client.send(new SendEmailCommand({
+                  FromEmailAddress: process.env.SENDER_EMAIL,
+                  Destination: { ToAddresses: [COMPANY_EMAIL] },
+                  ConfigurationSetName: process.env.SES_CONFIG_SET,
+                  EmailTags: [{ Name: "lead_id", Value: lead.id }],
+                  Content: { Simple: {
+                    Subject: { Data: message.subject, Charset: "UTF-8" },
+                    Body: { Text: { Data: message.text, Charset: "UTF-8" } }
+                  } }
                 }));
+                return result.MessageId;
               }
-              module2.exports = { confirmationMessage, sendSubmissionConfirmation: sendSubmissionConfirmation2, staffAlertMessage, sendStaffAlert };
+              module2.exports = { companyMessage, sendCompanyNotification: sendCompanyNotification2 };
             }
           });
 
@@ -551,14 +573,15 @@ Resources:
           var { createHash } = require("node:crypto");
           var { validateSubmission: validateSubmission2 } = (init_intake(), __toCommonJS(intake_exports));
           var { validateContactSubmission: validateContactSubmission2 } = (init_contact(), __toCommonJS(contact_exports));
-          var { sendSubmissionConfirmation } = require_email();
+          var { sendSubmissionConfirmation } = require_confirmation();
+          var { sendCompanyNotification } = require_notification();
           var db = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
           var origins = new Set((process.env.ALLOWED_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean));
           function response(statusCode, origin, body, extra = {}) {
             return { statusCode, headers: { "Cache-Control": "no-store", "Content-Type": "application/json", "X-Content-Type-Options": "nosniff", Vary: "Origin", ...origin ? { "Access-Control-Allow-Origin": origin } : {}, ...extra }, body: JSON.stringify(body) };
           }
           async function config(data) {
-            const res = await fetch(process.env.INTAKE_CONFIG_URL, { method: "POST", headers: { "Content-Type": "application/json", Origin: [...origins][0] }, body: JSON.stringify({ productInterest: data.productInterest, referralCode: data.referralCode }), signal: AbortSignal.timeout(5e3) });
+            const res = await fetch(process.env.INTAKE_CONFIG_URL, { method: "POST", headers: { "Content-Type": "application/json", Origin: [...origins][0] }, body: JSON.stringify({ productInterest: data.productInterest, referralCode: data.referralCode }), signal: AbortSignal.timeout(1e4) });
             if (!res.ok) throw new Error("catalog unavailable");
             const value = await res.json();
             if (!value || typeof value !== "object") throw new Error("invalid catalog response");
@@ -575,14 +598,30 @@ Resources:
           async function confirm(lead) {
             let status = "failed";
             try {
-              await sendSubmissionConfirmation(lead.email, lead.source === "contact" ? "contact" : "eligibility");
+              await sendSubmissionConfirmation(lead.email, lead.source === "contact" ? "contact" : "eligibility", lead.id);
               status = "sent";
-            } catch {
+            } catch (error) {
+              console.error("customer confirmation rejected by Resend", { name: error?.name });
             }
             try {
               await db.send(new UpdateCommand({ TableName: process.env.LEADS_TABLE, Key: { id: lead.id }, UpdateExpression: "SET customerConfirmationStatus=:status, customerConfirmationUpdatedAt=:at", ExpressionAttributeValues: { ":status": status, ":at": (/* @__PURE__ */ new Date()).toISOString() }, ConditionExpression: "attribute_exists(id)" }));
             } catch {
               console.error("confirmation status update failed");
+            }
+            return status === "sent";
+          }
+          async function notifyCompany(lead) {
+            let status = "failed", messageId;
+            try {
+              messageId = await sendCompanyNotification(lead);
+              status = "sent";
+            } catch (error) {
+              console.error("company notification rejected by SES", { name: error?.name });
+            }
+            try {
+              await db.send(new UpdateCommand({ TableName: process.env.LEADS_TABLE, Key: { id: lead.id }, UpdateExpression: "SET notificationStatus=:status, notificationUpdatedAt=:at" + (messageId ? ", notificationMessageId=:messageId" : ""), ExpressionAttributeValues: { ":status": status, ":at": (/* @__PURE__ */ new Date()).toISOString(), ...messageId ? { ":messageId": messageId } : {} }, ConditionExpression: "attribute_exists(id)" }));
+            } catch {
+              console.error("notification status update failed");
             }
             return status === "sent";
           }
@@ -613,20 +652,23 @@ Resources:
               if (prior) return receipt(prior, existing?.customerConfirmationStatus === "sent");
               const catalog = contact ? {} : await config(data);
               if (!contact && (!catalog.product || typeof catalog.product.name !== "string")) return response(400, origin, { error: "Please choose an available product." });
-              const createdAt = (/* @__PURE__ */ new Date()).toISOString(), now = Date.now(), bucket = Math.floor(now / 36e5);
+              const createdAt = (/* @__PURE__ */ new Date()).toISOString(), now = Date.now(), bucket = Math.floor(now / 36e5), minute = Math.floor(now / 6e4);
               const ip = event.requestContext?.http?.sourceIp;
               if (!ip) return response(503, origin, { error: "The submission could not be saved. Please try again." });
               const rateId = createHash("sha256").update(`${bucket}:${ip}`).digest("hex");
+              const minuteRateId = createHash("sha256").update(`minute:${minute}:${ip}`).digest("hex");
               const { submissionId, ...answers } = data;
               const referralCode = catalog.referralActive === true ? data.referralCode : "";
-              const lead = { id: submissionId, ...answers, referralCode, source: contact ? "contact" : referralCode ? "influencer" : "qualify", status: "new", note: "", message: contact ? data.message : "", productInterest: contact ? "" : data.productInterest, productName: contact ? "General question" : catalog.product.name, injectsInsulinDaily: contact ? "" : data.injectsInsulinDaily, consentVersion: "2026-08-26", consentAt: createdAt, createdAt, notificationStatus: "not-configured", customerConfirmationStatus: "pending", requestHash: fingerprint(data), gsi1pk: "LEAD", gsi1sk: `${createdAt}#${submissionId}` };
+              const lead = { id: submissionId, ...answers, referralCode, source: contact ? "contact" : referralCode ? "influencer" : "qualify", status: "new", note: "", message: contact ? data.message : "", productInterest: contact ? "" : data.productInterest, productName: contact ? "General question" : catalog.product.name, injectsInsulinDaily: contact ? "" : data.injectsInsulinDaily, consentVersion: "2026-08-26", consentAt: createdAt, createdAt, notificationStatus: "pending", customerConfirmationStatus: "pending", requestHash: fingerprint(data), gsi1pk: "LEAD", gsi1sk: `${createdAt}#${submissionId}` };
               try {
-                await db.send(new TransactWriteCommand({ TransactItems: [{ Put: { TableName: process.env.LEADS_TABLE, Item: lead, ConditionExpression: "attribute_not_exists(id)" } }, { Update: { TableName: process.env.RATE_TABLE, Key: { id: rateId }, UpdateExpression: "SET expiresAt=:expiry ADD #count :one", ConditionExpression: "attribute_not_exists(#count) OR #count < :limit", ExpressionAttributeNames: { "#count": "count" }, ExpressionAttributeValues: { ":expiry": Math.floor(now / 1e3) + 7200, ":one": 1, ":limit": 10 } } }] }));
+                await db.send(new TransactWriteCommand({ TransactItems: [{ Put: { TableName: process.env.LEADS_TABLE, Item: lead, ConditionExpression: "attribute_not_exists(id)" } }, { Update: { TableName: process.env.RATE_TABLE, Key: { id: rateId }, UpdateExpression: "SET expiresAt=:expiry ADD #count :one", ConditionExpression: "attribute_not_exists(#count) OR #count < :limit", ExpressionAttributeNames: { "#count": "count" }, ExpressionAttributeValues: { ":expiry": Math.floor(now / 1e3) + 7200, ":one": 1, ":limit": 100 } } }, { Update: { TableName: process.env.RATE_TABLE, Key: { id: minuteRateId }, UpdateExpression: "SET expiresAt=:expiry ADD #count :one", ConditionExpression: "attribute_not_exists(#count) OR #count < :limit", ExpressionAttributeNames: { "#count": "count" }, ExpressionAttributeValues: { ":expiry": Math.floor(now / 1e3) + 120, ":one": 1, ":limit": 3 } } }] }));
+                await notifyCompany(lead);
                 return receipt(200, await confirm(lead));
               } catch (error) {
                 const after = duplicate((await get()).Item, data);
                 if (after) return receipt(after);
-                if (error?.CancellationReasons?.[1]?.Code === "ConditionalCheckFailed") return response(429, origin, { error: "Please try again later or call our team." }, { "Retry-After": "3600" });
+                const perMinute = error?.CancellationReasons?.[2]?.Code === "ConditionalCheckFailed";
+                if (perMinute || error?.CancellationReasons?.[1]?.Code === "ConditionalCheckFailed") return response(429, origin, { error: "Please try again later or call our team." }, { "Retry-After": perMinute ? String(Math.ceil(((minute + 1) * 6e4 - now) / 1e3)) : "3600" });
                 throw error;
               }
             } catch {
@@ -652,6 +694,8 @@ Resources:
       Environment:
         Variables:
           ALLOWED_ORIGINS: !Join [",", !Ref AllowedOrigins]
+          SES_CONFIG_SET: !Ref CompanyEmailConfiguration
+          RESEND_API_KEY: !Ref ResendApiKey
           FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
           LEADS_TABLE: !Ref LeadsTable
           AUDIT_TABLE: !Ref AuditTable
@@ -668,12 +712,10 @@ Resources:
             return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
           };
 
-          // aws/src/email.cjs
-          var require_email = __commonJS({
-            "aws/src/email.cjs"(exports2, module2) {
+          // aws/src/confirmation.cjs
+          var require_confirmation = __commonJS({
+            "aws/src/confirmation.cjs"(exports2, module2) {
               "use strict";
-              var { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
-              var ses = new SESv2Client({});
               function confirmationMessage(kind = "eligibility") {
                 const contact = kind === "contact";
                 const heading = contact ? "We received your message" : "We received your request";
@@ -695,49 +737,49 @@ Resources:
                   html: `<!doctype html><html><body style="margin:0;background:#eef8fb;font-family:Arial,sans-serif;color:#00293b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef8fb"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #c7eaf2;border-radius:16px;overflow:hidden"><tr><td style="background:#00293b;padding:24px 30px"><div style="font-size:22px;font-weight:700;line-height:1.2;color:#ffffff">Medville <span style="color:#18bada">Diabetes</span></div></td></tr><tr><td style="padding:32px 30px"><p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0a6d8a">Submission received</p><h1 style="margin:0 0 18px;font-size:26px;line-height:1.25;color:#00293b">${heading}</h1><p style="margin:0 0 18px;font-size:16px;line-height:1.65;color:#264f5f">${intro}</p><div style="margin:0;padding:18px;border-radius:10px;background:#eef8fb"><p style="margin:0;font-size:14px;line-height:1.6;color:#456b79">${note}</p></div><p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#456b79">If you did not submit this request, contact us at <a href="mailto:info@medvillediabetes.com" style="color:#006b87">info@medvillediabetes.com</a> or <a href="tel:+18003943917" style="color:#006b87">800-394-3917</a>.</p></td></tr><tr><td style="border-top:1px solid #d6edf3;padding:18px 30px;font-size:12px;line-height:1.6;color:#5b7883">Medville Diabetes<br>28863 Industry Dr<br>Valencia, CA 91355</td></tr></table></td></tr></table></body></html>`
                 };
               }
-              async function sendSubmissionConfirmation2(email, kind = "eligibility") {
-                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL) throw new Error("email unavailable");
+              async function sendSubmissionConfirmation2(email, kind = "eligibility", submissionId = "", fetcher = fetch) {
+                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL || !process.env.RESEND_API_KEY) throw new Error("email unavailable");
                 const message = confirmationMessage(kind);
-                await ses.send(new SendEmailCommand({
-                  FromEmailAddress: `Medville Diabetes <${process.env.SENDER_EMAIL}>`,
-                  ReplyToAddresses: [process.env.SENDER_EMAIL],
-                  Destination: { ToAddresses: [email] },
-                  Content: { Simple: { Subject: { Data: message.subject, Charset: "UTF-8" }, Body: { Text: { Data: message.text, Charset: "UTF-8" }, Html: { Data: message.html, Charset: "UTF-8" } } } }
-                }));
+                const result = await fetcher("https://api.resend.com/emails", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json", ...submissionId ? { "Idempotency-Key": `medville-confirmation-${submissionId}` } : {} },
+                  body: JSON.stringify({ from: `Medville Diabetes <${process.env.SENDER_EMAIL}>`, to: [email], reply_to: [process.env.SENDER_EMAIL], subject: message.subject, text: message.text, html: message.html })
+                });
+                if (!result?.ok) throw new Error("email unavailable");
               }
-              function plural(n, one, many) {
-                return `${n} ${n === 1 ? one : many}`;
-              }
-              function staffAlertMessage({ newCount = 0, assignedCount = 0, callbackCount = 0 }, dashboardUrl) {
-                const lines = [];
-                if (callbackCount) lines.push(`${plural(callbackCount, "callback is", "callbacks are")} due now.`);
-                if (assignedCount) lines.push(`${plural(assignedCount, "enquiry was", "enquiries were")} assigned to you.`);
-                if (newCount) lines.push(`${plural(newCount, "new enquiry is", "new enquiries are")} waiting to be assigned.`);
-                const subject = `${lines[0].replace(/\.$/, "")} | Medville Diabetes`;
-                const link = `${dashboardUrl.replace(/\/$/, "")}/admin`;
-                const note = "This email holds no patient details on purpose. Sign in to the dashboard to see them.";
+              module2.exports = { confirmationMessage, sendSubmissionConfirmation: sendSubmissionConfirmation2 };
+            }
+          });
+
+          // aws/src/notification.cjs
+          var require_notification = __commonJS({
+            "aws/src/notification.cjs"(exports2, module2) {
+              "use strict";
+              var { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
+              var ses = new SESv2Client({});
+              var COMPANY_EMAIL = "info@medvillediabetes.com";
+              function companyMessage() {
                 return {
-                  subject,
-                  text: `${lines.join("\n")}
-
-          ${note}
-
-          ${link}
-
-          Medville Diabetes`,
-                  html: `<!doctype html><html><body style="margin:0;background:#eef8fb;font-family:Arial,sans-serif;color:#00293b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef8fb"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #c7eaf2;border-radius:16px;overflow:hidden"><tr><td style="background:#00293b;padding:24px 30px"><div style="font-size:22px;font-weight:700;line-height:1.2;color:#ffffff">Medville <span style="color:#18bada">Diabetes</span></div></td></tr><tr><td style="padding:32px 30px"><p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0a6d8a">Sales alert</p>${lines.map((line) => `<p style="margin:0 0 12px;font-size:18px;font-weight:700;line-height:1.4;color:#00293b">${line}</p>`).join("")}<p style="margin:18px 0 22px;font-size:15px;line-height:1.6;color:#264f5f">${note}</p><a href="${link}" style="display:inline-block;background:#18bada;color:#00293b;text-decoration:none;font-size:15px;font-weight:700;padding:13px 20px;border-radius:8px">Open the dashboard</a></td></tr><tr><td style="border-top:1px solid #d6edf3;padding:18px 30px;font-size:12px;line-height:1.6;color:#5b7883">You receive this because email alerts are on for your dashboard account. Your manager can turn them off.</td></tr></table></td></tr></table></body></html>`
+                  subject: "New Medville Diabetes form submission",
+                  text: "A new form submission is available in the protected dashboard.\n\nSign in to review it:\nhttps://www.medvillediabetes.com/admin#leads"
                 };
               }
-              async function sendStaffAlert(email, counts, dashboardUrl) {
-                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL) throw new Error("email unavailable");
-                const message = staffAlertMessage(counts, dashboardUrl);
-                await ses.send(new SendEmailCommand({
-                  FromEmailAddress: `Medville Diabetes <${process.env.SENDER_EMAIL}>`,
-                  Destination: { ToAddresses: [email] },
-                  Content: { Simple: { Subject: { Data: message.subject, Charset: "UTF-8" }, Body: { Text: { Data: message.text, Charset: "UTF-8" }, Html: { Data: message.html, Charset: "UTF-8" } } } }
+              async function sendCompanyNotification2(lead2, client = ses) {
+                if (!process.env.SENDER_EMAIL || !process.env.SES_CONFIG_SET) throw new Error("notification unavailable");
+                const message = companyMessage();
+                const result = await client.send(new SendEmailCommand({
+                  FromEmailAddress: process.env.SENDER_EMAIL,
+                  Destination: { ToAddresses: [COMPANY_EMAIL] },
+                  ConfigurationSetName: process.env.SES_CONFIG_SET,
+                  EmailTags: [{ Name: "lead_id", Value: lead2.id }],
+                  Content: { Simple: {
+                    Subject: { Data: message.subject, Charset: "UTF-8" },
+                    Body: { Text: { Data: message.text, Charset: "UTF-8" } }
+                  } }
                 }));
+                return result.MessageId;
               }
-              module2.exports = { confirmationMessage, sendSubmissionConfirmation: sendSubmissionConfirmation2, staffAlertMessage, sendStaffAlert };
+              module2.exports = { companyMessage, sendCompanyNotification: sendCompanyNotification2 };
             }
           });
 
@@ -745,7 +787,8 @@ Resources:
           var { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
           var { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, ScanCommand, TransactWriteCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
           var { randomUUID } = require("node:crypto");
-          var { sendSubmissionConfirmation } = require_email();
+          var { sendSubmissionConfirmation } = require_confirmation();
+          var { sendCompanyNotification } = require_notification();
           var db = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
           var origins = new Set((process.env.ALLOWED_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean));
           var statuses = /* @__PURE__ */ new Set(["new", "contacted", "no-answer", "voicemail", "callback", "needs-verification", "waiting-documents", "intake-completed", "qualified", "not-qualified", "not-interested", "wrong-number", "do-not-contact", "closed"]);
@@ -756,7 +799,7 @@ Resources:
           var validId = (x) => typeof x === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(x);
           var validUid = (x) => typeof x === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(x);
           var validDay = (x) => x === void 0 || x === "" || typeof x === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x) && !Number.isNaN(Date.parse(`${x}T00:00:00Z`));
-          var features = { "leads.history": "leads", "alerts.list": "salesTeam", "alerts.set": "salesTeam", "leads.assign": "salesTeam", "leads.team": "salesTeam", "leads.dial": "leads", "leads.list": "leads", "leads.get": "leads", "leads.update": "leads", "leads.delete": "leads", "leads.restore": "leads", "leads.status.import": "leads", "leads.stats": "overview", "leads.export": "leads", "leads.notify": "leads", "audit.list": "audit", "influencers.counts": "influencers" };
+          var features = { "leads.history": "leads", "alerts.list": "salesTeam", "alerts.set": "salesTeam", "leads.assign": "salesTeam", "leads.team": "salesTeam", "leads.dial": "leads", "leads.list": "leads", "leads.get": "leads", "leads.update": "leads", "leads.delete": "leads", "leads.restore": "recycle", "leads.confirmation.retry": "leads", "leads.status.import": "leads", "leads.stats": "overview", "leads.export": "leads", "leads.notify": "leads", "audit.list": "audit", "influencers.counts": "influencers" };
           var hidesContact = (actor) => actor.role === "sales" || actor.role === "manager";
           var recordActions = /* @__PURE__ */ new Set(["leads.delete", "leads.restore", "leads.status.import", "leads.export"]);
           var DIAL_LIMIT_PER_HOUR = 60;
@@ -1135,22 +1178,39 @@ Resources:
             }
             return { ok: true, updated: b.items.length };
           }
-          async function retryConfirmation(actor, b) {
+          async function retryNotification(actor, b) {
             if (!validId(b.id)) return { error: "Invalid enquiry." };
             const item = await readable(actor, b.id, "leads.notify");
             if (!item) return { error: "Enquiry not found.", status: 404 };
+            await audit(actor, "leads.companyNotification.requested", { leadId: b.id });
+            let status = "failed", messageId;
+            try {
+              messageId = await sendCompanyNotification(item);
+              status = "sent";
+            } catch (error) {
+              console.error("company notification rejected by SES", { name: error?.name });
+            }
+            await db.send(new UpdateCommand({ TableName: process.env.LEADS_TABLE, Key: { id: b.id }, UpdateExpression: "SET notificationStatus=:status, notificationUpdatedAt=:at" + (messageId ? ", notificationMessageId=:messageId" : ""), ExpressionAttributeValues: { ":status": status, ":at": (/* @__PURE__ */ new Date()).toISOString(), ...messageId ? { ":messageId": messageId } : {} }, ConditionExpression: "attribute_exists(id) AND attribute_not_exists(deletedAt)" }));
+            await audit(actor, "leads.companyNotification.completed", { leadId: b.id, status });
+            return { ok: true, notificationStatus: status, customerConfirmationStatus: item.customerConfirmationStatus || "pending" };
+          }
+          async function retryConfirmation(actor, b) {
+            if (!validId(b.id)) return { error: "Invalid enquiry." };
+            const item = await readable(actor, b.id, "leads.confirmation.retry");
+            if (!item) return { error: "Enquiry not found.", status: 404 };
             const out = { Item: item };
-            if (out.Item.customerConfirmationStatus === "sent") return { ok: true, notificationStatus: "not-configured", customerConfirmationStatus: "sent" };
+            if (out.Item.customerConfirmationStatus === "sent") return { ok: true, customerConfirmationStatus: "sent" };
             await audit(actor, "leads.confirmation.requested", { leadId: b.id });
             let status = "failed";
             try {
-              await sendSubmissionConfirmation(out.Item.email, out.Item.source === "contact" ? "contact" : "eligibility");
+              await sendSubmissionConfirmation(out.Item.email, out.Item.source === "contact" ? "contact" : "eligibility", out.Item.id);
               status = "sent";
-            } catch {
+            } catch (error) {
+              console.error("customer confirmation rejected by Resend", { name: error?.name });
             }
             await db.send(new UpdateCommand({ TableName: process.env.LEADS_TABLE, Key: { id: b.id }, UpdateExpression: "SET customerConfirmationStatus=:status, customerConfirmationUpdatedAt=:at", ExpressionAttributeValues: { ":status": status, ":at": (/* @__PURE__ */ new Date()).toISOString() }, ConditionExpression: "attribute_exists(id) AND attribute_not_exists(deletedAt)" }));
             await audit(actor, "leads.confirmation.completed", { leadId: b.id, status });
-            return { ok: true, notificationStatus: "not-configured", customerConfirmationStatus: status };
+            return { ok: true, customerConfirmationStatus: status };
           }
           async function stats(actor, countsOnly = false, b = {}) {
             let key, total = 0;
@@ -1202,7 +1262,8 @@ Resources:
               await audit(actor, "leads.export", { count: b.ids.length, leadIds: b.ids });
               return { ok: true };
             }
-            if (b.action === "leads.notify") return retryConfirmation(actor, b);
+            if (b.action === "leads.notify") return retryNotification(actor, b);
+            if (b.action === "leads.confirmation.retry") return retryConfirmation(actor, b);
             if (b.action === "audit.list") {
               const out = await db.send(new QueryCommand({ TableName: process.env.AUDIT_TABLE, IndexName: "AuditTimeline", KeyConditionExpression: "gsi1pk=:pk", ExpressionAttributeValues: { ":pk": "AUDIT" }, ScanIndexForward: false, Limit: 200 }));
               await audit(actor, "audit.list", { count: out.Items?.length || 0 });
@@ -1232,7 +1293,7 @@ Resources:
             }
             if (!actor) return response(401, origin, { error: "Your session has expired. Please sign in again." });
             try {
-              if (body.action === "audit.list" && actor.role !== "owner" || actor.role !== "owner" && !actor.features.includes(features[body.action]) || features[body.action] === "salesTeam" && actor.role !== "owner" && actor.role !== "manager" || hidesContact(actor) && (recordActions.has(body.action) || body.action === "leads.list" && body.deleted === true)) {
+              if (body.action === "audit.list" && actor.role !== "owner" || actor.role !== "owner" && !actor.features.includes(body.action === "leads.list" && body.deleted === true ? "recycle" : features[body.action]) || features[body.action] === "salesTeam" && actor.role !== "owner" && actor.role !== "manager" || hidesContact(actor) && (recordActions.has(body.action) || body.action === "leads.list" && body.deleted === true)) {
                 await audit(actor, "access.denied", { attempted: body.action });
                 return response(403, origin, { error: "You do not have access to that." });
               }
@@ -1243,6 +1304,126 @@ Resources:
               return response(503, origin, { error: "That did not work. Please try again." });
             }
           };
+
+  CompanyEmailEventLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/medville-phi-email-events
+      RetentionInDays: 7
+
+  CompanyEmailEventRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: medville-email-event-status
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:UpdateItem]
+                Resource: !GetAtt LeadsTable.Arn
+              - Effect: Allow
+                Action: [kms:Decrypt, kms:Encrypt, kms:GenerateDataKey]
+                Resource: !GetAtt PhiKey.Arn
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/medville-phi-email-events:*
+
+  CompanyEmailEventFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: CompanyEmailEventLogGroup
+    Properties:
+      FunctionName: medville-phi-email-events
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Role: !GetAtt CompanyEmailEventRole.Arn
+      Timeout: 10
+      MemorySize: 128
+      KmsKeyArn: !GetAtt PhiKey.Arn
+      LoggingConfig:
+        ApplicationLogLevel: INFO
+        SystemLogLevel: WARN
+        LogFormat: JSON
+      Environment:
+        Variables:
+          LEADS_TABLE: !Ref LeadsTable
+      Code:
+        ZipFile: |
+          "use strict";
+
+          // aws/src/notificationEvent.cjs
+          var { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+          var { DynamoDBDocumentClient, GetCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
+          var statuses = {
+            "Email Delivered": "delivered",
+            "Email Bounced": "bounced",
+            "Email Rejected": "rejected",
+            "Email Delivery Delayed": "delayed",
+            "Email Complaint Received": "complained"
+          };
+          var validId = (value) => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value);
+          function createHandler(db2) {
+            return async (event) => {
+              const status = statuses[event?.["detail-type"]];
+              const messageId = event?.detail?.mail?.messageId;
+              const id = event?.detail?.mail?.tags?.lead_id?.[0];
+              if (status && typeof messageId === "string") console.info("SES company notification event", { status, messageId });
+              if (!status || !validId(id) || typeof messageId !== "string" || messageId.length > 256) return;
+              const table = process.env.LEADS_TABLE;
+              if (!table) throw new Error("Lead table unavailable");
+              const { Item: lead } = await db2.send(new GetCommand({ TableName: table, Key: { id }, ConsistentRead: true }));
+              if (!lead || lead.deletedAt) return;
+              if (!lead.notificationMessageId) throw new Error("SES message ID not recorded yet");
+              if (lead.notificationMessageId !== messageId) return;
+              if (status === "delayed" && lead.notificationStatus === "delivered") return;
+              try {
+                await db2.send(new UpdateCommand({
+                  TableName: table,
+                  Key: { id },
+                  UpdateExpression: "SET notificationStatus=:status, notificationUpdatedAt=:at",
+                  ConditionExpression: "notificationMessageId=:messageId AND attribute_not_exists(deletedAt)",
+                  ExpressionAttributeValues: { ":status": status, ":at": event.time || (/* @__PURE__ */ new Date()).toISOString(), ":messageId": messageId }
+                }));
+              } catch (error) {
+                if (error?.name === "ConditionalCheckFailedException") return;
+                throw error;
+              }
+            };
+          }
+          var db = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
+          exports.handler = createHandler(db);
+          exports.createHandler = createHandler;
+
+  CompanyEmailEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: medville-phi-email-status
+      EventPattern:
+        source: [aws.ses]
+        detail-type: [Email Delivered, Email Bounced, Email Rejected, Email Delivery Delayed, Email Complaint Received]
+        detail:
+          mail:
+            tags:
+              "ses:configuration-set": [medville-phi-company]
+      Targets:
+        - Id: update-company-email-status
+          Arn: !GetAtt CompanyEmailEventFunction.Arn
+
+  CompanyEmailEventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref CompanyEmailEventFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt CompanyEmailEventRule.Arn
+
+Outputs:
 
   AlertsRole:
     Type: AWS::IAM::Role
@@ -1317,37 +1498,6 @@ Resources:
               "use strict";
               var { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
               var ses = new SESv2Client({});
-              function confirmationMessage(kind = "eligibility") {
-                const contact = kind === "contact";
-                const heading = contact ? "We received your message" : "We received your request";
-                const intro = contact ? "Your message was submitted successfully. Our team will review your question and contact you as soon as possible." : "Your information was submitted successfully. Our team will review your request and contact you as soon as possible.";
-                const note = contact ? "Please do not reply with medical records or sensitive health information." : "Submitting a request does not guarantee insurance coverage or qualification. Please do not reply with medical records or sensitive health information.";
-                return {
-                  subject: `${heading} | Medville Diabetes`,
-                  text: `${heading}
-
-          ${intro}
-
-          ${note}
-
-          If you did not submit this request, contact us at info@medvillediabetes.com or 800-394-3917.
-
-          Medville Diabetes
-          28863 Industry Dr
-          Valencia, CA 91355`,
-                  html: `<!doctype html><html><body style="margin:0;background:#eef8fb;font-family:Arial,sans-serif;color:#00293b"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef8fb"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #c7eaf2;border-radius:16px;overflow:hidden"><tr><td style="background:#00293b;padding:24px 30px"><div style="font-size:22px;font-weight:700;line-height:1.2;color:#ffffff">Medville <span style="color:#18bada">Diabetes</span></div></td></tr><tr><td style="padding:32px 30px"><p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0a6d8a">Submission received</p><h1 style="margin:0 0 18px;font-size:26px;line-height:1.25;color:#00293b">${heading}</h1><p style="margin:0 0 18px;font-size:16px;line-height:1.65;color:#264f5f">${intro}</p><div style="margin:0;padding:18px;border-radius:10px;background:#eef8fb"><p style="margin:0;font-size:14px;line-height:1.6;color:#456b79">${note}</p></div><p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#456b79">If you did not submit this request, contact us at <a href="mailto:info@medvillediabetes.com" style="color:#006b87">info@medvillediabetes.com</a> or <a href="tel:+18003943917" style="color:#006b87">800-394-3917</a>.</p></td></tr><tr><td style="border-top:1px solid #d6edf3;padding:18px 30px;font-size:12px;line-height:1.6;color:#5b7883">Medville Diabetes<br>28863 Industry Dr<br>Valencia, CA 91355</td></tr></table></td></tr></table></body></html>`
-                };
-              }
-              async function sendSubmissionConfirmation(email, kind = "eligibility") {
-                if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !process.env.SENDER_EMAIL) throw new Error("email unavailable");
-                const message = confirmationMessage(kind);
-                await ses.send(new SendEmailCommand({
-                  FromEmailAddress: `Medville Diabetes <${process.env.SENDER_EMAIL}>`,
-                  ReplyToAddresses: [process.env.SENDER_EMAIL],
-                  Destination: { ToAddresses: [email] },
-                  Content: { Simple: { Subject: { Data: message.subject, Charset: "UTF-8" }, Body: { Text: { Data: message.text, Charset: "UTF-8" }, Html: { Data: message.html, Charset: "UTF-8" } } } }
-                }));
-              }
               function plural(n, one, many) {
                 return `${n} ${n === 1 ? one : many}`;
               }
@@ -1380,7 +1530,7 @@ Resources:
                   Content: { Simple: { Subject: { Data: message.subject, Charset: "UTF-8" }, Body: { Text: { Data: message.text, Charset: "UTF-8" }, Html: { Data: message.html, Charset: "UTF-8" } } } }
                 }));
               }
-              module2.exports = { confirmationMessage, sendSubmissionConfirmation, staffAlertMessage, sendStaffAlert: sendStaffAlert2 };
+              module2.exports = { staffAlertMessage, sendStaffAlert: sendStaffAlert2 };
             }
           });
 
