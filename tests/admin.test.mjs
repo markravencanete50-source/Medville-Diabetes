@@ -112,3 +112,14 @@ test("password email is sent from the configured Medville address", async () => 
     else process.env.NOTIFICATION_FROM = previousFrom;
   }
 });
+test("newsletter access is granted separately and kept for the live campaign worker", async () => {
+  assert.deepEqual(normalizeFeatures(["newsletter", "blog"], "marketing"), ["newsletter", "blog"]);
+  assert.equal(normalizeFeatures(undefined, "marketing").includes("newsletter"), false);
+  assert.equal(normalizeFeatures(undefined, "owner").includes("newsletter"), true);
+  const { readFile } = await import("node:fs/promises");
+  const index = await readFile(new URL("../functions/admin/index.js", import.meta.url), "utf8");
+  for (const action of ["newsletter.list", "newsletter.send", "newsletter.resume"]) {
+    assert.match(index, new RegExp(`"${action.replace(".", "\\.")}": \\{ roles: ADMIN_ROLES, feature: "newsletter"`));
+  }
+  assert.match(index, /export const newsletterCampaignWorker = onDocumentWritten\(/);
+});

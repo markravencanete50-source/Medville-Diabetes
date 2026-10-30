@@ -186,25 +186,35 @@ The Firebase CLI sets a function's environment variables from
 them would remove the Cloudinary and email settings from the live function. Copy
 them from the live function first.
 
-### 3a. Check the live function matches the repository
+### 3a. Check the live function has not changed since it was captured
 
-The AWS stack was found to differ from Git on 2026-10-30. Check the Google
-function the same way before replacing it:
+On 2026-10-30 the live function was found to carry newsletter code that was
+not on `main`. It was saved on branch `codex/live-adminapi-20261030` (commit
+`5cbfb62`) and merged into this release, so deploying this branch keeps the
+newsletter routes and the `newsletterCampaignWorker` function. Check that
+nothing was deployed after that capture:
 
 ```bash
 BUCKET=$(gcloud functions describe adminApi --region=us-central1 --gen2 --format="value(buildConfig.source.storageSource.bucket)")
 OBJECT=$(gcloud functions describe adminApi --region=us-central1 --gen2 --format="value(buildConfig.source.storageSource.object)")
-rm -rf /tmp/live-adminapi /tmp/repo-main && mkdir -p /tmp/live-adminapi /tmp/repo-main
+rm -rf /tmp/live-adminapi /tmp/live-snapshot && mkdir -p /tmp/live-adminapi /tmp/live-snapshot
 gsutil cp "gs://$BUCKET/$OBJECT" /tmp/live-adminapi/source.zip
 (cd /tmp/live-adminapi && unzip -oq source.zip && rm source.zip)
-git archive origin/main functions/admin | tar -x -C /tmp/repo-main
-diff -r -x node_modules -x package-lock.json -x '.env*' /tmp/repo-main/functions/admin /tmp/live-adminapi
-# No output means the live function matches main.
+git fetch origin codex/live-adminapi-20261030
+git archive FETCH_HEAD functions/admin | tar -x -C /tmp/live-snapshot
+diff -r --strip-trailing-cr -x node_modules -x package-lock.json -x '.env*' /tmp/live-snapshot/functions/admin /tmp/live-adminapi
+# No output means the live function is still the captured snapshot.
 ```
 
-Compare every `.js` file in `/tmp/live-adminapi` with `functions/admin` on
-`main`. If any differs, stop: push the live files to a new branch (as was done
-for AWS in `live-aws-20261030`) so they can be merged into this release first.
+If Cloud Shell says no account is selected, run `gcloud auth login` and
+`gcloud config set project medville-diabetes` first.
+
+If there is no output, go on to 3b. If any `.js` file differs, stop: someone
+deployed again after the capture, and that source must be merged first.
+
+The only intended differences between the snapshot and this branch are the
+sales-team changes in `index.js` and `roles.js` (the `manager` role, names on
+invitations, and the `team.members` route).
 
 ### 3b. Save the live settings
 
@@ -218,7 +228,10 @@ one `NAME=value` per line, leaving out the ones Google adds itself
 (`FIREBASE_CONFIG`, `GCLOUD_PROJECT`, `EVENTARC_CLOUD_EVENT_SOURCE`,
 `LOG_EXECUTION_ID`). Expect at least `CLOUDINARY_CLOUD_NAME`,
 `CLOUDINARY_API_KEY` and `NOTIFICATION_FROM`, and possibly `ALLOWED_ORIGIN` and
-`PUBLIC_SITE_URL`. The file is ignored by Git. Never commit it. The two secrets,
+`PUBLIC_SITE_URL`. The Firebase deploy in 3c also redeploys
+`newsletterCampaignWorker` from the same file, so run the same `describe` for
+`newsletterCampaignWorker` and add any variable it has that `adminApi` does not.
+The file is ignored by Git. Never commit it. The two secrets,
 `RESEND_API_KEY` and `CLOUDINARY_API_SECRET`, stay in Secret Manager and are not
 copied.
 
@@ -244,7 +257,14 @@ cd ../..
 ```bash
 gcloud functions describe adminApi --region=us-central1 --gen2 \
   --format="value(state,serviceConfig.environmentVariables)"
-# Expect ACTIVE, with the same variables as in 3a.
+# Expect ACTIVE, with the same variables as in 3b.
+```
+
+Also check the newsletter worker is still there:
+
+```bash
+gcloud functions describe newsletterCampaignWorker --region=us-central1 --gen2 --format="value(state)"
+# Expect ACTIVE.
 ```
 
 Then sign in to `https://www.medvillediabetes.com/admin` as an Owner. The

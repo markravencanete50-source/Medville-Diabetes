@@ -173,10 +173,12 @@ export default function Team() {
 
   const toggleFeature = async (user: AdminUser, feature: AdminFeature) => {
     const current = user.features.filter((item): item is AdminFeature => ADMIN_FEATURES.includes(item as AdminFeature));
+    // Features this screen does not list, such as newsletter, are kept as they are.
+    const unlisted = user.features.filter((item) => !ADMIN_FEATURES.includes(item as AdminFeature));
     const next = current.includes(feature)
       ? current.filter((item) => item !== feature)
       : [...current, feature];
-    await setRole(user, user.role, next);
+    await setRole(user, user.role, [...next, ...unlisted]);
   };
 
   const removeUser = async (user: AdminUser) => {

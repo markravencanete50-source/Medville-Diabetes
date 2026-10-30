@@ -53,6 +53,17 @@ with a dashboard link and no answers; `aws/src/notificationEvent.cjs` records
 SES delivery, bounce, rejection, delay and complaint events on the lead. The
 live snapshot and the recovered files are on branch `live-aws-20261030`.
 
+Live newsletter, reconciled 2026-10-30: the Google `adminApi` was also found to
+hold code deployed outside Git: newsletter list, send and resume routes behind
+a separate `newsletter` feature, and a `newsletterCampaignWorker` function that
+emails a published article to blog subscribers through Resend in pages of 50.
+It is now in `functions/admin/newsletter-campaign.js` and
+`editorial-catalog.js`. Subscribers are blog readers, not leads, so no patient
+data is involved. The snapshot is on branch `codex/live-adminapi-20261030`. The
+dashboard has no newsletter screen yet. Owners hold the feature automatically;
+the Administrators screen cannot grant it to anyone else, but it keeps the
+feature on an account that already has it when other features are switched.
+
 Open compliance question: the live intake sends the customer's receipt through
 Resend (`aws/src/confirmation.cjs`, `ResendApiKey` stack parameter), not AWS
 SES. The receipt holds no answers, but Resend receives the patient's email

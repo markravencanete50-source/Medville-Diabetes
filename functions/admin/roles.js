@@ -1,7 +1,7 @@
 export const ADMIN_ROLES = ["owner", "marketing", "manager", "sales"];
 
 export const ADMIN_FEATURES = [
-  "overview", "leads", "salesTeam", "influencers", "products", "content", "blog",
+  "overview", "leads", "salesTeam", "influencers", "products", "content", "blog", "newsletter",
   "appearance", "faqs", "testimonials", "team", "audit",
 ];
 
