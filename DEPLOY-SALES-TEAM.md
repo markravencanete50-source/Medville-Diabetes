@@ -238,9 +238,11 @@ deploy, and differ between the two functions by design. Firebase refuses a
   `PORT`
 
 Every other variable belongs in `functions/admin/.env.medville-diabetes`, one
-`NAME=value` per line. Expect at least `CLOUDINARY_CLOUD_NAME`,
-`CLOUDINARY_API_KEY` and `NOTIFICATION_FROM`, and possibly `ALLOWED_ORIGIN` and
-`PUBLIC_SITE_URL`. The Firebase deploy in 3c redeploys both functions from this
+`NAME=value` per line. Copy only what is live; never invent a value. On
+2026-10-30 the live functions had no `CLOUDINARY_CLOUD_NAME` or
+`CLOUDINARY_API_KEY`, so picture uploads through the dashboard are not signed
+today and pasting a picture address is the route that works. Leaving them out
+keeps that unchanged. The Firebase deploy in 3c redeploys both functions from this
 one file, so take the union of the two lists. If a variable outside the list
 above is set on both functions with different values, stop and report it: one
 file cannot hold both.
@@ -254,6 +256,25 @@ copied.
 ```bash
 firebase deploy --only functions:admin --project medville-diabetes
 ```
+
+Check first that the Firebase CLI is signed in as the same person as `gcloud`,
+and that this person can deploy:
+
+```bash
+firebase login:list
+gcloud auth list
+```
+
+A `403` naming `serviceusage.services.use` means the signed-in account is not
+allowed to deploy to the project. Nothing has changed when this happens. Either
+sign in with an Owner account (`firebase login --reauth`), or have an Owner
+grant the deploying account these roles in Google Cloud console, IAM, and try
+again:
+
+- Service Usage Consumer
+- Cloud Functions Admin
+- Service Account User
+- Firebase Viewer (or Firebase Admin)
 
 If this function was last deployed with `gcloud` rather than Firebase, deploy
 the same way instead. A `gcloud` redeploy keeps the existing settings and
