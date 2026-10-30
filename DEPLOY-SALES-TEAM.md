@@ -41,9 +41,9 @@ gcloud config set project medville-diabetes
 ## 1. Prepare and test
 
 ```bash
-git fetch origin
-git checkout ccr-a5ce61e9-vm0grs
-git pull origin ccr-a5ce61e9-vm0grs
+# Works in any clone, including one that only tracks main.
+git fetch origin ccr-a5ce61e9-vm0grs
+git checkout -B ccr-a5ce61e9-vm0grs FETCH_HEAD
 
 npm ci
 npm ci --prefix functions
