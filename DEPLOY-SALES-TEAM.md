@@ -219,18 +219,32 @@ invitations, and the `team.members` route).
 ### 3b. Save the live settings
 
 ```bash
-gcloud functions describe adminApi --region=us-central1 --gen2 \
-  --format="yaml(serviceConfig.environmentVariables)"
+for FN in adminApi newsletterCampaignWorker; do
+  echo "== $FN"
+  gcloud functions describe "$FN" --region=us-central1 --gen2 \
+    --format="yaml(serviceConfig.environmentVariables)"
+done
 ```
 
-Create `functions/admin/.env.medville-diabetes` with every variable listed,
-one `NAME=value` per line, leaving out the ones Google adds itself
-(`FIREBASE_CONFIG`, `GCLOUD_PROJECT`, `EVENTARC_CLOUD_EVENT_SOURCE`,
-`LOG_EXECUTION_ID`). Expect at least `CLOUDINARY_CLOUD_NAME`,
+Some variables are set by Google or Firebase for each function on every
+deploy, and differ between the two functions by design. Firebase refuses a
+`.env` file that contains them, so leave them all out:
+
+- `FUNCTION_TARGET`, `FUNCTION_SIGNATURE_TYPE` (the entry point and trigger
+  type of each function)
+- `FIREBASE_CONFIG`, `GCLOUD_PROJECT`, `EVENTARC_CLOUD_EVENT_SOURCE`,
+  `LOG_EXECUTION_ID`
+- anything else that starts with `FIREBASE_`, `X_GOOGLE_`, `EXT_` or `K_`, and
+  `PORT`
+
+Every other variable belongs in `functions/admin/.env.medville-diabetes`, one
+`NAME=value` per line. Expect at least `CLOUDINARY_CLOUD_NAME`,
 `CLOUDINARY_API_KEY` and `NOTIFICATION_FROM`, and possibly `ALLOWED_ORIGIN` and
-`PUBLIC_SITE_URL`. The Firebase deploy in 3c also redeploys
-`newsletterCampaignWorker` from the same file, so run the same `describe` for
-`newsletterCampaignWorker` and add any variable it has that `adminApi` does not.
+`PUBLIC_SITE_URL`. The Firebase deploy in 3c redeploys both functions from this
+one file, so take the union of the two lists. If a variable outside the list
+above is set on both functions with different values, stop and report it: one
+file cannot hold both.
+
 The file is ignored by Git. Never commit it. The two secrets,
 `RESEND_API_KEY` and `CLOUDINARY_API_SECRET`, stay in Secret Manager and are not
 copied.
@@ -257,7 +271,8 @@ cd ../..
 ```bash
 gcloud functions describe adminApi --region=us-central1 --gen2 \
   --format="value(state,serviceConfig.environmentVariables)"
-# Expect ACTIVE, with the same variables as in 3b.
+# Expect ACTIVE, with the variables written to the file in 3b.
+# FUNCTION_TARGET and FUNCTION_SIGNATURE_TYPE come back on their own.
 ```
 
 Also check the newsletter worker is still there:
