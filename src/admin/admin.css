@@ -1887,3 +1887,149 @@
   .page-editor-show-edit .page-editor-preview { display: none; }
   .page-editor-show-preview .page-editor-controls { display: none; }
 }
+
+/* ---- sales team board ----
+   One card per person, so a manager reads a person at a glance instead of
+   scrolling a fourteen-column table sideways. Cards wrap from one column on a
+   phone to as many as fit. */
+.admin-team-board {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.admin-team-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--a-line);
+  border-radius: 16px;
+  background: var(--a-surface);
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.admin-team-card:hover { border-color: color-mix(in srgb, var(--a-brand) 45%, var(--a-line)); }
+
+.admin-team-head { display: flex; align-items: center; gap: 12px; }
+
+.admin-team-avatar {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--a-brand-soft);
+  color: var(--a-brand-text, var(--a-brand));
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.admin-team-name {
+  margin: 0;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-team-sub {
+  display: block;
+  margin: 0;
+  color: var(--a-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.admin-team-flags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.admin-team-figures {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-team-figures > div {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--a-surface-2);
+}
+
+.admin-team-figures dt { color: var(--a-text-muted); font-size: 11px; font-weight: 600; }
+.admin-team-figures dd { margin: 2px 0 0; font-family: var(--font-display); font-size: 20px; font-weight: 700; }
+
+.admin-team-rate { display: flex; flex-direction: column; gap: 6px; }
+
+.admin-team-rate-bar {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--a-surface-2);
+}
+
+.admin-team-rate-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--a-brand);
+  transition: width 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.admin-team-settings {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--a-line);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-team-setting-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--a-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-team-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.admin-team-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--a-line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.admin-team-choice:has(input:checked) {
+  border-color: var(--a-brand);
+  background: var(--a-brand-soft);
+}
+
+.admin-team-choice input { margin-top: 3px; accent-color: var(--a-brand); }
+.admin-team-choice strong { display: block; font-size: 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-team-card,
+  .admin-team-rate-bar > span { transition: none; }
+}

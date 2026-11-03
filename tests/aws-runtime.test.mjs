@@ -125,10 +125,10 @@ test('AWS assignment checks the sales team, then assigns and audits in one trans
 test('AWS only an owner or sales manager can assign leads or read the team summary',async()=>{for(const identity of [salesperson,{uid:'marketing',role:'marketing',features:['leads','salesTeam']}])for(const action of ['leads.assign','leads.team']){const r=runtime('Admin',{identity});assert.equal((await r.request({action,ids:[id],assignee:salesperson.uid})).statusCode,403);}});
 test('AWS team summary counts per salesperson without reading patient details',async()=>{
  const now=new Date().toISOString();
- const items=[{assignedTo:salesperson.uid,status:'new',createdAt:'2026-10-01T00:00:00.000Z'},{assignedTo:salesperson.uid,status:'qualified',lastDialAt:now,dialCount:2},{status:'new',createdAt:'2026-10-02T00:00:00.000Z'}];
+ const items=[{assignedTo:salesperson.uid,status:'new',createdAt:'2026-10-01T00:00:00.000Z'},{assignedTo:salesperson.uid,status:'qualified',lastDialAt:now,dialCount:5,callsLogged:2,lastCallLoggedAt:now},{assignedTo:salesperson.uid,status:'no-answer',lastDialAt:now,dialCount:1,callOpenBy:salesperson.uid},{status:'new',createdAt:'2026-10-02T00:00:00.000Z'}];
  const r=runtime('Admin',{identity:manager,send:async c=>c.kind==='QueryCommand'?{Items:items}:{}});const out=await r.request({action:'leads.team'});
  assert.equal(out.statusCode,200);assert.doesNotMatch(writes(r)[0].input.ProjectionExpression,/phone|email|firstName|lastName/);
- const p=out.json.people[salesperson.uid];assert.equal(p.assigned,2);assert.equal(p.open,1);assert.equal(p.new,1);assert.equal(p.qualified,1);assert.equal(p.calls,2);assert.equal(p.calledToday,1);
+ const p=out.json.people[salesperson.uid];assert.equal(p.assigned,3);assert.equal(p.open,2);assert.equal(p.new,1);assert.equal(p.qualified,1);assert.equal(p.calls,2);assert.equal(p.calledToday,1);assert.equal(p.notLogged,1);
  assert.equal(out.json.unassigned.new,1);assert.equal(writes(r).at(-1).input.Item.action,'leads.team');
 });
 
@@ -309,4 +309,48 @@ test('AWS alert list reports the rota separately and the alert job never mistake
  const r=runtime('Admin',{identity:manager,send:async c=>c.kind==='ScanCommand'?{Items:[rota,{uid:salesperson.uid,enabled:true}]}:{}});
  const out=await r.request({action:'alerts.list'});assert.deepEqual(out.json.autoAssign,['amy-person','zed-person']);assert.deepEqual(out.json.alerts.map(x=>x.uid),[salesperson.uid]);
  const job=alertsRun([rota],[]);assert.deepEqual(plain(await job.handler({})),{sent:0});assert.equal(job.emails.length,0);
+});
+// A call counts only once the person who made it records the outcome.
+test('AWS dial opens a call that only the caller closes, by changing the stage',async()=>{
+ const d=runtime('Admin',{identity:salesperson,send:async c=>c.kind==='GetCommand'?{Item:assigned}:{}});await d.request({action:'leads.dial',id});
+ const dialUpdate=d.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems[1].Update;assert.match(dialUpdate.UpdateExpression,/callOpenBy=:uid, callOpenAt=:at/);
+ const open={...assigned,gsi1sk:`2026-10-01T00:00:00.000Z#${id}`,callOpenBy:salesperson.uid};
+ const logged=runtime('Admin',{identity:salesperson,send:async c=>c.kind==='GetCommand'?{Item:open}:{}});
+ assert.equal((await logged.request({action:'leads.update',id,status:'no-answer'})).statusCode,200);
+ const tx=logged.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems,u=tx[0].Update;
+ assert.match(u.UpdateExpression,/ REMOVE .*callOpenBy, callOpenAt ADD /);assert.match(u.UpdateExpression,/ ADD callsLogged :oneCall$/);assert.match(u.ConditionExpression,/callOpenBy=:caller/);assert.equal(tx[1].Put.Item.callLogged,true);
+ const note=runtime('Admin',{identity:salesperson,send:async c=>c.kind==='GetCommand'?{Item:open}:{}});await note.request({action:'leads.update',id,note:'Synthetic note.'});
+ assert.doesNotMatch(note.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems[0].Update.UpdateExpression,/callsLogged/);
+ const other=runtime('Admin',{identity:manager,send:async c=>c.kind==='GetCommand'?{Item:open}:{}});await other.request({action:'leads.update',id,status:'no-answer'});
+ assert.doesNotMatch(other.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems[0].Update.UpdateExpression,/callsLogged/);
+ const shown=runtime('Admin',{identity:salesperson,send:async c=>c.kind==='GetCommand'?{Item:open}:{}});const lead=(await shown.request({action:'leads.get',id})).json.lead;assert.equal(lead.callPending,true);assert.equal(lead.callsLogged,0);
+});
+function reshuffleRun(leadsByOwner,{members=[{uid:'amy-person',role:'sales',disabled:false},{uid:'kim-person',role:'sales',disabled:false},{uid:salesperson.uid,role:'sales',disabled:false}],fail=false}={}){
+ const fetchImpl=async(url,options)=>({ok:true,status:200,json:async()=>JSON.parse(options.body).action==='team.members'?{members}:{actor:manager}});
+ return runtime('Admin',{identity:manager,fetchImpl,send:async c=>{
+  if(c.kind==='QueryCommand')return{Items:c.input.IndexName==='AssigneeTimeline'?leadsByOwner[c.input.ExpressionAttributeValues[':pk']]||[]:leadsByOwner.unassigned||[]};
+  if(c.kind==='TransactWriteCommand'&&fail)throw{CancellationReasons:[{Code:'ConditionalCheckFailed'}]};
+  return{};
+ }});
+}
+const leadRow=(n,owner,status='new')=>({id:`10000000-0000-4000-8000-${String(n).padStart(12,'0')}`,gsi1sk:`2026-10-0${n}T00:00:00.000Z#x`,status,...(owner?{assignedTo:owner}:{})});
+test('AWS reshuffle shares open leads out evenly, oldest first, never back to the same person',async()=>{
+ const r=reshuffleRun({[salesperson.uid]:[leadRow(3,salesperson.uid),leadRow(1,salesperson.uid),leadRow(2,salesperson.uid,'qualified')],unassigned:[leadRow(4,null),leadRow(5,null,'callback')]});
+ const out=await r.request({action:'leads.reshuffle',from:[salesperson.uid,'unassigned'],to:['amy-person','kim-person',salesperson.uid],scope:'new'});
+ assert.equal(out.statusCode,200);assert.equal(out.json.moved,3);
+ const tx=r.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems;
+ const updates=tx.filter(x=>x.Update).map(x=>x.Update);
+ assert.deepEqual(plain(updates.map(u=>u.Key.id.slice(-1))),['1','3','4']);
+ for(const u of updates){assert.match(u.UpdateExpression,/workSk=:work REMOVE callOpenBy, callOpenAt/);assert.match(u.ConditionExpression,/#status=:status/);}
+ assert.notEqual(updates[0].ExpressionAttributeValues[':to'],salesperson.uid);assert.notEqual(updates[1].ExpressionAttributeValues[':to'],salesperson.uid);
+ assert.deepEqual(plain(out.json.given),{'amy-person':1,'kim-person':1,[salesperson.uid]:1});
+ const audit=tx.find(x=>x.Put?.TableName==='audit').Put.Item;assert.equal(audit.action,'leads.reshuffle');assert.equal(audit.count,3);
+ assert.deepEqual(plain(tx.filter(x=>x.Put?.TableName==='history').map(x=>x.Put.Item.source)),['reshuffle','reshuffle','reshuffle']);
+ const all=reshuffleRun({unassigned:[leadRow(4,null),leadRow(5,null,'callback')]});assert.equal((await all.request({action:'leads.reshuffle',from:['unassigned'],to:['amy-person'],scope:'open'})).json.moved,2);
+});
+test('AWS reshuffle is manager or owner only, checks the receivers, and reports a lead that moved meanwhile',async()=>{
+ for(const identity of [salesperson,{uid:'marketing',role:'marketing',features:['leads','salesTeam']}]){const r=runtime('Admin',{identity});assert.equal((await r.request({action:'leads.reshuffle',from:['unassigned'],to:['amy-person']})).statusCode,403);}
+ const away=reshuffleRun({unassigned:[leadRow(4,null)]},{members:[{uid:'amy-person',role:'sales',disabled:true}]});assert.equal((await away.request({action:'leads.reshuffle',from:['unassigned'],to:['amy-person']})).statusCode,400);assert.equal(writes(away).length,0);
+ for(const body of [{from:[],to:['amy-person']},{from:['unassigned'],to:[]},{from:['bad id!'],to:['amy-person']},{from:['unassigned','unassigned'],to:['amy-person']}])assert.equal((await reshuffleRun({}).request({action:'leads.reshuffle',...body})).statusCode,400);
+ const raced=reshuffleRun({unassigned:[leadRow(4,null)]},{fail:true});const out=await raced.request({action:'leads.reshuffle',from:['unassigned'],to:['amy-person']});assert.equal(out.statusCode,200);assert.equal(out.json.moved,0);assert.equal(out.json.skipped,1);
 });

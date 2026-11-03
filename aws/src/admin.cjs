@@ -18,7 +18,7 @@ const CALLBACK_MAX_DAYS=90;
 const validId=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(x);
 const validUid=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(x);
 const validDay=x=>x===undefined||x===''||(typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(`${x}T00:00:00Z`)));
-const features={'leads.history':'leads','alerts.list':'salesTeam','alerts.set':'salesTeam','assign.auto.set':'salesTeam','leads.assign':'salesTeam','leads.team':'salesTeam','leads.dial':'leads','leads.list':'leads','leads.get':'leads','leads.update':'leads','leads.delete':'leads','leads.restore':'recycle','leads.confirmation.retry':'leads','leads.status.import':'leads','leads.stats':'overview','leads.export':'leads','leads.notify':'leads','audit.list':'audit','influencers.counts':'influencers'};
+const features={'leads.history':'leads','alerts.list':'salesTeam','alerts.set':'salesTeam','assign.auto.set':'salesTeam','leads.assign':'salesTeam','leads.reshuffle':'salesTeam','leads.team':'salesTeam','leads.dial':'leads','leads.list':'leads','leads.get':'leads','leads.update':'leads','leads.delete':'leads','leads.restore':'recycle','leads.confirmation.retry':'leads','leads.status.import':'leads','leads.stats':'overview','leads.export':'leads','leads.notify':'leads','audit.list':'audit','influencers.counts':'influencers'};
 // Sales staff work leads without holding the list. Both sales roles see contact
 // details masked and dial through leads.dial; a salesperson reaches only the leads
 // assigned to them. Export, delete, restore and bulk import stay with Owner and Marketing.
@@ -39,7 +39,7 @@ async function authenticate(header,origin){
 function response(statusCode,origin,body){return{statusCode,headers:{'Cache-Control':'no-store','Content-Type':'application/json','X-Content-Type-Options':'nosniff',Vary:'Origin',...(origin?{'Access-Control-Allow-Origin':origin}:{})},body:JSON.stringify(body)}}
 function lead(item,actor){
  const fields=['id','firstName','lastName','email','phone','city','state','injectsInsulinDaily','productInterest','productName','referralCode','source','message','notificationStatus','customerConfirmationStatus','status','note','assignedTo','statusReason','callbackAt'];
- const out={...Object.fromEntries(fields.map(k=>[k,typeof item[k]==='string'?item[k]:'' ])),createdAt:typeof item.createdAt==='string'?item.createdAt:null,deletedAt:typeof item.deletedAt==='string'?item.deletedAt:null,purgeAt:typeof item.purgeAt==='number'?item.purgeAt:null,lastDialAt:typeof item.lastDialAt==='string'?item.lastDialAt:null,dialCount:typeof item.dialCount==='number'?item.dialCount:0,contactHidden:false};
+ const out={...Object.fromEntries(fields.map(k=>[k,typeof item[k]==='string'?item[k]:'' ])),createdAt:typeof item.createdAt==='string'?item.createdAt:null,deletedAt:typeof item.deletedAt==='string'?item.deletedAt:null,purgeAt:typeof item.purgeAt==='number'?item.purgeAt:null,lastDialAt:typeof item.lastDialAt==='string'?item.lastDialAt:null,dialCount:typeof item.dialCount==='number'?item.dialCount:0,callsLogged:typeof item.callsLogged==='number'?item.callsLogged:0,callPending:validUid(item.callOpenBy)&&item.callOpenBy===actor.uid,contactHidden:false};
  if(hidesContact(actor)){out.email='';out.phone='';out.contactHidden=true;}
  return out;
 }
@@ -62,7 +62,7 @@ const ROSTER='#auto-assign';
 const workKey=(status,gsi1sk)=>`${doneStatuses.has(status)?'done':'open'}#${gsi1sk}`;
 // The fixed arrival keys of several leads, read before writing their work keys.
 async function arrivalKeys(ids){
- const items=await Promise.all(ids.map(id=>db.send(new GetCommand({TableName:process.env.LEADS_TABLE,Key:{id},ProjectionExpression:'id,gsi1sk,#status,deletedAt',ExpressionAttributeNames:{'#status':'status'},ConsistentRead:true})).then(out=>out.Item)));
+ const items=await Promise.all(ids.map(id=>db.send(new GetCommand({TableName:process.env.LEADS_TABLE,Key:{id},ProjectionExpression:'id,gsi1sk,#status,deletedAt,callOpenBy',ExpressionAttributeNames:{'#status':'status'},ConsistentRead:true})).then(out=>out.Item)));
  return items.every(x=>x&&!x.deletedAt&&typeof x.gsi1sk==='string')?items:null;
 }
 const next=value=>value?Buffer.from(JSON.stringify(value)).toString('base64url'):null;
@@ -149,11 +149,63 @@ async function assignLeads(actor,b,ctx){
  const current=to?await arrivalKeys(b.ids):null;
  if(to&&!current)return{error:'One of those enquiries is missing or in the Recycle Bin.'};
  // The stage must still be the one the work key was taken from, or the assignment is refused.
- const TransactItems=b.ids.map((id,i)=>({Update:{TableName:process.env.LEADS_TABLE,Key:{id},...(to?{UpdateExpression:'SET assignedTo=:to, assignedAt=:at, assignedBy=:by, workSk=:work',ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt) AND #status=:status',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':to':to,':at':at,':by':actor.uid,':work':workKey(current[i].status,current[i].gsi1sk),':status':current[i].status}}:{UpdateExpression:'REMOVE assignedTo, assignedAt, assignedBy, workSk',ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt)'})}}));
+ const TransactItems=b.ids.map((id,i)=>({Update:{TableName:process.env.LEADS_TABLE,Key:{id},...(to?{UpdateExpression:'SET assignedTo=:to, assignedAt=:at, assignedBy=:by, workSk=:work REMOVE callOpenBy, callOpenAt',ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt) AND #status=:status',ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':to':to,':at':at,':by':actor.uid,':work':workKey(current[i].status,current[i].gsi1sk),':status':current[i].status}}:{UpdateExpression:'REMOVE assignedTo, assignedAt, assignedBy, workSk, callOpenBy, callOpenAt',ConditionExpression:'attribute_exists(id) AND attribute_not_exists(deletedAt)'})}}));
  TransactItems.push({Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.assign',{count:b.ids.length,leadIds:b.ids,assignee:to||'none'}),ConditionExpression:'attribute_not_exists(id)'}});
  TransactItems.push(...b.ids.map(id=>historyItem(actor,id,'assign',{assignee:to})));
  try{await db.send(new TransactWriteCommand({TransactItems}));}catch(e){if(e?.CancellationReasons?.some(x=>x?.Code==='ConditionalCheckFailed'))return{error:'One of those enquiries changed or moved to the Recycle Bin. Refresh and try again.'};throw e;}
  return{ok:true,assigned:b.ids.length};
+}
+/*
+ Reshuffle: the Sales manager takes the open enquiries of some people (or the ones
+ nobody holds yet) and shares them out again, evenly and oldest first, among the
+ people he chooses. Each lead goes to whoever has received the fewest so far,
+ never back to the person it came from. Finished leads, including Do not contact,
+ are never moved. Every move is conditional on the lead still being where it was
+ read, and writes its history entry and one audit entry per batch.
+*/
+const RESHUFFLE_LIMIT=225;
+async function openLeadsOf(from,scope){
+ const items=[];
+ for(const who of from){
+  let key;
+  do{
+   const input=who==='unassigned'
+    ?{TableName:process.env.LEADS_TABLE,IndexName:'LeadTimeline',KeyConditionExpression:'gsi1pk=:pk',FilterExpression:'attribute_not_exists(assignedTo) AND attribute_not_exists(deletedAt)',ExpressionAttributeValues:{':pk':'LEAD'}}
+    :{TableName:process.env.LEADS_TABLE,IndexName:'AssigneeTimeline',KeyConditionExpression:'assignedTo=:pk AND begins_with(workSk,:open)',FilterExpression:'attribute_not_exists(deletedAt)',ExpressionAttributeValues:{':pk':who,':open':'open#'}};
+   const out=await db.send(new QueryCommand({...input,ProjectionExpression:'id,gsi1sk,#status,assignedTo',ExpressionAttributeNames:{'#status':'status'},ExclusiveStartKey:key}));
+   items.push(...(out.Items||[]).map(x=>({...x,from:who})));
+   key=out.LastEvaluatedKey;
+  }while(key);
+ }
+ return items.filter(x=>validId(x.id)&&typeof x.gsi1sk==='string'&&!doneStatuses.has(x.status)&&(scope==='open'||x.status==='new')).sort((a,b)=>a.gsi1sk.localeCompare(b.gsi1sk));
+}
+async function reshuffleLeads(actor,b,ctx){
+ const from=Array.isArray(b.from)?b.from:[],to=Array.isArray(b.to)?b.to:[];
+ const scope=b.scope==='open'?'open':'new';
+ if(!from.length||from.length>25||new Set(from).size!==from.length||!from.every(x=>x==='unassigned'||validUid(x)))return{error:'Choose whose enquiries to share out.'};
+ if(!to.length||to.length>25||new Set(to).size!==to.length||!to.every(validUid))return{error:'Choose who should receive them.'};
+ const team=await teamMembers(ctx.header,ctx.origin);
+ if(!to.every(uid=>team.some(m=>m.uid===uid&&!m.disabled)))return{error:'Choose active members of the sales team.'};
+ const found=await openLeadsOf(from,scope);
+ const batch=found.slice(0,RESHUFFLE_LIMIT);
+ const given=Object.fromEntries(to.map(uid=>[uid,0]));
+ const moves=[];
+ for(const item of batch){
+  const options=to.filter(uid=>uid!==item.assignedTo);
+  if(!options.length)continue;
+  const target=options.reduce((best,uid)=>given[uid]<given[best]?uid:best,options[0]);
+  given[target]++;moves.push({...item,to:target});
+ }
+ let moved=0,skipped=0;
+ for(let start=0;start<moves.length;start+=BATCH_LIMIT){
+  const part=moves.slice(start,start+BATCH_LIMIT),at=new Date().toISOString();
+  const TransactItems=part.map(x=>({Update:{TableName:process.env.LEADS_TABLE,Key:{id:x.id},UpdateExpression:'SET assignedTo=:to, assignedAt=:at, assignedBy=:by, workSk=:work REMOVE callOpenBy, callOpenAt',ConditionExpression:`attribute_exists(id) AND attribute_not_exists(deletedAt) AND #status=:status AND ${x.assignedTo?'assignedTo=:was':'attribute_not_exists(assignedTo)'}`,ExpressionAttributeNames:{'#status':'status'},ExpressionAttributeValues:{':to':x.to,':at':at,':by':actor.uid,':work':workKey(x.status,x.gsi1sk),':status':x.status,...(x.assignedTo?{':was':x.assignedTo}:{})}}}));
+  TransactItems.push({Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.reshuffle',{count:part.length,leadIds:part.map(x=>x.id),scope}),ConditionExpression:'attribute_not_exists(id)'}});
+  TransactItems.push(...part.map(x=>historyItem(actor,x.id,'assign',{assignee:x.to,source:'reshuffle'})));
+  try{await db.send(new TransactWriteCommand({TransactItems}));moved+=part.length;}
+  catch(e){if(e?.CancellationReasons?.some(x=>x?.Code==='ConditionalCheckFailed')){skipped+=part.length;continue;}throw e;}
+ }
+ return{ok:true,moved,skipped,remaining:Math.max(0,found.length-batch.length),given};
 }
 function dialable(phone){
  const digits=typeof phone==='string'?phone.replace(/\D/g,''):'';
@@ -174,7 +226,7 @@ async function dialLead(actor,b){
  try{
   await db.send(new TransactWriteCommand({TransactItems:[
    {Update:{TableName:process.env.RATE_TABLE,Key:{id:`dial#${actor.uid}#${Math.floor(now/3600000)}`},UpdateExpression:'SET expiresAt=:expiry ADD #count :one',ConditionExpression:'attribute_not_exists(#count) OR #count < :limit',ExpressionAttributeNames:{'#count':'count'},ExpressionAttributeValues:{':expiry':Math.floor(now/1000)+7200,':one':1,':limit':DIAL_LIMIT_PER_HOUR}}},
-   {Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:'SET lastDialAt=:at, lastDialBy=:uid ADD dialCount :one',ConditionExpression:`attribute_exists(id) AND attribute_not_exists(deletedAt)${own?' AND assignedTo=:uid':''}`,ExpressionAttributeValues:{':at':at,':uid':actor.uid,':one':1}}},
+   {Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:'SET lastDialAt=:at, lastDialBy=:uid, callOpenBy=:uid, callOpenAt=:at ADD dialCount :one',ConditionExpression:`attribute_exists(id) AND attribute_not_exists(deletedAt)${own?' AND assignedTo=:uid':''}`,ExpressionAttributeValues:{':at':at,':uid':actor.uid,':one':1}}},
    {Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.dial',{leadId:b.id}),ConditionExpression:'attribute_not_exists(id)'}},
    historyItem(actor,b.id,'call'),
   ]}));
@@ -231,18 +283,21 @@ async function setAlerts(actor,b,ctx){
 async function teamSummary(actor){
  let key,total=0;const people={},unassigned={open:0,new:0,oldestNewAt:null};const today=pacificDay.format(new Date()),nowIso=new Date().toISOString();
  do{
-  const out=await db.send(new QueryCommand({TableName:process.env.LEADS_TABLE,IndexName:'LeadTimeline',KeyConditionExpression:'gsi1pk=:pk',ExpressionAttributeValues:{':pk':'LEAD'},ProjectionExpression:'assignedTo,#status,lastDialAt,createdAt,dialCount,callbackAt',ExpressionAttributeNames:{'#status':'status'},FilterExpression:'attribute_not_exists(deletedAt)',ExclusiveStartKey:key}));
+  const out=await db.send(new QueryCommand({TableName:process.env.LEADS_TABLE,IndexName:'LeadTimeline',KeyConditionExpression:'gsi1pk=:pk',ExpressionAttributeValues:{':pk':'LEAD'},ProjectionExpression:'assignedTo,#status,lastDialAt,createdAt,callsLogged,lastCallLoggedAt,callOpenBy,callbackAt',ExpressionAttributeNames:{'#status':'status'},FilterExpression:'attribute_not_exists(deletedAt)',ExclusiveStartKey:key}));
   for(const x of out.Items||[]){
    total++;
    const open=!doneStatuses.has(x.status),fresh=x.status==='new',created=typeof x.createdAt==='string'?x.createdAt:null;
    if(!validUid(x.assignedTo)){if(open)unassigned.open++;if(fresh){unassigned.new++;if(created&&(!unassigned.oldestNewAt||created<unassigned.oldestNewAt))unassigned.oldestNewAt=created;}continue;}
-   const p=people[x.assignedTo]||(people[x.assignedTo]={assigned:0,open:0,new:0,callbacksDue:0,calledToday:0,calls:0,qualified:0,notQualified:0,closed:0,oldestNewAt:null,lastDialAt:null});
+   const p=people[x.assignedTo]||(people[x.assignedTo]={assigned:0,open:0,new:0,callbacksDue:0,calledToday:0,calls:0,notLogged:0,qualified:0,notQualified:0,closed:0,oldestNewAt:null,lastDialAt:null});
    p.assigned++;if(open)p.open++;
    if(fresh){p.new++;if(created&&(!p.oldestNewAt||created<p.oldestNewAt))p.oldestNewAt=created;}
    if(qualifiedStatuses.has(x.status))p.qualified++;if(notQualifiedStatuses.has(x.status))p.notQualified++;if(x.status==='closed')p.closed++;
    if(x.status==='callback'&&typeof x.callbackAt==='string'&&x.callbackAt<=nowIso)p.callbacksDue++;
-   if(typeof x.dialCount==='number')p.calls+=x.dialCount;
-   if(typeof x.lastDialAt==='string'){if(pacificDay.format(new Date(x.lastDialAt))===today)p.calledToday++;if(!p.lastDialAt||x.lastDialAt>p.lastDialAt)p.lastDialAt=x.lastDialAt;}
+   // Calls count only when the outcome was recorded; a dial with no update yet is shown apart.
+   if(typeof x.callsLogged==='number')p.calls+=x.callsLogged;
+   if(validUid(x.callOpenBy))p.notLogged++;
+   if(typeof x.lastCallLoggedAt==='string'&&pacificDay.format(new Date(x.lastCallLoggedAt))===today)p.calledToday++;
+   if(typeof x.lastDialAt==='string'&&(!p.lastDialAt||x.lastDialAt>p.lastDialAt))p.lastDialAt=x.lastDialAt;
   }
   key=out.LastEvaluatedKey;
  }while(key);
@@ -269,13 +324,21 @@ function stageChange(b,names,values,sets,removes){
 }
 async function updateLead(actor,b){
  if(!validId(b.id))return{error:'Invalid enquiry.'};
- const names={},values={},sets=[],removes=[],conditions=['attribute_exists(id)','attribute_not_exists(deletedAt)'];
+ const names={},values={},sets=[],removes=[],adds=[],conditions=['attribute_exists(id)','attribute_not_exists(deletedAt)'];
  if(b.status!==undefined){
   const problem=stageChange(b,names,values,sets,removes);if(problem)return{error:problem};
   const [item]=await arrivalKeys([b.id])||[];
   if(!item)return{error:'Enquiry not found.',status:404};
   names['#workSk']='workSk';values[':workSk']=workKey(b.status,item.gsi1sk);sets.push('#workSk=:workSk');
   if(actor.role!=='owner'){conditions.push('#status<>:dnc');values[':dnc']=DO_NOT_CONTACT;}
+  /* A call counts only once the person who made it records how it went. Their
+     next stage change closes the open call and adds one to the lead's logged
+     calls; the condition stops two saves from counting the same call twice. */
+  if(item.callOpenBy===actor.uid){
+   values[':caller']=actor.uid;values[':loggedAt']=new Date().toISOString();values[':oneCall']=1;
+   sets.push('lastCallLoggedAt=:loggedAt','lastCallLoggedBy=:caller');removes.push('callOpenBy','callOpenAt');adds.push('callsLogged :oneCall');
+   conditions.push('callOpenBy=:caller');
+  }
  }
  if(b.note!==undefined){if(typeof b.note!=='string'||b.note.length>2000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(b.note))return{error:'Invalid note.'};names['#note']='note';values[':note']=b.note;sets.push('#note=:note');}
  if(!sets.length)return{error:'Invalid update.'};
@@ -285,7 +348,7 @@ async function updateLead(actor,b){
   const history=[];
   if(b.status!==undefined)history.push(historyItem(actor,b.id,'stage',{status:b.status,...(values[':statusReason']?{statusReason:values[':statusReason']}:{}),...(values[':callbackAt']?{callbackAt:values[':callbackAt']}:{})}));
   if(b.note!==undefined)history.push(historyItem(actor,b.id,'note'));
-  await db.send(new TransactWriteCommand({TransactItems:[{Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:`SET ${sets.join(', ')}${removes.length?` REMOVE ${removes.join(', ')}`:''}`,ExpressionAttributeNames:names,ExpressionAttributeValues:values,ConditionExpression:conditions.join(' AND '),ReturnValuesOnConditionCheckFailure:'ALL_OLD'}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.update',{leadId:b.id,fields:Object.keys(names).map(x=>names[x]),...(b.status!==undefined?{stage:b.status}:{})}),ConditionExpression:'attribute_not_exists(id)'}},...history]}));
+  await db.send(new TransactWriteCommand({TransactItems:[{Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:`SET ${sets.join(', ')}${removes.length?` REMOVE ${removes.join(', ')}`:''}${adds.length?` ADD ${adds.join(', ')}`:''}`,ExpressionAttributeNames:names,ExpressionAttributeValues:values,ConditionExpression:conditions.join(' AND '),ReturnValuesOnConditionCheckFailure:'ALL_OLD'}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.update',{leadId:b.id,fields:Object.keys(names).map(x=>names[x]),...(b.status!==undefined?{stage:b.status}:{}),...(adds.length?{callLogged:true}:{})}),ConditionExpression:'attribute_not_exists(id)'}},...history]}));
  }catch(e){
   const reason=e?.CancellationReasons?.[0];
   if(reason?.Code==='ConditionalCheckFailed'){
@@ -365,6 +428,7 @@ async function stats(actor,countsOnly=false,b={}){
 async function route(actor,b,ctx){
  if(b.action==='leads.list')return listLeads(actor,b);
  if(b.action==='leads.assign')return assignLeads(actor,b,ctx);
+ if(b.action==='leads.reshuffle')return reshuffleLeads(actor,b,ctx);
  if(b.action==='leads.dial')return dialLead(actor,b);
  if(b.action==='leads.history')return leadHistory(actor,b);
  if(b.action==='leads.team')return teamSummary(actor);

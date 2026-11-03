@@ -27,6 +27,7 @@ const LEAD_ENDPOINT = (import.meta.env.VITE_AWS_ADMIN_API as string | undefined)
 const AWS_ACTIONS = new Set([
   "leads.list",
   "leads.assign",
+  "leads.reshuffle",
   "leads.dial",
   "leads.history",
   "leads.team",
@@ -80,6 +81,10 @@ export interface Lead {
   callbackAt: string;
   lastDialAt: string | null;
   dialCount: number;
+  /* Calls whose outcome was recorded. A call counts only when the person who
+     made it then changes the stage; until then it is the viewer's open call. */
+  callsLogged: number;
+  callPending: boolean;
   /* True for the sales roles: phone and email arrive empty and the number is
      released one call at a time through dialLead. */
   contactHidden: boolean;
@@ -210,6 +215,7 @@ export interface SalesPersonFigures {
   callbacksDue: number;
   calledToday: number;
   calls: number;
+  notLogged: number;
   qualified: number;
   notQualified: number;
   closed: number;
@@ -286,6 +292,7 @@ const CACHE_INVALIDATING_ACTIONS = new Set([
   "leads.notify",
   "leads.confirmation.retry",
   "leads.assign",
+  "leads.reshuffle",
   "alerts.set",
   "assign.auto.set",
   "influencers.create",
@@ -424,6 +431,10 @@ export const adminApi = {
 
   /* Email alerts are counts only. The address is taken from the person's
      account on the server, never from here. */
+  /* Shares the open enquiries of some people, or the unassigned ones, out
+     again among the chosen people. "new" moves only those not called yet. */
+  reshuffleLeads: (getToken: GetToken, from: string[], to: string[], scope: "new" | "open") =>
+    call<{ ok: true; moved: number; skipped: number; remaining: number; given: Record<string, number> }>(getToken, "leads.reshuffle", { from, to, scope }),
   /* The list also names who is on the automatic assignment rota. */
   listAlerts: (getToken: GetToken) => call<{ alerts: StaffAlert[]; autoAssign?: string[] }>(getToken, "alerts.list"),
   setAlerts: (getToken: GetToken, uid: string, enabled: boolean) =>
