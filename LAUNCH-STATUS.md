@@ -84,6 +84,14 @@ should receive alerts must be verified in SES one by one, or the dashboard shows
 "On, last email failed" for that person. A run that finds nothing reads lead
 stages and times but sends nothing and writes no audit entry.
 
+Automatic assignment (2026-11-03): new enquiries go in turn to the people an
+Owner or the Sales manager puts on the rota (Sales team screen, Gets new
+enquiries). The intake function writes the assignment, its history entry and an
+audit entry with the enquiry itself. The rota holds staff ids only. With nobody
+on it, enquiries arrive unassigned as before. Deployment steps are in
+`DEPLOY-AUTO-ASSIGN.md`: an AWS stack update, then the website merge. No Google
+change.
+
 AWS obtains only public product names/availability and campaign active state from
 `intakeConfig`. It never forwards form answers. Campaign conversion counts are
 computed within AWS and returned only to administrators with the influencer feature.

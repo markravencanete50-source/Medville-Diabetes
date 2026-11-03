@@ -18,7 +18,7 @@ const CALLBACK_MAX_DAYS=90;
 const validId=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(x);
 const validUid=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(x);
 const validDay=x=>x===undefined||x===''||(typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(`${x}T00:00:00Z`)));
-const features={'leads.history':'leads','alerts.list':'salesTeam','alerts.set':'salesTeam','leads.assign':'salesTeam','leads.team':'salesTeam','leads.dial':'leads','leads.list':'leads','leads.get':'leads','leads.update':'leads','leads.delete':'leads','leads.restore':'recycle','leads.confirmation.retry':'leads','leads.status.import':'leads','leads.stats':'overview','leads.export':'leads','leads.notify':'leads','audit.list':'audit','influencers.counts':'influencers'};
+const features={'leads.history':'leads','alerts.list':'salesTeam','alerts.set':'salesTeam','assign.auto.set':'salesTeam','leads.assign':'salesTeam','leads.team':'salesTeam','leads.dial':'leads','leads.list':'leads','leads.get':'leads','leads.update':'leads','leads.delete':'leads','leads.restore':'recycle','leads.confirmation.retry':'leads','leads.status.import':'leads','leads.stats':'overview','leads.export':'leads','leads.notify':'leads','audit.list':'audit','influencers.counts':'influencers'};
 // Sales staff work leads without holding the list. Both sales roles see contact
 // details masked and dial through leads.dial; a salesperson reaches only the leads
 // assigned to them. Export, delete, restore and bulk import stay with Owner and Marketing.
@@ -57,6 +57,8 @@ function cursor(value,key){
  salesperson's list shows open work first. Written whenever a lead is assigned or changes
  stage, from the stage being written and the lead's fixed arrival key.
 */
+// The staff settings key that holds the automatic assignment rota. It cannot be a staff id.
+const ROSTER='#auto-assign';
 const workKey=(status,gsi1sk)=>`${doneStatuses.has(status)?'done':'open'}#${gsi1sk}`;
 // The fixed arrival keys of several leads, read before writing their work keys.
 async function arrivalKeys(ids){
@@ -194,7 +196,21 @@ const pacificDay=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles'
 async function listAlerts(){
  const items=[];let key;
  do{const out=await db.send(new ScanCommand({TableName:process.env.ALERTS_TABLE,ExclusiveStartKey:key}));items.push(...(out.Items||[]));key=out.LastEvaluatedKey;}while(key);
- return{alerts:items.filter(x=>validUid(x.uid)).map(x=>({uid:x.uid,enabled:x.enabled===true,lastStatus:typeof x.lastStatus==='string'?x.lastStatus:'',lastSentAt:typeof x.lastSentAt==='string'?x.lastSentAt:null}))};
+ const roster=items.find(x=>x.uid===ROSTER);
+ return{alerts:items.filter(x=>validUid(x.uid)).map(x=>({uid:x.uid,enabled:x.enabled===true,lastStatus:typeof x.lastStatus==='string'?x.lastStatus:'',lastSentAt:typeof x.lastSentAt==='string'?x.lastSentAt:null})),autoAssign:[...(roster?.members||[])].filter(validUid).sort()};
+}
+/*
+ Automatic assignment. The people who receive new enquiries in turn are one set of staff
+ ids, kept in the staff settings table under a key no staff id can take. The intake
+ function reads it and hands each new enquiry to the next person on it, so nobody has to
+ assign by hand. Joining is checked against the identity service; leaving never is.
+*/
+async function setAutoAssign(actor,b,ctx){
+ if(!validUid(b.uid)||typeof b.enabled!=='boolean')return{error:'Invalid assignment setting.'};
+ if(b.enabled){const member=(await teamMembers(ctx.header,ctx.origin)).find(m=>m.uid===b.uid);if(!member||member.disabled)return{error:'Choose an active member of the sales team.'};}
+ await db.send(new UpdateCommand({TableName:process.env.ALERTS_TABLE,Key:{uid:ROSTER},UpdateExpression:`${b.enabled?'ADD':'DELETE'} members :who SET updatedAt=:at, updatedBy=:by`,ExpressionAttributeValues:{':who':new Set([b.uid]),':at':new Date().toISOString(),':by':actor.uid}}));
+ await audit(actor,'assign.auto.set',{targetUid:b.uid,enabled:b.enabled});
+ return{ok:true};
 }
 async function setAlerts(actor,b,ctx){
  if(!validUid(b.uid)||typeof b.enabled!=='boolean')return{error:'Invalid alert setting.'};
@@ -354,6 +370,7 @@ async function route(actor,b,ctx){
  if(b.action==='leads.team')return teamSummary(actor);
  if(b.action==='alerts.list')return listAlerts();
  if(b.action==='alerts.set')return setAlerts(actor,b,ctx);
+ if(b.action==='assign.auto.set')return setAutoAssign(actor,b,ctx);
  if(b.action==='leads.get')return getLead(actor,b);
  if(b.action==='leads.update')return updateLead(actor,b);
  if(b.action==='leads.delete')return deleteLead(actor,b);

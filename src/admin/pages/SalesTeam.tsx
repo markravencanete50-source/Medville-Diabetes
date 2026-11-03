@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { BellOff, BellRing, RefreshCw, UserCheck } from "lucide-react";
+import { BellOff, BellRing, RefreshCw, Repeat, UserCheck, UserMinus } from "lucide-react";
 import {
   adminApi,
   AdminApiError,
@@ -49,6 +49,8 @@ export default function SalesTeam() {
   const [summary, setSummary] = useState<SalesTeamSummary | null>(null);
   const [alerts, setAlerts] = useState<Map<string, StaffAlert>>(() => new Map());
   const [alertBusy, setAlertBusy] = useState("");
+  const [rota, setRota] = useState<Set<string>>(() => new Set());
+  const [rotaBusy, setRotaBusy] = useState("");
   const [error, setError] = useState("");
   const connected = isAdminApiConfigured();
   const myUid = session!.user.uid;
@@ -60,11 +62,12 @@ export default function SalesTeam() {
       const [team, figures, alertList] = await Promise.all([
         adminApi.salesTeam(getToken),
         adminApi.salesTeamSummary(getToken),
-        adminApi.listAlerts(getToken).catch(() => ({ alerts: [] as StaffAlert[] })),
+        adminApi.listAlerts(getToken).catch(() => ({ alerts: [] as StaffAlert[], autoAssign: [] as string[] })),
       ]);
       setMembers(team.members);
       setSummary(figures);
       setAlerts(new Map(alertList.alerts.map((item) => [item.uid, item])));
+      setRota(new Set(alertList.autoAssign ?? []));
     } catch (problem) {
       setMembers([]);
       setSummary({ people: {}, unassigned: { open: 0, new: 0, oldestNewAt: null }, total: 0 });
@@ -106,6 +109,23 @@ export default function SalesTeam() {
     }
   };
 
+  const toggleRota = async (uid: string, enabled: boolean) => {
+    setRotaBusy(uid);
+    try {
+      await adminApi.setAutoAssign(getToken, uid, enabled);
+      setRota((current) => {
+        const next = new Set(current);
+        if (enabled) next.add(uid); else next.delete(uid);
+        return next;
+      });
+      toast(enabled ? "They will now receive new enquiries in turn." : "They will no longer receive new enquiries automatically.");
+    } catch (problem) {
+      toast(problem instanceof AdminApiError ? problem.message : "The assignment setting did not save.", "danger");
+    } finally {
+      setRotaBusy("");
+    }
+  };
+
   if (!connected) {
     return <>{header}<Card><Empty>Figures will appear here once the enquiry service is connected.</Empty></Card></>;
   }
@@ -123,6 +143,12 @@ export default function SalesTeam() {
       .filter(([uid]) => !known.has(uid))
       .map(([uid, figures]) => ({ uid, member: undefined, figures })),
   ].sort((a, b) => b.figures.open - a.figures.open);
+
+  /* Anyone on the rota who is no longer an active member would still be sent
+     enquiries they cannot open, so they are shown with a way to take them off. */
+  const active = new Set(members.filter((member) => !member.disabled).map((member) => member.uid));
+  const strayOnRota = [...rota].filter((uid) => !active.has(uid));
+  const onRota = [...rota].filter((uid) => active.has(uid)).length;
 
   const totals = rows.reduce((sum, row) => ({
     open: sum.open + row.figures.open,
@@ -161,6 +187,23 @@ export default function SalesTeam() {
         </div>
       </Card>
 
+      <Card className="mb-4">
+        <p className="admin-label">Automatic assignment</p>
+        <p className="admin-help" style={{ marginTop: 2 }}>
+          {onRota
+            ? `On. Each new enquiry goes to the next person in turn, out of ${onRota} ${onRota === 1 ? "person" : "people"}. They get it the moment it arrives.`
+            : "Off. New enquiries wait until someone assigns them. Turn on Gets new enquiries for each person below to share them out in turn."}
+        </p>
+        {strayOnRota.map((uid) => (
+          <div key={uid} className="mt-3 flex flex-wrap items-center gap-3">
+            <Badge tone="warn">{memberName(members.find((member) => member.uid === uid))} is disabled or has left the team</Badge>
+            <button type="button" className="admin-btn admin-btn-sm admin-btn-quiet" disabled={rotaBusy === uid} onClick={() => void toggleRota(uid, false)}>
+              <UserMinus size={14} aria-hidden="true" /> {rotaBusy === uid ? "Saving" : "Stop sending them enquiries"}
+            </button>
+          </div>
+        ))}
+      </Card>
+
       {summary.unassigned.new > 0 && (
         <div className="mb-4">
           <Banner tone="warn">
@@ -182,6 +225,7 @@ export default function SalesTeam() {
               <thead>
                 <tr>
                   <th scope="col">Salesperson</th>
+                  <th scope="col">Gets new enquiries</th>
                   <th scope="col">Email alerts</th>
                   <th scope="col">Open</th>
                   <th scope="col">Not called yet</th>
@@ -206,6 +250,16 @@ export default function SalesTeam() {
                       {member?.name && member.email && (
                         <span className="block text-[12px]" style={{ color: "var(--a-text-muted)" }}>{member.email}</span>
                       )}
+                    </td>
+                    <td data-label="Gets new enquiries">
+                      {member && !member.disabled ? (
+                        <RotaToggle
+                          enabled={rota.has(uid)}
+                          busy={rotaBusy === uid}
+                          label={memberName(member)}
+                          onToggle={(next) => void toggleRota(uid, next)}
+                        />
+                      ) : ""}
                     </td>
                     <td data-label="Email alerts">
                       {member && !member.disabled ? (
@@ -251,8 +305,9 @@ export default function SalesTeam() {
         )}
       </Card>
       <p className="admin-help mt-3">
-        A call is counted when the salesperson presses Call. Opening this screen is recorded in the
-        access log. Alerts are checked every two minutes and go to the email address on each
+        A call is counted when the salesperson presses Call. An automatic assignment is recorded in
+        the enquiry history and the access log, like one made by hand. Opening this screen is
+        recorded in the access log. Alerts are checked every two minutes and go to the email address on each
         person&apos;s dashboard account.
       </p>
     </>
@@ -271,6 +326,25 @@ function AlertToggle({ enabled, busy, label, onToggle }: { enabled: boolean; bus
       {enabled ? <BellOff size={14} aria-hidden="true" /> : <BellRing size={14} aria-hidden="true" />}
       {busy ? "Saving" : enabled ? "Turn off" : "Turn on"}
     </button>
+  );
+}
+
+function RotaToggle({ enabled, busy, label, onToggle }: { enabled: boolean; busy: boolean; label: string; onToggle: (next: boolean) => void }) {
+  return (
+    <>
+      <button
+        type="button"
+        className={`admin-btn admin-btn-sm ${enabled ? "admin-btn-quiet" : "admin-btn-primary"}`}
+        disabled={busy}
+        aria-pressed={enabled}
+        aria-label={`${enabled ? "Stop giving" : "Give"} new enquiries to ${label} automatically`}
+        onClick={() => onToggle(!enabled)}
+      >
+        {enabled ? <UserMinus size={14} aria-hidden="true" /> : <Repeat size={14} aria-hidden="true" />}
+        {busy ? "Saving" : enabled ? "Turn off" : "Turn on"}
+      </button>
+      <span className="mt-1 block text-[12px]" style={{ color: "var(--a-text-muted)" }}>{enabled ? "In the rota" : "Off"}</span>
+    </>
   );
 }
 

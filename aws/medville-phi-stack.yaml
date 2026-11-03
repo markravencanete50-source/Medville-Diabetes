@@ -293,6 +293,17 @@ Resources:
               - Effect: Allow
                 Action: [dynamodb:UpdateItem]
                 Resource: !GetAtt RateTable.Arn
+              # Automatic assignment: the one rota item in the staff settings table, and the
+              # history and access-log entries written with an automatically assigned lead.
+              - Effect: Allow
+                Action: [dynamodb:UpdateItem]
+                Resource: !GetAtt AlertsTable.Arn
+                Condition:
+                  ForAllValues:StringEquals:
+                    dynamodb:LeadingKeys: ["#auto-assign"]
+              - Effect: Allow
+                Action: [dynamodb:PutItem]
+                Resource: [!GetAtt HistoryTable.Arn, !GetAtt AuditTable.Arn]
               - Effect: Allow
                 Action: [kms:Decrypt, kms:Encrypt, kms:GenerateDataKey]
                 Resource: !GetAtt PhiKey.Arn
@@ -325,6 +336,9 @@ Resources:
           INTAKE_ENABLED: !Ref IntakeEnabled
           LEADS_TABLE: !Ref LeadsTable
           RATE_TABLE: !Ref RateTable
+          ALERTS_TABLE: !Ref AlertsTable
+          HISTORY_TABLE: !Ref HistoryTable
+          AUDIT_TABLE: !Ref AuditTable
           INTAKE_CONFIG_URL: https://us-central1-medville-diabetes.cloudfunctions.net/intakeConfig
           SENDER_EMAIL: !Ref SenderEmail
       Code:
@@ -570,7 +584,7 @@ Resources:
           // aws/src/intake.cjs
           var { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
           var { DynamoDBDocumentClient, GetCommand, TransactWriteCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
-          var { createHash } = require("node:crypto");
+          var { createHash, randomUUID } = require("node:crypto");
           var { validateSubmission: validateSubmission2 } = (init_intake(), __toCommonJS(intake_exports));
           var { validateContactSubmission: validateContactSubmission2 } = (init_contact(), __toCommonJS(contact_exports));
           var { sendSubmissionConfirmation } = require_confirmation();
@@ -625,6 +639,27 @@ Resources:
             }
             return status === "sent";
           }
+          var ROSTER = "#auto-assign";
+          var validUid = (x) => typeof x === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(x);
+          async function nextAssignee() {
+            if (!process.env.ALERTS_TABLE) return "";
+            try {
+              const out = await db.send(new UpdateCommand({ TableName: process.env.ALERTS_TABLE, Key: { uid: ROSTER }, UpdateExpression: "ADD #turn :one", ConditionExpression: "attribute_exists(members)", ExpressionAttributeNames: { "#turn": "turn" }, ExpressionAttributeValues: { ":one": 1 }, ReturnValues: "ALL_NEW" }));
+              const members = [...out.Attributes?.members || []].filter(validUid).sort();
+              const turn = Number(out.Attributes?.turn);
+              return members.length && Number.isSafeInteger(turn) && turn > 0 ? members[(turn - 1) % members.length] : "";
+            } catch (error) {
+              if (error?.name !== "ConditionalCheckFailedException") console.error("automatic assignment unavailable", { name: error?.name });
+              return "";
+            }
+          }
+          function autoAssignWrites(lead) {
+            const at = lead.assignedAt, id = randomUUID(), system = { actorUid: "system", actorEmail: "", actorRole: "system" };
+            return [
+              { Put: { TableName: process.env.HISTORY_TABLE, Item: { leadId: lead.id, sk: `${at}#${id}`, at, action: "assign", ...system, assignee: lead.assignedTo, source: "auto" }, ConditionExpression: "attribute_not_exists(leadId)" } },
+              { Put: { TableName: process.env.AUDIT_TABLE, Item: { id, gsi1pk: "AUDIT", gsi1sk: `${at}#${id}`, ...system, action: "leads.autoAssign", leadId: lead.id, assignee: lead.assignedTo, at }, ConditionExpression: "attribute_not_exists(id)" } }
+            ];
+          }
           exports.handler = async (event) => {
             const origin = event.headers?.origin || event.headers?.Origin || "";
             if (!origins.has(origin)) return response(403, "", { error: "Request not allowed." });
@@ -660,8 +695,10 @@ Resources:
               const { submissionId, ...answers } = data;
               const referralCode = catalog.referralActive === true ? data.referralCode : "";
               const lead = { id: submissionId, ...answers, referralCode, source: contact ? "contact" : referralCode ? "influencer" : "qualify", status: "new", note: "", message: contact ? data.message : "", productInterest: contact ? "" : data.productInterest, productName: contact ? "General question" : catalog.product.name, injectsInsulinDaily: contact ? "" : data.injectsInsulinDaily, consentVersion: "2026-08-26", consentAt: createdAt, createdAt, notificationStatus: "pending", customerConfirmationStatus: "pending", requestHash: fingerprint(data), gsi1pk: "LEAD", gsi1sk: `${createdAt}#${submissionId}` };
+              const assignee = await nextAssignee();
+              if (assignee) Object.assign(lead, { assignedTo: assignee, assignedAt: createdAt, assignedBy: "system", workSk: `open#${lead.gsi1sk}` });
               try {
-                await db.send(new TransactWriteCommand({ TransactItems: [{ Put: { TableName: process.env.LEADS_TABLE, Item: lead, ConditionExpression: "attribute_not_exists(id)" } }, { Update: { TableName: process.env.RATE_TABLE, Key: { id: rateId }, UpdateExpression: "SET expiresAt=:expiry ADD #count :one", ConditionExpression: "attribute_not_exists(#count) OR #count < :limit", ExpressionAttributeNames: { "#count": "count" }, ExpressionAttributeValues: { ":expiry": Math.floor(now / 1e3) + 7200, ":one": 1, ":limit": 100 } } }, { Update: { TableName: process.env.RATE_TABLE, Key: { id: minuteRateId }, UpdateExpression: "SET expiresAt=:expiry ADD #count :one", ConditionExpression: "attribute_not_exists(#count) OR #count < :limit", ExpressionAttributeNames: { "#count": "count" }, ExpressionAttributeValues: { ":expiry": Math.floor(now / 1e3) + 120, ":one": 1, ":limit": 3 } } }] }));
+                await db.send(new TransactWriteCommand({ TransactItems: [{ Put: { TableName: process.env.LEADS_TABLE, Item: lead, ConditionExpression: "attribute_not_exists(id)" } }, { Update: { TableName: process.env.RATE_TABLE, Key: { id: rateId }, UpdateExpression: "SET expiresAt=:expiry ADD #count :one", ConditionExpression: "attribute_not_exists(#count) OR #count < :limit", ExpressionAttributeNames: { "#count": "count" }, ExpressionAttributeValues: { ":expiry": Math.floor(now / 1e3) + 7200, ":one": 1, ":limit": 100 } } }, { Update: { TableName: process.env.RATE_TABLE, Key: { id: minuteRateId }, UpdateExpression: "SET expiresAt=:expiry ADD #count :one", ConditionExpression: "attribute_not_exists(#count) OR #count < :limit", ExpressionAttributeNames: { "#count": "count" }, ExpressionAttributeValues: { ":expiry": Math.floor(now / 1e3) + 120, ":one": 1, ":limit": 3 } } }, ...assignee ? autoAssignWrites(lead) : []] }));
                 await notifyCompany(lead);
                 return receipt(200, await confirm(lead));
               } catch (error) {
@@ -799,7 +836,7 @@ Resources:
           var validId = (x) => typeof x === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(x);
           var validUid = (x) => typeof x === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(x);
           var validDay = (x) => x === void 0 || x === "" || typeof x === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x) && !Number.isNaN(Date.parse(`${x}T00:00:00Z`));
-          var features = { "leads.history": "leads", "alerts.list": "salesTeam", "alerts.set": "salesTeam", "leads.assign": "salesTeam", "leads.team": "salesTeam", "leads.dial": "leads", "leads.list": "leads", "leads.get": "leads", "leads.update": "leads", "leads.delete": "leads", "leads.restore": "recycle", "leads.confirmation.retry": "leads", "leads.status.import": "leads", "leads.stats": "overview", "leads.export": "leads", "leads.notify": "leads", "audit.list": "audit", "influencers.counts": "influencers" };
+          var features = { "leads.history": "leads", "alerts.list": "salesTeam", "alerts.set": "salesTeam", "assign.auto.set": "salesTeam", "leads.assign": "salesTeam", "leads.team": "salesTeam", "leads.dial": "leads", "leads.list": "leads", "leads.get": "leads", "leads.update": "leads", "leads.delete": "leads", "leads.restore": "recycle", "leads.confirmation.retry": "leads", "leads.status.import": "leads", "leads.stats": "overview", "leads.export": "leads", "leads.notify": "leads", "audit.list": "audit", "influencers.counts": "influencers" };
           var hidesContact = (actor) => actor.role === "sales" || actor.role === "manager";
           var recordActions = /* @__PURE__ */ new Set(["leads.delete", "leads.restore", "leads.status.import", "leads.export"]);
           var DIAL_LIMIT_PER_HOUR = 60;
@@ -832,6 +869,7 @@ Resources:
             if (!out || !validId(out.id) || out[key.name] !== key.value || typeof out[key.sort] !== "string" || out[key.sort].length > 110 || Object.keys(out).length !== 3) throw new Error("invalid cursor");
             return out;
           }
+          var ROSTER = "#auto-assign";
           var workKey = (status, gsi1sk) => `${doneStatuses.has(status) ? "done" : "open"}#${gsi1sk}`;
           async function arrivalKeys(ids) {
             const items = await Promise.all(ids.map((id) => db.send(new GetCommand({ TableName: process.env.LEADS_TABLE, Key: { id }, ProjectionExpression: "id,gsi1sk,#status,deletedAt", ExpressionAttributeNames: { "#status": "status" }, ConsistentRead: true })).then((out) => out.Item)));
@@ -1011,7 +1049,18 @@ Resources:
               items.push(...out.Items || []);
               key = out.LastEvaluatedKey;
             } while (key);
-            return { alerts: items.filter((x) => validUid(x.uid)).map((x) => ({ uid: x.uid, enabled: x.enabled === true, lastStatus: typeof x.lastStatus === "string" ? x.lastStatus : "", lastSentAt: typeof x.lastSentAt === "string" ? x.lastSentAt : null })) };
+            const roster = items.find((x) => x.uid === ROSTER);
+            return { alerts: items.filter((x) => validUid(x.uid)).map((x) => ({ uid: x.uid, enabled: x.enabled === true, lastStatus: typeof x.lastStatus === "string" ? x.lastStatus : "", lastSentAt: typeof x.lastSentAt === "string" ? x.lastSentAt : null })), autoAssign: [...roster?.members || []].filter(validUid).sort() };
+          }
+          async function setAutoAssign(actor, b, ctx) {
+            if (!validUid(b.uid) || typeof b.enabled !== "boolean") return { error: "Invalid assignment setting." };
+            if (b.enabled) {
+              const member = (await teamMembers(ctx.header, ctx.origin)).find((m) => m.uid === b.uid);
+              if (!member || member.disabled) return { error: "Choose an active member of the sales team." };
+            }
+            await db.send(new UpdateCommand({ TableName: process.env.ALERTS_TABLE, Key: { uid: ROSTER }, UpdateExpression: `${b.enabled ? "ADD" : "DELETE"} members :who SET updatedAt=:at, updatedBy=:by`, ExpressionAttributeValues: { ":who": /* @__PURE__ */ new Set([b.uid]), ":at": (/* @__PURE__ */ new Date()).toISOString(), ":by": actor.uid } }));
+            await audit(actor, "assign.auto.set", { targetUid: b.uid, enabled: b.enabled });
+            return { ok: true };
           }
           async function setAlerts(actor, b, ctx) {
             if (!validUid(b.uid) || typeof b.enabled !== "boolean") return { error: "Invalid alert setting." };
@@ -1250,6 +1299,7 @@ Resources:
             if (b.action === "leads.team") return teamSummary(actor);
             if (b.action === "alerts.list") return listAlerts();
             if (b.action === "alerts.set") return setAlerts(actor, b, ctx);
+            if (b.action === "assign.auto.set") return setAutoAssign(actor, b, ctx);
             if (b.action === "leads.get") return getLead(actor, b);
             if (b.action === "leads.update") return updateLead(actor, b);
             if (b.action === "leads.delete") return deleteLead(actor, b);

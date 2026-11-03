@@ -24,6 +24,9 @@ function runtime(name,{send=name==='Admin'?async c=>c.kind==='GetCommand'?stored
 const writes=r=>r.calls.filter(c=>c.kind!=='GetCommand');
 // Values made inside the sandbox, as plain data for deep comparison.
 const plain=x=>JSON.parse(JSON.stringify(x));
+// The one transaction an intake request writes, and the later status updates to the lead.
+const intakeTx=r=>r.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems;
+const leadUpdates=r=>r.calls.filter(c=>c.kind==='UpdateCommand'&&c.input.TableName==='leads');
 const valid={submissionId:id,firstName:'Synthetic',lastName:'Verification',email:'synthetic@example.com',phone:'2025550142',city:'Test City',state:'California',injectsInsulinDaily:'no',productInterest:'dexcom-g7',consentAccepted:true,website:''};
 for(const action of ['leads.list','leads.get','leads.update','leads.delete','leads.restore','leads.status.import','leads.stats','leads.export','leads.notify','audit.list','influencers.counts'])test(`AWS denies ungranted feature: ${action}`,async()=>{
  const r=runtime('Admin',{identity:{uid:'test',role:'marketing',features:['blog']}});assert.equal((await r.request({action,id})).statusCode,403);assert.equal(r.calls.length,1);assert.equal(r.calls[0].input.TableName,'audit');
@@ -53,12 +56,12 @@ test('AWS export records exact record IDs and rejects duplicates',async()=>{cons
 test('AWS invalid page cursor is rejected',async()=>{assert.equal((await runtime('Admin').request({action:'leads.list',cursor:Buffer.from(JSON.stringify({id,gsi1pk:'OTHER',gsi1sk:'x'})).toString('base64url')})).statusCode,400)});
 test('AWS list returns cursor and audits every returned ID',async()=>{const r=runtime('Admin',{send:async c=>c.kind==='QueryCommand'?{Items:[{id}],LastEvaluatedKey:{id,gsi1pk:'LEAD',gsi1sk:'x'}}:{}});const out=await r.request({action:'leads.list'});assert.equal(out.statusCode,200);assert.ok(out.json.nextCursor);assert.deepEqual([...r.calls[1].input.Item.leadIds],[id]);});
 test('AWS intake validates unknown/prototype products through catalog, not object inheritance',async()=>{const r=runtime('Intake',{fetchImpl:async()=>({ok:true,json:async()=>({product:null})})});assert.equal((await r.request({...valid,productInterest:'constructor'})).statusCode,400);assert.equal(r.calls.length,1);});
-test('AWS intake only sends public catalog fields to Google and saves validated referral',async()=>{const r=runtime('Intake');assert.equal((await r.request({...valid,referralCode:'fake-campaign'})).statusCode,200);assert.deepEqual(JSON.parse(r.fetches[0].options.body),{productInterest:'dexcom-g7',referralCode:'fake-campaign'});const lead=r.calls[1].input.TransactItems[0].Put.Item;assert.equal(lead.referralCode,'');assert.equal(lead.source,'qualify');assert.equal(lead.notificationStatus,'pending');});
+test('AWS intake only sends public catalog fields to Google and saves validated referral',async()=>{const r=runtime('Intake');assert.equal((await r.request({...valid,referralCode:'fake-campaign'})).statusCode,200);assert.deepEqual(JSON.parse(r.fetches[0].options.body),{productInterest:'dexcom-g7',referralCode:'fake-campaign'});const lead=intakeTx(r)[0].Put.Item;assert.equal(lead.referralCode,'');assert.equal(lead.source,'qualify');assert.equal(lead.notificationStatus,'pending');});
 test('AWS intake tells the company inbox without answers and sends the customer receipt through Resend',async()=>{const r=runtime('Intake',{emailSend:async()=>({MessageId:'synthetic-company-message'})});const out=await r.request(valid);assert.equal(out.statusCode,200);assert.equal(out.json.confirmationSent,true);
  assert.equal(r.emails.length,1);const company=r.emails[0].input;assert.deepEqual([...company.Destination.ToAddresses],['info@medvillediabetes.com']);assert.equal(company.ConfigurationSetName,'medville-phi-company');const companyText=JSON.stringify(company);for(const field of [valid.firstName,valid.lastName,valid.email,valid.phone,valid.city])assert.equal(companyText.includes(field),false);
  const receipt=r.fetches.find(f=>f.url==='https://api.resend.com/emails');const body=JSON.parse(receipt.options.body);assert.deepEqual(body.to,[valid.email]);assert.equal(body.from,'Medville Diabetes <info@medvillediabetes.com>');assert.match(body.text,/contact you as soon as possible/);assert.equal(body.text.includes(valid.firstName),false);assert.doesNotMatch(body.text,/[\u2014*]/);assert.equal(receipt.options.headers['Idempotency-Key'],`medville-confirmation-${id}`);
- const updates=r.calls.filter(c=>c.kind==='UpdateCommand').map(c=>c.input);assert.equal(updates[0].ExpressionAttributeValues[':messageId'],'synthetic-company-message');assert.equal(updates[1].ExpressionAttributeValues[':status'],'sent');});
-test('AWS intake still acknowledges the saved request when email delivery fails',async()=>{const r=runtime('Intake',{emailSend:async()=>{throw Error('mail unavailable')},fetchImpl:async url=>url.includes('resend')?{ok:false,status:500}:{ok:true,status:200,json:async()=>({product:{name:'Dexcom G7'},referralActive:false})}});const out=await r.request(valid);assert.equal(out.statusCode,200);assert.equal(out.json.confirmationSent,false);const updates=r.calls.filter(c=>c.kind==='UpdateCommand').map(c=>c.input.ExpressionAttributeValues[':status']);assert.deepEqual(plain(updates),['failed','failed']);});
+ const updates=leadUpdates(r).map(c=>c.input);assert.equal(updates[0].ExpressionAttributeValues[':messageId'],'synthetic-company-message');assert.equal(updates[1].ExpressionAttributeValues[':status'],'sent');});
+test('AWS intake still acknowledges the saved request when email delivery fails',async()=>{const r=runtime('Intake',{emailSend:async()=>{throw Error('mail unavailable')},fetchImpl:async url=>url.includes('resend')?{ok:false,status:500}:{ok:true,status:200,json:async()=>({product:{name:'Dexcom G7'},referralActive:false})}});const out=await r.request(valid);assert.equal(out.statusCode,200);assert.equal(out.json.confirmationSent,false);const updates=leadUpdates(r).map(c=>c.input.ExpressionAttributeValues[':status']);assert.deepEqual(plain(updates),['failed','failed']);});
 test('AWS intake allows three submissions a minute from one address and says when to retry',async()=>{const r=runtime('Intake',{send:async c=>{if(c.kind==='TransactWriteCommand')throw{CancellationReasons:[{Code:'None'},{Code:'None'},{Code:'ConditionalCheckFailed'}]};return{}}});const out=await r.request(valid);assert.equal(out.statusCode,429);assert.ok(Number(out.headers['Retry-After'])<=60);const tx=r.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems;assert.equal(tx[1].Update.ExpressionAttributeValues[':limit'],100);assert.equal(tx[2].Update.ExpressionAttributeValues[':limit'],3);});
 test('Company email events update only the matching message and never downgrade a delivery',async()=>{
  const base={'detail-type':'Email Delivered',time:'2026-10-30T00:00:00.000Z',detail:{mail:{messageId:'m-1',tags:{lead_id:[id]}}}};
@@ -71,7 +74,7 @@ test('Company email events update only the matching message and never downgrade 
 test('AWS identical retries return success without a second write; changed answers conflict',async()=>{const existing={...valid,id,referralCode:""};const r=runtime('Intake',{send:async()=>({Item:existing})});assert.equal((await r.request(valid)).statusCode,200);assert.equal((await r.request({...valid,firstName:'Changed'})).statusCode,409);assert.equal(r.calls.every(c=>c.kind==='GetCommand'),true);});
 test('AWS database read errors produce generic JSON rather than an unhandled exception',async()=>{const r=runtime('Intake',{send:async()=>{throw Error('private data')}});const out=await r.request(valid);assert.equal(out.statusCode,503);assert.equal(out.body.includes('private data'),false);});
 test('AWS rate condition and transaction infrastructure failures are distinguished',async()=>{for(const [Code,status]of [['ConditionalCheckFailed',429],['TransactionConflict',503]]){const r=runtime('Intake',{send:async c=>{if(c.kind==='TransactWriteCommand')throw{CancellationReasons:[{Code:'None'},{Code}]};return{}}});assert.equal((await r.request(valid)).statusCode,status)}});
-test('AWS contact messages use the protected table and never the metadata service',async()=>{const r=runtime('Intake');const out=await r.request({...valid,message:'Synthetic contact question.',privacyAccepted:true},{rawPath:'/contact'});assert.equal(out.statusCode,200);assert.equal(r.fetches.filter(f=>f.url.includes('catalog')).length,0);const lead=r.calls[1].input.TransactItems[0].Put.Item;assert.equal(lead.source,'contact');assert.equal(lead.message,'Synthetic contact question.');assert.equal(lead.injectsInsulinDaily,'');});
+test('AWS contact messages use the protected table and never the metadata service',async()=>{const r=runtime('Intake');const out=await r.request({...valid,message:'Synthetic contact question.',privacyAccepted:true},{rawPath:'/contact'});assert.equal(out.statusCode,200);assert.equal(r.fetches.filter(f=>f.url.includes('catalog')).length,0);const lead=intakeTx(r)[0].Put.Item;assert.equal(lead.source,'contact');assert.equal(lead.message,'Synthetic contact question.');assert.equal(lead.injectsInsulinDaily,'');});
 test('AWS origin, method, media type and size checks precede data access',async()=>{for(const extra of [{headers:{origin:'https://evil.test'}},{requestContext:{http:{method:'GET'}}},{headers:{origin,'content-type':'text/plain'}},{body:'x'.repeat(20000)}]){const r=runtime('Intake');assert.ok((await r.request(valid,extra)).statusCode>=400);assert.equal(r.calls.length,0)}});
 
 const salesperson={uid:'synthetic-sales',email:'person@example.com',role:'sales',features:['leads','products']};
@@ -248,4 +251,62 @@ test('AWS assignment and import refuse more than one transaction can hold',async
  const ids=Array.from({length:46},(_,i)=>`10000000-0000-4000-8000-${String(i).padStart(12,'0')}`);
  assert.equal((await runtime('Admin',{identity:manager}).request({action:'leads.assign',ids,assignee:salesperson.uid})).statusCode,400);
  assert.equal((await runtime('Admin').request({action:'leads.status.import',items:ids.map(x=>({id:x,status:'closed'}))})).statusCode,400);
+});
+// Automatic assignment: the rota item in the staff settings table, and what intake does with it.
+function rotaIntake(rota,{transact}={}){
+ return runtime('Intake',{send:async c=>{
+  if(c.kind==='UpdateCommand'&&c.input.TableName==='alerts'){if(rota instanceof Error)throw rota;return{Attributes:rota};}
+  if(c.kind==='TransactWriteCommand'&&transact)return transact(c);
+  return{};
+ }});
+}
+test('AWS intake hands each new enquiry to the next person on the rota, in turn',async()=>{
+ const people=new Set(['zed-person','amy-person','kim-person']);
+ const picked=[];
+ for(const turn of [1,2,3,4]){
+  const r=rotaIntake({uid:'#auto-assign',members:people,turn});
+  assert.equal((await r.request(valid)).statusCode,200);
+  const counter=r.calls.find(c=>c.kind==='UpdateCommand').input;
+  assert.deepEqual(plain({key:counter.Key,expr:counter.UpdateExpression,cond:counter.ConditionExpression}),{key:{uid:'#auto-assign'},expr:'ADD #turn :one',cond:'attribute_exists(members)'});
+  picked.push(intakeTx(r)[0].Put.Item.assignedTo);
+ }
+ assert.deepEqual(picked,['amy-person','kim-person','zed-person','amy-person']);
+});
+test('AWS automatic assignment writes the lead, its history and the access log together, without patient details',async()=>{
+ const r=rotaIntake({uid:'#auto-assign',members:new Set([salesperson.uid]),turn:7});
+ assert.equal((await r.request(valid)).statusCode,200);
+ const tx=intakeTx(r);assert.equal(tx.length,5);
+ const lead=tx[0].Put.Item;
+ assert.equal(lead.assignedTo,salesperson.uid);assert.equal(lead.assignedBy,'system');assert.equal(lead.assignedAt,lead.createdAt);assert.equal(lead.workSk,`open#${lead.gsi1sk}`);
+ const history=tx[3].Put,entry=tx[4].Put;
+ assert.equal(history.TableName,'history');assert.deepEqual(plain({action:history.Item.action,actor:history.Item.actorUid,assignee:history.Item.assignee,source:history.Item.source,leadId:history.Item.leadId}),{action:'assign',actor:'system',assignee:salesperson.uid,source:'auto',leadId:id});
+ assert.equal(entry.TableName,'audit');assert.equal(entry.Item.action,'leads.autoAssign');assert.equal(entry.Item.leadId,id);
+ const logged=JSON.stringify([history,entry]);for(const field of [valid.firstName,valid.lastName,valid.email,valid.phone,valid.city])assert.equal(logged.includes(field),false);
+});
+test('AWS intake still saves an enquiry unassigned when the rota is empty or unavailable',async()=>{
+ const missing=Object.assign(new Error('condition'),{name:'ConditionalCheckFailedException'});
+ for(const rota of [missing,new Error('table unavailable'),{uid:'#auto-assign',members:new Set(),turn:1},{uid:'#auto-assign',members:new Set(['bad id!']),turn:1}]){
+  const r=rotaIntake(rota);assert.equal((await r.request(valid)).statusCode,200);
+  const tx=intakeTx(r);assert.equal(tx.length,3);assert.equal(tx[0].Put.Item.assignedTo,undefined);assert.equal(tx[0].Put.Item.workSk,undefined);
+ }
+});
+test('AWS rate limits are still recognised when an enquiry is assigned automatically',async()=>{
+ const r=rotaIntake({uid:'#auto-assign',members:new Set([salesperson.uid]),turn:1},{transact:()=>{throw{CancellationReasons:[{Code:'None'},{Code:'None'},{Code:'ConditionalCheckFailed'},{Code:'None'},{Code:'None'}]}}});
+ assert.equal((await r.request(valid)).statusCode,429);
+});
+test('AWS rota changes are owner or manager only, check the team on joining, and are audited',async()=>{
+ const fetchImpl=async(url,options)=>({ok:true,status:200,json:async()=>JSON.parse(options.body).action==='team.members'?{members:[{uid:salesperson.uid,role:'sales',disabled:false},{uid:'away-person',role:'sales',disabled:true}]}:{actor:manager}});
+ const on=runtime('Admin',{identity:manager,fetchImpl});assert.equal((await on.request({action:'assign.auto.set',uid:salesperson.uid,enabled:true})).statusCode,200);
+ const add=on.calls[0].input;assert.equal(add.TableName,'alerts');assert.equal(add.Key.uid,'#auto-assign');assert.match(add.UpdateExpression,/^ADD members :who /);assert.deepEqual([...add.ExpressionAttributeValues[':who']],[salesperson.uid]);
+ assert.deepEqual(plain({action:on.calls[1].input.Item.action,target:on.calls[1].input.Item.targetUid,enabled:on.calls[1].input.Item.enabled}),{action:'assign.auto.set',target:salesperson.uid,enabled:true});
+ const off=runtime('Admin',{identity:manager});assert.equal((await off.request({action:'assign.auto.set',uid:'gone-person',enabled:false})).statusCode,200);assert.match(off.calls[0].input.UpdateExpression,/^DELETE members :who /);assert.equal(off.fetches.length,1);
+ for(const uid of ['not-on-team','away-person']){const r=runtime('Admin',{identity:manager,fetchImpl});assert.equal((await r.request({action:'assign.auto.set',uid,enabled:true})).statusCode,400);assert.equal(writes(r).length,0);}
+ for(const identity of [salesperson,{uid:'marketing',role:'marketing',features:['leads','salesTeam']}]){const r=runtime('Admin',{identity});assert.equal((await r.request({action:'assign.auto.set',uid:salesperson.uid,enabled:true})).statusCode,403);}
+ assert.equal((await runtime('Admin',{identity:manager}).request({action:'assign.auto.set',uid:'#auto-assign',enabled:false})).statusCode,400);
+});
+test('AWS alert list reports the rota separately and the alert job never mistakes it for a person',async()=>{
+ const rota={uid:'#auto-assign',members:new Set(['zed-person','amy-person']),enabled:true,email:'rota@example.com',role:'owner'};
+ const r=runtime('Admin',{identity:manager,send:async c=>c.kind==='ScanCommand'?{Items:[rota,{uid:salesperson.uid,enabled:true}]}:{}});
+ const out=await r.request({action:'alerts.list'});assert.deepEqual(out.json.autoAssign,['amy-person','zed-person']);assert.deepEqual(out.json.alerts.map(x=>x.uid),[salesperson.uid]);
+ const job=alertsRun([rota],[]);assert.deepEqual(plain(await job.handler({})),{sent:0});assert.equal(job.emails.length,0);
 });

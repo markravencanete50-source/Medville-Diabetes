@@ -53,3 +53,10 @@ test("AWS template has each section once and every reference resolves", () => {
   ];
   for (const ref of refs) assert.ok(known.has(ref), `unresolved reference ${ref}`);
 });
+
+test("the public intake may touch only the rota item of the staff settings table", () => {
+  const role = template.slice(template.indexOf("  IntakeRole:"), template.indexOf("  IntakeFunction:"));
+  assert.match(role, /Action: \[dynamodb:UpdateItem\]\n\s+Resource: !GetAtt AlertsTable\.Arn\n\s+Condition:\n\s+ForAllValues:StringEquals:\n\s+dynamodb:LeadingKeys: \["#auto-assign"\]/);
+  assert.match(role, /Action: \[dynamodb:PutItem\]\n\s+Resource: \[!GetAtt HistoryTable\.Arn, !GetAtt AuditTable\.Arn\]/);
+  assert.doesNotMatch(role, /dynamodb:(Scan|Query|GetItem)[^\n]*\n\s+Resource: !GetAtt AlertsTable/);
+});

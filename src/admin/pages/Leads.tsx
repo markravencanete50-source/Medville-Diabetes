@@ -905,6 +905,7 @@ const ROLE_NAME: Record<string, string> = {
 /* Who did it, as plainly as this viewer can be told: "You", a teammate's
    name where the team list is loaded, otherwise their sign-in address. */
 function historyActor(entry: LeadHistoryEntry, myUid: string, members: Map<string, SalesMember>) {
+  if (entry.actorRole === "system") return "Automatic assignment";
   if (entry.actorUid === myUid) return "You";
   const member = members.get(entry.actorUid);
   if (member) return memberName(member);
@@ -921,6 +922,11 @@ function historyText(entry: LeadHistoryEntry, myUid: string, members: Map<string
   }
   if (entry.action === "assign") {
     if (!entry.assignee) return "removed the assignment.";
+    if (entry.source === "auto") {
+      if (entry.assignee === myUid) return "gave it to you.";
+      const member = members.get(entry.assignee);
+      return `gave it to ${member ? memberName(member) : members.size ? "a former team member" : "a teammate"}.`;
+    }
     if (entry.assignee === myUid) return "assigned it to you.";
     const member = members.get(entry.assignee);
     /* A salesperson has no team list, so a colleague is named generically. */
