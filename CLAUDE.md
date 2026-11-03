@@ -197,6 +197,20 @@ only change made to their wording.
   changes its stage (update, assign, status import) must also write `workSk`
   from the stage it writes, or the alert job will miss or overcount it. Five9 itself can still show the
   dialled number during a call; that is a Five9 setting, not this site.
+- Automatic assignment, since 2026-11-03. An Owner or the Sales manager turns
+  on "Gets new enquiries" per person on the Sales team screen
+  (`assign.auto.set`, which checks the person against `team.members` when they
+  join, never when they leave). The rota is one string set, `members`, on the
+  item `#auto-assign` in `medville-staff-alerts`, with a `turn` counter; no
+  staff id can take that key, so the alert job and the alert list skip it. The
+  intake function adds one to `turn` and gives the enquiry to
+  `members` sorted, at `(turn - 1) % length`, writing `assignedTo`,
+  `assignedBy: system`, `workSk` and a history entry (`source: auto`) and an
+  audit entry (`leads.autoAssign`) in the same transaction as the enquiry. An
+  empty or unreadable rota means the enquiry arrives unassigned; it is never
+  refused for that. The intake role may update only that one item
+  (`dynamodb:LeadingKeys`). Revoking or deleting an account on the
+  Administrators screen also takes the person off the rota.
 - Lead stages, since 2026-10-28. The list lives in `statuses` in
   `aws/src/admin.cjs` and `LEAD_STATUSES` in `src/admin/api.ts`, and the two
   must agree. Needs verification, Waiting on documents and Not qualified take

@@ -1,6 +1,6 @@
 const {DynamoDBClient}=require('@aws-sdk/client-dynamodb');
 const {DynamoDBDocumentClient,GetCommand,TransactWriteCommand,UpdateCommand}=require('@aws-sdk/lib-dynamodb');
-const {createHash}=require('node:crypto');
+const {createHash,randomUUID}=require('node:crypto');
 const {validateSubmission}=require('../../functions/intake.js');
 const {validateContactSubmission}=require('../../functions/contact.js');
 const {sendSubmissionConfirmation}=require('./confirmation.cjs');
@@ -39,6 +39,31 @@ async function notifyCompany(lead){
  try{await db.send(new UpdateCommand({TableName:process.env.LEADS_TABLE,Key:{id:lead.id},UpdateExpression:'SET notificationStatus=:status, notificationUpdatedAt=:at'+(messageId?', notificationMessageId=:messageId':''),ExpressionAttributeValues:{':status':status,':at':new Date().toISOString(),...(messageId?{':messageId':messageId}:{})},ConditionExpression:'attribute_exists(id)'}))}catch{console.error('notification status update failed')}
  return status==='sent';
 }
+/*
+ Automatic assignment. Owners and the Sales manager choose who receives new enquiries;
+ each enquiry goes to the next person in turn. The turn counter and the rota live in one
+ item of the staff settings table, which holds staff ids only. If the rota is empty or
+ cannot be read, the enquiry simply arrives unassigned, as before; it is never refused.
+*/
+const ROSTER='#auto-assign';
+const validUid=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(x);
+async function nextAssignee(){
+ if(!process.env.ALERTS_TABLE)return'';
+ try{
+  const out=await db.send(new UpdateCommand({TableName:process.env.ALERTS_TABLE,Key:{uid:ROSTER},UpdateExpression:'ADD #turn :one',ConditionExpression:'attribute_exists(members)',ExpressionAttributeNames:{'#turn':'turn'},ExpressionAttributeValues:{':one':1},ReturnValues:'ALL_NEW'}));
+  const members=[...(out.Attributes?.members||[])].filter(validUid).sort();
+  const turn=Number(out.Attributes?.turn);
+  return members.length&&Number.isSafeInteger(turn)&&turn>0?members[(turn-1)%members.length]:'';
+ }catch(error){if(error?.name!=='ConditionalCheckFailedException')console.error('automatic assignment unavailable',{name:error?.name});return'';}
+}
+// The same fixed fields an assignment by hand records, with the system as the actor.
+function autoAssignWrites(lead){
+ const at=lead.assignedAt,id=randomUUID(),system={actorUid:'system',actorEmail:'',actorRole:'system'};
+ return[
+  {Put:{TableName:process.env.HISTORY_TABLE,Item:{leadId:lead.id,sk:`${at}#${id}`,at,action:'assign',...system,assignee:lead.assignedTo,source:'auto'},ConditionExpression:'attribute_not_exists(leadId)'}},
+  {Put:{TableName:process.env.AUDIT_TABLE,Item:{id,gsi1pk:'AUDIT',gsi1sk:`${at}#${id}`,...system,action:'leads.autoAssign',leadId:lead.id,assignee:lead.assignedTo,at},ConditionExpression:'attribute_not_exists(id)'}},
+ ];
+}
 exports.handler=async(event)=>{
  const origin=event.headers?.origin||event.headers?.Origin||'';
  if(!origins.has(origin))return response(403,'',{error:'Request not allowed.'});
@@ -68,8 +93,10 @@ exports.handler=async(event)=>{
   const {submissionId,...answers}=data;
   const referralCode=catalog.referralActive===true?data.referralCode:'';
   const lead={id:submissionId,...answers,referralCode,source:contact?'contact':referralCode?'influencer':'qualify',status:'new',note:'',message:contact?data.message:'',productInterest:contact?'':data.productInterest,productName:contact?'General question':catalog.product.name,injectsInsulinDaily:contact?'':data.injectsInsulinDaily,consentVersion:'2026-08-26',consentAt:createdAt,createdAt,notificationStatus:'pending',customerConfirmationStatus:'pending',requestHash:fingerprint(data),gsi1pk:'LEAD',gsi1sk:`${createdAt}#${submissionId}`};
+  const assignee=await nextAssignee();
+  if(assignee)Object.assign(lead,{assignedTo:assignee,assignedAt:createdAt,assignedBy:'system',workSk:`open#${lead.gsi1sk}`});
   try{
-   await db.send(new TransactWriteCommand({TransactItems:[{Put:{TableName:process.env.LEADS_TABLE,Item:lead,ConditionExpression:'attribute_not_exists(id)'}},{Update:{TableName:process.env.RATE_TABLE,Key:{id:rateId},UpdateExpression:'SET expiresAt=:expiry ADD #count :one',ConditionExpression:'attribute_not_exists(#count) OR #count < :limit',ExpressionAttributeNames:{'#count':'count'},ExpressionAttributeValues:{':expiry':Math.floor(now/1000)+7200,':one':1,':limit':100}}},{Update:{TableName:process.env.RATE_TABLE,Key:{id:minuteRateId},UpdateExpression:'SET expiresAt=:expiry ADD #count :one',ConditionExpression:'attribute_not_exists(#count) OR #count < :limit',ExpressionAttributeNames:{'#count':'count'},ExpressionAttributeValues:{':expiry':Math.floor(now/1000)+120,':one':1,':limit':3}}}]}));
+   await db.send(new TransactWriteCommand({TransactItems:[{Put:{TableName:process.env.LEADS_TABLE,Item:lead,ConditionExpression:'attribute_not_exists(id)'}},{Update:{TableName:process.env.RATE_TABLE,Key:{id:rateId},UpdateExpression:'SET expiresAt=:expiry ADD #count :one',ConditionExpression:'attribute_not_exists(#count) OR #count < :limit',ExpressionAttributeNames:{'#count':'count'},ExpressionAttributeValues:{':expiry':Math.floor(now/1000)+7200,':one':1,':limit':100}}},{Update:{TableName:process.env.RATE_TABLE,Key:{id:minuteRateId},UpdateExpression:'SET expiresAt=:expiry ADD #count :one',ConditionExpression:'attribute_not_exists(#count) OR #count < :limit',ExpressionAttributeNames:{'#count':'count'},ExpressionAttributeValues:{':expiry':Math.floor(now/1000)+120,':one':1,':limit':3}}},...(assignee?autoAssignWrites(lead):[])]}));
    await notifyCompany(lead);
    return receipt(200,await confirm(lead));
   }catch(error){

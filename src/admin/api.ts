@@ -32,6 +32,7 @@ const AWS_ACTIONS = new Set([
   "leads.team",
   "alerts.list",
   "alerts.set",
+  "assign.auto.set",
   "leads.get",
   "leads.update",
   "leads.delete",
@@ -286,6 +287,7 @@ const CACHE_INVALIDATING_ACTIONS = new Set([
   "leads.confirmation.retry",
   "leads.assign",
   "alerts.set",
+  "assign.auto.set",
   "influencers.create",
   "influencers.setActive",
   "influencers.setDeleted",
@@ -422,9 +424,14 @@ export const adminApi = {
 
   /* Email alerts are counts only. The address is taken from the person's
      account on the server, never from here. */
-  listAlerts: (getToken: GetToken) => call<{ alerts: StaffAlert[] }>(getToken, "alerts.list"),
+  /* The list also names who is on the automatic assignment rota. */
+  listAlerts: (getToken: GetToken) => call<{ alerts: StaffAlert[]; autoAssign?: string[] }>(getToken, "alerts.list"),
   setAlerts: (getToken: GetToken, uid: string, enabled: boolean) =>
     call<{ ok: true }>(getToken, "alerts.set", { uid, enabled }),
+  /* Puts a person on the rota that receives new enquiries in turn, or takes
+     them off it. Joining is checked against the sales team on the server. */
+  setAutoAssign: (getToken: GetToken, uid: string, enabled: boolean) =>
+    call<{ ok: true }>(getToken, "assign.auto.set", { uid, enabled }),
 
   /* Resends the company inbox notice for one lead. The notice says a lead
      exists and never carries its answers. */
