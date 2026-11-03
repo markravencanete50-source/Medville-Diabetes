@@ -182,7 +182,7 @@ export default function Leads() {
       const link = document.createElement("a");
       link.href = `tel:${result.dial}`;
       link.click();
-      const touched = { lastDialAt: new Date().toISOString(), dialCount: lead.dialCount + 1 };
+      const touched = { lastDialAt: new Date().toISOString(), dialCount: lead.dialCount + 1, callPending: true };
       setHistoryVersion((value) => value + 1);
       setLeads((current) => (current ?? []).map((item) => item.id === lead.id ? { ...item, ...touched } : item));
       setOpenLead((current) => current && current.id === lead.id ? { ...current, ...touched } : current);
@@ -351,6 +351,8 @@ export default function Leads() {
       const applied: Partial<Lead> = patch.status
         ? { ...patch, statusReason: patch.statusReason ?? "", callbackAt: patch.status === "callback" ? patch.callbackAt ?? "" : "" }
         : { ...patch };
+      /* Recording the stage after a call is what counts the call. */
+      if (patch.status && lead.callPending) Object.assign(applied, { callPending: false, callsLogged: lead.callsLogged + 1 });
       setLeads((current) =>
         (current ?? []).map((item) => (item.id === lead.id ? { ...item, ...applied } : item)),
       );
@@ -677,7 +679,7 @@ export default function Leads() {
               </>}
               <Detail label="Calls">
                 {openLead.dialCount
-                  ? `${openLead.dialCount}, last on ${formatDateTime(openLead.lastDialAt)}`
+                  ? `${openLead.callsLogged} recorded, last dialled ${formatDateTime(openLead.lastDialAt)}`
                   : "Not called yet"}
               </Detail>
               <Detail label="Location">
@@ -720,7 +722,15 @@ export default function Leads() {
                 This patient asked not to be contacted. Only an Owner can change this stage.
               </Banner>
             ) : (
-              <StageEditor lead={openLead} saving={saving} onSave={(patch) => void update(openLead, patch)} />
+              <>
+                {openLead.callPending && (
+                  <Banner tone="info">
+                    You called this patient. Set the stage below to record how the call went. The call
+                    counts in your figures once you save the stage.
+                  </Banner>
+                )}
+                <StageEditor lead={openLead} saving={saving} onSave={(patch) => void update(openLead, patch)} />
+              </>
             )}
 
             <NoteEditor lead={openLead} saving={saving} onSave={(note) => void update(openLead, { note })} />

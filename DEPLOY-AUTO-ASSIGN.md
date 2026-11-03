@@ -1,6 +1,12 @@
-# Deploy: automatic assignment of new enquiries
+# Deploy: automatic assignment, call recording and reshuffle
 
-This release adds a rota. On the Sales team screen, an Owner or the Sales
+This AWS update carries three dashboard features that are already on the
+website: automatic assignment of new enquiries, calls that count only once
+their outcome is recorded, and the Sales manager's Reshuffle leads. Until it
+runs, the toggle and the reshuffle show "That did not work", and call figures
+stay as they were.
+
+Automatic assignment works through a rota. On the Sales team screen, an Owner or the Sales
 manager turns on **Gets new enquiries** for each person. Each new enquiry is
 then given to the next person on the rota the moment it arrives. With nobody
 on the rota, enquiries arrive unassigned, exactly as they do today.
@@ -95,7 +101,8 @@ aws cloudformation describe-stacks --stack-name medville-phi --query "Stacks[0].
 
 ## 4. Website
 
-Merge the pull request. The Hosting workflow deploys the site.
+Merge the pull request if it is not merged yet. The Hosting workflow deploys
+the site.
 
 ## 5. Check
 
@@ -110,6 +117,12 @@ Use invented details only, never a real patient.
 4. On Enquiries, the two test enquiries are assigned, one to each person. Each
    one's history reads "Automatic assignment gave it to ...".
 5. Close or delete the two test enquiries.
+
+6. As a salesperson, press Call on a test enquiry, then save a stage. The
+   Sales team card shows one call recorded. Press Call again without saving a
+   stage: it shows one call not recorded.
+7. As the Sales manager, open Reshuffle leads, choose Not assigned yet and two
+   people, and share out. Each test enquiry's history reads "assigned it to".
 
 To switch automatic assignment off, turn off **Gets new enquiries** for
 everyone. New enquiries then wait to be assigned by hand again.

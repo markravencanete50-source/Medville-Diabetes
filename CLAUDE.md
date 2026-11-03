@@ -211,6 +211,20 @@ only change made to their wording.
   refused for that. The intake role may update only that one item
   (`dynamodb:LeadingKeys`). Revoking or deleting an account on the
   Administrators screen also takes the person off the rota.
+- Calls and reshuffles, since 2026-11-03. A call counts only when its outcome
+  is recorded: `leads.dial` opens a call (`callOpenBy`, `callOpenAt`), and the
+  caller's next stage change in `leads.update` closes it, adding one to
+  `callsLogged` and setting `lastCallLoggedAt`. A note alone, or someone
+  else's change, does not count it. The Sales team figures read "Calls
+  recorded" and "Calls today" from those fields, and show dials still open as
+  "Calls not recorded". Reassigning a lead clears its open call.
+  `leads.reshuffle` (Owner and Sales manager) takes the open enquiries of
+  chosen people, or the unassigned ones, either only those not called yet or
+  every open one, and shares them out evenly and oldest first among chosen
+  active team members, never back to the person they came from. At most 225
+  move per run, in conditional batches of `BATCH_LIMIT` with a history entry
+  each (`source: reshuffle`) and one audit entry per batch. Finished leads,
+  Do not contact included, never move.
 - Lead stages, since 2026-10-28. The list lives in `statuses` in
   `aws/src/admin.cjs` and `LEAD_STATUSES` in `src/admin/api.ts`, and the two
   must agree. Needs verification, Waiting on documents and Not qualified take
