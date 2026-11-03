@@ -1289,10 +1289,11 @@
 }
 
 /* Every dashboard action receives a clear, top-level result card.
-   Motion, in order: the backdrop fades in, the card rises on a soft spring,
-   the badge pops, the tick draws itself, two rings ripple out, the words
-   follow, and a bar along the foot counts down the time left. Leaving is the
-   same in reverse, shorter, so the screen never snaps. */
+   Motion, in order: a cyan glow gathers behind the card; the card unfolds
+   from a thin line of light into its full height; a ring sweeps once round
+   the badge; the mark appears inside it; on success, six sparks fly out; the
+   title rises out of a mask and the message settles in. The same ring then
+   drains as the countdown. Closing folds the card back into a line. */
 .admin .admin-action-notices {
   position: fixed;
   inset: 0;
@@ -1308,12 +1309,14 @@
 
 .admin .admin-action-notices.is-visible {
   pointer-events: auto;
-  background: rgb(0 29 41 / 0.42);
-  backdrop-filter: blur(3px);
-  animation: admin-modal-backdrop-in 240ms ease-out both;
+  background:
+    radial-gradient(ellipse 520px 260px at 50% 50%, rgb(24 186 218 / 0.16), rgb(24 186 218 / 0) 70%),
+    rgb(0 29 41 / 0.44);
+  backdrop-filter: blur(2px);
+  animation: admin-modal-backdrop-in 280ms ease-out both;
 }
 
-.admin .admin-action-notices.is-leaving { animation: admin-modal-backdrop-out 260ms ease-in both; }
+.admin .admin-action-notices.is-leaving { animation: admin-modal-backdrop-out 300ms ease-in both; }
 
 .admin-action-notice {
   position: relative;
@@ -1322,82 +1325,138 @@
   align-items: center;
   gap: 16px;
   overflow: hidden;
-  padding: 20px 18px 22px 20px;
+  padding: 18px 16px 18px 18px;
   border: 1px solid var(--a-line);
   border-radius: 18px;
   background: var(--a-surface);
-  box-shadow: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 24px 60px -18px rgb(0 17 26 / 0.55);
+  box-shadow: 0 24px 60px -18px rgb(0 17 26 / 0.55);
   color: var(--a-text);
   pointer-events: auto;
-  transform-origin: 50% 70%;
-  animation: admin-notice-in 520ms cubic-bezier(0.22, 1.25, 0.36, 1) both;
+  animation: admin-notice-unfold 560ms cubic-bezier(0.76, 0, 0.24, 1) both;
 }
 
-.admin-action-notice.is-leaving { animation: admin-notice-out 260ms cubic-bezier(0.4, 0, 1, 1) both; }
+/* The line of light the card opens from, which then runs off its top edge. */
+.admin-action-notice::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--a-brand), transparent);
+  animation: admin-notice-seam 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  pointer-events: none;
+}
+
+.admin-action-notice-danger::before { background: linear-gradient(90deg, transparent, var(--a-danger-fill, var(--a-danger)), transparent); }
+
+.admin-action-notice.is-leaving { animation: admin-notice-fold 300ms cubic-bezier(0.55, 0, 1, 0.45) both; }
 
 .admin-action-notice-motion {
   position: relative;
   display: inline-flex;
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   flex: none;
   align-items: center;
   justify-content: center;
 }
 
+.admin-action-notice-dial {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  rotate: -90deg;
+  overflow: visible;
+}
+
+.admin-action-notice-track {
+  fill: none;
+  stroke: color-mix(in srgb, var(--a-ok) 16%, transparent);
+  stroke-width: 2.5;
+}
+
+.admin-action-notice-arc {
+  fill: none;
+  stroke: var(--a-ok);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation:
+    admin-notice-sweep 620ms cubic-bezier(0.65, 0, 0.35, 1) 260ms forwards,
+    admin-notice-countdown var(--notice-ms, 4200ms) linear 900ms forwards;
+}
+
+.admin-action-notice:hover .admin-action-notice-arc,
+.admin-action-notice:focus-within .admin-action-notice-arc { animation-play-state: running, paused; }
+
 .admin-action-notice-icon {
   position: relative;
   z-index: 2;
   display: inline-flex;
-  width: 46px;
-  height: 46px;
+  width: 40px;
+  height: 40px;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
   background: var(--a-ok-soft);
   color: var(--a-ok);
-  animation: admin-action-icon-in 560ms cubic-bezier(0.34, 1.56, 0.64, 1) 120ms both;
+  animation: admin-notice-badge 480ms cubic-bezier(0.34, 1.56, 0.64, 1) 520ms both;
 }
 
 .admin-action-notice-tick {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: admin-action-tick 420ms cubic-bezier(0.65, 0, 0.35, 1) 360ms forwards;
+  animation: admin-action-tick 360ms cubic-bezier(0.65, 0, 0.35, 1) 720ms forwards;
 }
 
-.admin-action-notice-ring {
+.admin-action-notice-sparks {
   position: absolute;
-  inset: 3px;
-  border: 2px solid color-mix(in srgb, var(--a-ok) 40%, transparent);
-  border-radius: 999px;
-  opacity: 0;
-  animation: admin-action-ring 900ms cubic-bezier(0.22, 1, 0.36, 1) 300ms both;
+  inset: 0;
+  pointer-events: none;
 }
 
-.admin-action-notice-ring-two {
-  border-color: color-mix(in srgb, var(--a-ok) 24%, transparent);
-  animation-delay: 480ms;
+.admin-action-notice-sparks span {
+  position: absolute;
+  top: calc(50% - 2.5px);
+  left: calc(50% - 2.5px);
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--a-brand);
+  opacity: 0;
+  animation: admin-notice-spark 640ms cubic-bezier(0.22, 1, 0.36, 1) 880ms both;
 }
+
+.admin-action-notice-sparks span:nth-child(even) {
+  width: 4px;
+  height: 4px;
+  background: color-mix(in srgb, var(--a-brand) 60%, white);
+  animation-delay: 940ms;
+}
+
+.admin-action-notice-danger .admin-action-notice-track { stroke: color-mix(in srgb, var(--a-danger-fill, var(--a-danger)) 18%, transparent); }
+.admin-action-notice-danger .admin-action-notice-arc { stroke: var(--a-danger-fill, var(--a-danger)); }
 
 .admin-action-notice-danger .admin-action-notice-icon {
   background: var(--a-danger-soft);
   color: var(--a-danger);
-  animation: admin-action-icon-in 560ms cubic-bezier(0.34, 1.56, 0.64, 1) 120ms both, admin-action-nudge 420ms ease-in-out 680ms both;
+  animation:
+    admin-notice-badge 480ms cubic-bezier(0.34, 1.56, 0.64, 1) 520ms both,
+    admin-action-nudge 360ms ease-in-out 1000ms both;
 }
-
-.admin-action-notice-danger .admin-action-notice-ring {
-  border-color: color-mix(in srgb, var(--a-danger) 32%, transparent);
-}
-
-.admin-action-notice-text > * { animation: admin-notice-text-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
-.admin-action-notice-title { animation-delay: 200ms; }
-.admin-action-notice-message { animation-delay: 280ms; }
 
 .admin-action-notice-title {
   margin: 1px 0 3px;
+  overflow: hidden;
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
+}
+
+.admin-action-notice-title > span {
+  display: inline-block;
+  animation: admin-notice-rise 520ms cubic-bezier(0.22, 1, 0.36, 1) 420ms both;
 }
 
 .admin-action-notice-message {
@@ -1405,35 +1464,25 @@
   color: var(--a-text-muted);
   font-size: 13.5px;
   line-height: 1.55;
+  animation: admin-notice-settle 520ms cubic-bezier(0.22, 1, 0.36, 1) 540ms both;
 }
 
-/* The countdown. Its end is what closes the notice, so it runs even when
-   motion is reduced; hovering or focusing the card pauses it. */
-.admin-action-notice-timer {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--a-brand), color-mix(in srgb, var(--a-brand) 55%, transparent));
-  transform-origin: left center;
-  animation: admin-notice-timer var(--notice-ms, 4200ms) linear 360ms both;
+@keyframes admin-notice-unfold {
+  0% { opacity: 0; clip-path: inset(calc(50% - 1px) 30% calc(50% - 1px) 30% round 18px); }
+  20% { opacity: 1; clip-path: inset(calc(50% - 1px) 0 calc(50% - 1px) 0 round 18px); }
+  100% { opacity: 1; clip-path: inset(0 0 0 0 round 18px); }
 }
 
-.admin-action-notice-danger .admin-action-notice-timer { background: var(--a-danger-fill, var(--a-danger)); }
-
-.admin-action-notice:hover .admin-action-notice-timer,
-.admin-action-notice:focus-within .admin-action-notice-timer { animation-play-state: paused; }
-
-@keyframes admin-notice-in {
-  from { opacity: 0; transform: translateY(18px) scale(0.92); }
-  60% { opacity: 1; }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes admin-notice-fold {
+  0% { opacity: 1; clip-path: inset(0 0 0 0 round 18px); }
+  70% { opacity: 1; clip-path: inset(calc(50% - 1px) 0 calc(50% - 1px) 0 round 18px); }
+  100% { opacity: 0; clip-path: inset(calc(50% - 1px) 40% calc(50% - 1px) 40% round 18px); }
 }
 
-@keyframes admin-notice-out {
-  from { opacity: 1; transform: translateY(0) scale(1); }
-  to { opacity: 0; transform: translateY(-10px) scale(0.96); }
+@keyframes admin-notice-seam {
+  0% { opacity: 1; transform: translateY(var(--seam-start, 40px)) scaleX(0.4); }
+  35% { opacity: 1; transform: translateY(var(--seam-start, 40px)) scaleX(1); }
+  100% { opacity: 0; transform: translateY(0) scaleX(1); }
 }
 
 @keyframes admin-modal-backdrop-in {
@@ -1446,8 +1495,18 @@
   to { opacity: 0; }
 }
 
-@keyframes admin-action-icon-in {
-  from { opacity: 0; transform: scale(0.3); }
+@keyframes admin-notice-sweep {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes admin-notice-countdown {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -100; }
+}
+
+@keyframes admin-notice-badge {
+  from { opacity: 0; transform: scale(0.5); }
   to { opacity: 1; transform: scale(1); }
 }
 
@@ -1455,10 +1514,10 @@
   to { stroke-dashoffset: 0; }
 }
 
-@keyframes admin-action-ring {
-  0% { opacity: 0; transform: scale(0.8); }
+@keyframes admin-notice-spark {
+  0% { opacity: 0; transform: rotate(var(--spark-angle)) translateY(0) scale(0.6); }
   25% { opacity: 1; }
-  100% { opacity: 0; transform: scale(1.6); }
+  100% { opacity: 0; transform: rotate(var(--spark-angle)) translateY(-34px) scale(1); }
 }
 
 @keyframes admin-action-nudge {
@@ -1467,14 +1526,14 @@
   75% { transform: translateX(3px); }
 }
 
-@keyframes admin-notice-text-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: none; }
+@keyframes admin-notice-rise {
+  from { transform: translateY(110%); }
+  to { transform: none; }
 }
 
-@keyframes admin-notice-timer {
-  from { transform: scaleX(1); }
-  to { transform: scaleX(0); }
+@keyframes admin-notice-settle {
+  from { opacity: 0; filter: blur(4px); transform: translateY(4px); }
+  to { opacity: 1; filter: none; transform: none; }
 }
 
 .admin-scrim {
@@ -1514,7 +1573,7 @@
   background: var(--a-surface);
   box-shadow: var(--a-shadow-pop);
   color: var(--a-text);
-  animation: admin-notice-in 360ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  animation: admin-notice-unfold 520ms cubic-bezier(0.76, 0, 0.24, 1) both;
 }
 
 .admin-confirm-motion {
@@ -1566,16 +1625,21 @@
 @keyframes admin-confirm-spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
-  /* A plain fade in and out, and the tick shown whole. The countdown stays. */
+  /* A plain fade in and out, with the mark shown whole. The countdown ring
+     still drains, because its end is what closes the notice. */
   .admin-action-notice { animation: admin-modal-backdrop-in 160ms ease-out both; }
   .admin-action-notice.is-leaving { animation: admin-modal-backdrop-out 160ms ease-in both; }
   .admin-action-notice-tick { animation: none; stroke-dashoffset: 0; }
-  .admin-action-notice-ring { display: none; }
-  .admin-action-notice-text > *,
+  .admin-action-notice-arc { stroke-dashoffset: 0; animation: admin-notice-countdown var(--notice-ms, 4200ms) linear forwards; }
+  .admin-action-notice:hover .admin-action-notice-arc,
+  .admin-action-notice:focus-within .admin-action-notice-arc { animation-play-state: paused; }
+  .admin-action-notice::before,
+  .admin-action-notice-sparks { display: none; }
+  .admin-action-notice-title > span,
+  .admin-action-notice-message,
   .admin-action-notice-danger .admin-action-notice-icon,
   .admin.admin-action-notices.is-visible,
   .admin-action-notice-icon,
-  .admin-action-notice-ring,
   .admin-confirm-scrim,
   .admin-confirm-card,
   .admin-confirm-ring,

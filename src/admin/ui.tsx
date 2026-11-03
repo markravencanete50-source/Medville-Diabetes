@@ -127,9 +127,9 @@ interface Toast {
 const ToastContext = createContext<(message: string, tone?: "ok" | "danger") => void>(() => {});
 
 /* How long a notice stays, and how long it takes to leave. The countdown is
-   the bar along the card's foot: when its animation ends, the notice leaves.
-   Pointing at the card or tabbing into it pauses the bar, so nobody loses a
-   message while reading it. */
+   the ring round the badge: when it has drained, the notice leaves. Pointing
+   at the card or tabbing into it pauses the ring, so nobody loses a message
+   while reading it. */
 const NOTICE_MS = 4200;
 const NOTICE_EXIT_MS = 260;
 
@@ -170,19 +170,39 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             onClick={(event) => event.stopPropagation()}
           >
             <span className="admin-action-notice-motion" aria-hidden="true">
-              <span className="admin-action-notice-ring admin-action-notice-ring-one" />
-              <span className="admin-action-notice-ring admin-action-notice-ring-two" />
+              {/* One ring: it sweeps round as the card opens, then drains as
+                  the countdown, and its end closes the notice. */}
+              <svg className="admin-action-notice-dial" viewBox="0 0 56 56">
+                <circle className="admin-action-notice-track" cx="28" cy="28" r="25" />
+                <circle
+                  className="admin-action-notice-arc"
+                  cx="28"
+                  cy="28"
+                  r="25"
+                  pathLength="100"
+                  onAnimationEnd={(event) => {
+                    if (event.animationName === "admin-notice-countdown" && !toast.leaving) dismiss(toast.id);
+                  }}
+                />
+              </svg>
               <span className="admin-action-notice-icon">
                 {toast.tone === "ok" ? (
-                  <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
                     <path className="admin-action-notice-tick" pathLength="1" d="M5 12.5l4.5 4.5L19 7.5" />
                   </svg>
-                ) : <AlertTriangle size={23} />}
+                ) : <AlertTriangle size={22} />}
               </span>
+              {toast.tone === "ok" && (
+                <span className="admin-action-notice-sparks">
+                  {[0, 60, 120, 180, 240, 300].map((angle) => (
+                    <span key={angle} style={{ "--spark-angle": `${angle}deg` } as React.CSSProperties} />
+                  ))}
+                </span>
+              )}
             </span>
             <div className="admin-action-notice-text min-w-0 flex-1">
               <p className="admin-action-notice-title">
-                {toast.tone === "ok" ? "Action completed" : "Action needs attention"}
+                <span>{toast.tone === "ok" ? "Action completed" : "Action needs attention"}</span>
               </p>
               <p className="admin-action-notice-message">{toast.message}</p>
             </div>
@@ -194,11 +214,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             >
               <X size={18} />
             </button>
-            <span
-              className="admin-action-notice-timer"
-              aria-hidden="true"
-              onAnimationEnd={(event) => { if (event.target === event.currentTarget && !toast.leaving) dismiss(toast.id); }}
-            />
           </section>
         ))}
       </div>, document.querySelector(".admin[data-admin-theme]") ?? document.body)}
