@@ -354,3 +354,13 @@ test('AWS reshuffle is manager or owner only, checks the receivers, and reports 
  for(const body of [{from:[],to:['amy-person']},{from:['unassigned'],to:[]},{from:['bad id!'],to:['amy-person']},{from:['unassigned','unassigned'],to:['amy-person']}])assert.equal((await reshuffleRun({}).request({action:'leads.reshuffle',...body})).statusCode,400);
  const raced=reshuffleRun({unassigned:[leadRow(4,null)]},{fail:true});const out=await raced.request({action:'leads.reshuffle',from:['unassigned'],to:['amy-person']});assert.equal(out.statusCode,200);assert.equal(out.json.moved,0);assert.equal(out.json.skipped,1);
 });
+test('AWS copying a number for Five9 is released, limited and recorded like a call',async()=>{
+ const r=runtime('Admin',{identity:salesperson,send:async c=>c.kind==='GetCommand'?{Item:assigned}:{}});
+ const out=await r.request({action:'leads.dial',id,copy:true});assert.equal(out.statusCode,200);assert.equal(out.json.dial,'+12025550142');
+ const tx=r.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems;
+ assert.equal(tx[0].Update.TableName,'rate');assert.match(tx[1].Update.UpdateExpression,/callOpenBy=:uid/);
+ assert.deepEqual(plain({action:tx[2].Put.Item.action,method:tx[2].Put.Item.method}),{action:'leads.dial',method:'copy'});
+ assert.deepEqual(plain({action:tx[3].Put.Item.action,source:tx[3].Put.Item.source}),{action:'call',source:'copy'});
+ const call=runtime('Admin',{identity:salesperson,send:async c=>c.kind==='GetCommand'?{Item:assigned}:{}});await call.request({action:'leads.dial',id});
+ assert.equal(call.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems[2].Put.Item.method,'call');
+});

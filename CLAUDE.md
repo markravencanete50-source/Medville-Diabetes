@@ -186,7 +186,10 @@ only change made to their wording.
   the AWS lead service, so the numbers are not in the page at all. Call asks
   `leads.dial` for one number, which is audited, counted against a limit of
   60 per person per hour, and handed straight to the computer's dialler
-  (Five9 on the client's machines) without being drawn. Neither sales role
+  (Five9 on the client's machines) without being drawn. Copy, beside Call,
+  asks `leads.dial` with `copy: true` and writes the number straight to the
+  clipboard for pasting into Five9, for machines where the link does not open
+  it; it is limited, audited (`method: copy`) and in the history like a call. Neither sales role
   can export, delete, restore or bulk import; the AWS service refuses those
   as well as the dashboard hiding them. The `manager` role assigns leads
   (`leads.assign`, which checks the assignee against the identity service's
@@ -225,6 +228,13 @@ only change made to their wording.
   move per run, in conditional batches of `BATCH_LIMIT` with a history entry
   each (`source: reshuffle`) and one audit entry per batch. Finished leads,
   Do not contact included, never move.
+- Influencer clicks, since 2026-11-03. `trackReferralClick` (the `intake`
+  codebase, logic in `createReferralTracker` in `functions/attribution.js`)
+  counts every opening of a referral link in `totalClicks`, and the first from
+  a browser session in `clicks`, shown as unique visits. One session adds at
+  most 20 clicks and one address at most 120 an hour, so refreshing cannot
+  inflate either. A link made before `totalClicks` existed starts from its
+  unique visits. Conversion stays enquiries over unique visits.
 - Lead stages, since 2026-10-28. The list lives in `statuses` in
   `aws/src/admin.cjs` and `LEAD_STATUSES` in `src/admin/api.ts`, and the two
   must agree. Needs verification, Waiting on documents and Not qualified take

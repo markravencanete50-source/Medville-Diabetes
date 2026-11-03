@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, Phone, RefreshCw, Search, Trash2, Upload, UserCheck } from "lucide-react";
+import { Copy, Download, Phone, RefreshCw, Search, Trash2, Upload, UserCheck } from "lucide-react";
 import {
   adminApi,
   AdminApiError,
@@ -175,13 +175,20 @@ export default function Leads() {
 
   /* The number goes from the response to the dialler and nowhere else: it is
      not stored in state, so it never renders. */
-  const dial = async (lead: Lead) => {
+  const dial = async (lead: Lead, copy = false) => {
     setDialingId(lead.id);
     try {
-      const result = await adminApi.dialLead(getToken, lead.id);
-      const link = document.createElement("a");
-      link.href = `tel:${result.dial}`;
-      link.click();
+      const result = await adminApi.dialLead(getToken, lead.id, copy);
+      if (copy) {
+        /* Straight to the clipboard for pasting into Five9. Never shown. */
+        const copied = await navigator.clipboard?.writeText(result.dial).then(() => true, () => false);
+        if (copied) toast("Number copied. Paste it into Five9. It is not shown here.");
+        else toast("Your browser blocked copying. Press Copy again.", "danger");
+      } else {
+        const link = document.createElement("a");
+        link.href = `tel:${result.dial}`;
+        link.click();
+      }
       const touched = { lastDialAt: new Date().toISOString(), dialCount: lead.dialCount + 1, callPending: true };
       setHistoryVersion((value) => value + 1);
       setLeads((current) => (current ?? []).map((item) => item.id === lead.id ? { ...item, ...touched } : item));
@@ -615,7 +622,7 @@ export default function Leads() {
                     {/* Beside the name so it never scrolls out of view. */}
                     {salesRole && (
                       <td>
-                        <CallButton lead={lead} busy={dialingId === lead.id} onCall={() => void dial(lead)} />
+                        <CallButton lead={lead} busy={dialingId === lead.id} onCall={() => void dial(lead)} onCopy={() => void dial(lead, true)} />
                       </td>
                     )}
                     <td data-label="Received" style={{ color: "var(--a-text-muted)" }}>
@@ -661,7 +668,7 @@ export default function Leads() {
                 <Detail label="Phone">
                   <span className="inline-flex flex-wrap items-center gap-2">
                     <span aria-label="Hidden">{HIDDEN_PHONE}</span>
-                    <CallButton lead={openLead} busy={dialingId === openLead.id} onCall={() => void dial(openLead)} />
+                    <CallButton lead={openLead} busy={dialingId === openLead.id} onCall={() => void dial(openLead)} onCopy={() => void dial(openLead, true)} />
                   </span>
                 </Detail>
                 <Detail label="Email">Hidden</Detail>
@@ -793,18 +800,33 @@ export default function Leads() {
   );
 }
 
-function CallButton({ lead, busy, onCall }: { lead: Lead; busy: boolean; onCall: () => void }) {
+/* Call opens the computer's dialler. Copy puts the number on the clipboard
+   for when Five9 does not open from a link. Either way the number is
+   released by the server one at a time and never drawn on the screen. */
+function CallButton({ lead, busy, onCall, onCopy }: { lead: Lead; busy: boolean; onCall: () => void; onCopy: () => void }) {
   if (lead.status === "do-not-contact") return <Badge tone="danger">Do not call</Badge>;
   return (
-    <button
-      type="button"
-      className="admin-btn admin-btn-primary admin-btn-sm"
-      disabled={busy}
-      aria-label={`Call ${leadName(lead)}`}
-      onClick={onCall}
-    >
-      <Phone size={14} aria-hidden="true" /> {busy ? "Starting call" : "Call"}
-    </button>
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <button
+        type="button"
+        className="admin-btn admin-btn-primary admin-btn-sm"
+        disabled={busy}
+        aria-label={`Call ${leadName(lead)}`}
+        onClick={onCall}
+      >
+        <Phone size={14} aria-hidden="true" /> {busy ? "Working" : "Call"}
+      </button>
+      <button
+        type="button"
+        className="admin-btn admin-btn-quiet admin-btn-sm"
+        disabled={busy}
+        aria-label={`Copy the number for ${leadName(lead)} to paste into Five9`}
+        title="Copy the number to paste into Five9"
+        onClick={onCopy}
+      >
+        <Copy size={14} aria-hidden="true" /> Copy
+      </button>
+    </span>
   );
 }
 
@@ -942,7 +964,7 @@ function historyText(entry: LeadHistoryEntry, myUid: string, members: Map<string
     /* A salesperson has no team list, so a colleague is named generically. */
     return `assigned it to ${member ? memberName(member) : members.size ? "a former team member" : "a teammate"}.`;
   }
-  if (entry.action === "call") return "started a call.";
+  if (entry.action === "call") return entry.source === "copy" ? "copied the number to call it." : "started a call.";
   if (entry.action === "note") return "updated the internal note.";
   if (entry.action === "delete") return "moved it to the Recycle Bin.";
   return "restored it from the Recycle Bin.";

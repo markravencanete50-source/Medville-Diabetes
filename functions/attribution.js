@@ -47,3 +47,49 @@ export function createAttributionHandler({ enabled, origins, track }) {
     }
   };
 }
+
+/* Each opening of a referral link is a click; the first from a browser
+   session is also a unique visit. Repeat openings from one session count up
+   to MAX_HITS_PER_VISIT, and every hit shares the per-address hourly limit,
+   so refreshing a page cannot inflate either figure. Links made before total
+   clicks existed start from their unique visits, which every visit was at
+   least one click of. Nothing about the visitor is stored. */
+export const MAX_HITS_PER_VISIT = 20;
+export const HITS_PER_ADDRESS_HOUR = 120;
+
+export function createReferralTracker({ db, FieldValue, keys }) {
+  return async ({ referralCode, visitId, ip }) => {
+    const now = Date.now();
+    const { visitKey, rateKey } = keys({ referralCode, visitId, ip, now });
+    const influencer = db.collection("influencers").doc(referralCode);
+    const visit = db.collection("attributionVisits").doc(visitKey);
+    const rate = db.collection("attributionLimits").doc(rateKey);
+    return db.runTransaction(async (tx) => {
+      const [influencerSnapshot, visitSnapshot, rateSnapshot] = await Promise.all([
+        tx.get(influencer), tx.get(visit), tx.get(rate),
+      ]);
+      const partner = influencerSnapshot.exists ? influencerSnapshot.data() : null;
+      if (!partner || partner.active !== true) return { tracked: false };
+      const count = rateSnapshot.data()?.count || 0;
+      if (count >= HITS_PER_ADDRESS_HOUR) return { tracked: false };
+      const hits = visitSnapshot.exists ? (Number(visitSnapshot.data()?.hits) || 1) : 0;
+      if (hits >= MAX_HITS_PER_VISIT) return { tracked: false };
+      const totalClicks = Number.isFinite(partner.totalClicks) ? partner.totalClicks
+        : Number.isFinite(partner.clicks) ? partner.clicks : 0;
+      tx.set(rate, { count: count + 1, expiresAt: new Date(now + 7200000) });
+      if (visitSnapshot.exists) {
+        tx.update(visit, { hits: hits + 1, lastAt: FieldValue.serverTimestamp() });
+        tx.update(influencer, { totalClicks: totalClicks + 1, updatedAt: FieldValue.serverTimestamp() });
+        return { tracked: true, unique: false };
+      }
+      tx.create(visit, {
+        referralCode, hits: 1, createdAt: FieldValue.serverTimestamp(),
+        expiresAt: new Date(now + 90 * 24 * 60 * 60 * 1000),
+      });
+      tx.update(influencer, {
+        clicks: FieldValue.increment(1), totalClicks: totalClicks + 1, updatedAt: FieldValue.serverTimestamp(),
+      });
+      return { tracked: true, unique: true };
+    });
+  };
+}

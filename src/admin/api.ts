@@ -262,7 +262,10 @@ export interface Influencer {
   platform: string;
   active: boolean;
   deleted?: boolean;
+  /* Unique visits: the first opening of the link from a browser session. */
   clicks: number;
+  /* Every opening of the link, repeats included, within the abuse limits. */
+  totalClicks: number;
   leads: number;
   createdAt: string | null;
 }
@@ -415,7 +418,10 @@ export const adminApi = {
 
   /* Releases one phone number for one call. Each release is written to the
      access log and counted against an hourly limit. */
-  dialLead: (getToken: GetToken, id: string) => call<{ dial: string }>(getToken, "leads.dial", { id }),
+  /* copy: the number is for the clipboard, to paste into Five9 by hand. It
+     is released, limited and recorded exactly like a call. */
+  dialLead: (getToken: GetToken, id: string, copy = false) =>
+    call<{ dial: string }>(getToken, "leads.dial", { id, ...(copy ? { copy: true } : {}) }),
 
   /* Who did what to one enquiry, newest first. Reading it is recorded in the
      access log. */

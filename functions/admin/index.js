@@ -252,6 +252,8 @@ function influencerToJson(doc) {
     active: d.active === true,
     deleted: d.deleted === true,
     clicks: Number.isFinite(d.clicks) ? d.clicks : 0,
+    // Every opening of the link. Links older than this count start from their unique visits.
+    totalClicks: Number.isFinite(d.totalClicks) ? d.totalClicks : Number.isFinite(d.clicks) ? d.clicks : 0,
     leads: Number.isFinite(d.leads) ? d.leads : 0,
     createdAt: d.createdAt?.toDate?.().toISOString() ?? null,
   };
@@ -270,7 +272,7 @@ async function createInfluencer(actor, body) {
   const result = await db.runTransaction(async (tx) => {
     if ((await tx.get(reference)).exists) return { error: "That influencer link already exists." };
     tx.create(reference, {
-      ...input, active: true, clicks: 0, leads: 0,
+      ...input, active: true, clicks: 0, totalClicks: 0, leads: 0,
       createdAt: FieldValue.serverTimestamp(), createdBy: actor.uid,
       updatedAt: FieldValue.serverTimestamp(), updatedBy: actor.uid,
     });
@@ -278,7 +280,7 @@ async function createInfluencer(actor, body) {
   });
   if (result.error) return result;
   await audit(actor, "influencers.create", { influencerId: input.slug });
-  return { ok: true, influencer: { ...input, active: true, clicks: 0, leads: 0, createdAt: null } };
+  return { ok: true, influencer: { ...input, active: true, clicks: 0, totalClicks: 0, leads: 0, createdAt: null } };
 }
 
 async function setInfluencerActive(actor, body) {
