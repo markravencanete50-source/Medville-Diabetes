@@ -213,7 +213,8 @@ function dialable(phone){
  if(digits.length===11&&digits.startsWith('1'))return`+${digits}`;
  return digits.length>=7&&digits.length<=15?digits:'';
 }
-// The number is released for one call at a time, never shown in a list. Every release
+// The number is released for one call at a time, never shown in a list. It goes to the
+// computer's dialler, or to the clipboard when that dialler does not open from a link. Every release
 // is audited and counted, and each person may release a limited number per hour.
 async function dialLead(actor,b){
  if(!validId(b.id))return{error:'Invalid enquiry.'};
@@ -223,12 +224,14 @@ async function dialLead(actor,b){
  const number=dialable(item.phone);
  if(!number)return{error:'This enquiry has no phone number that can be dialled.'};
  const now=Date.now(),at=new Date(now).toISOString(),own=actor.role==='sales';
+ // Copying the number for the dialler is a release like a call: limited, audited and in the history.
+ const copy=b.copy===true;
  try{
   await db.send(new TransactWriteCommand({TransactItems:[
    {Update:{TableName:process.env.RATE_TABLE,Key:{id:`dial#${actor.uid}#${Math.floor(now/3600000)}`},UpdateExpression:'SET expiresAt=:expiry ADD #count :one',ConditionExpression:'attribute_not_exists(#count) OR #count < :limit',ExpressionAttributeNames:{'#count':'count'},ExpressionAttributeValues:{':expiry':Math.floor(now/1000)+7200,':one':1,':limit':DIAL_LIMIT_PER_HOUR}}},
    {Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:'SET lastDialAt=:at, lastDialBy=:uid, callOpenBy=:uid, callOpenAt=:at ADD dialCount :one',ConditionExpression:`attribute_exists(id) AND attribute_not_exists(deletedAt)${own?' AND assignedTo=:uid':''}`,ExpressionAttributeValues:{':at':at,':uid':actor.uid,':one':1}}},
-   {Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.dial',{leadId:b.id}),ConditionExpression:'attribute_not_exists(id)'}},
-   historyItem(actor,b.id,'call'),
+   {Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.dial',{leadId:b.id,method:copy?'copy':'call'}),ConditionExpression:'attribute_not_exists(id)'}},
+   historyItem(actor,b.id,'call',copy?{source:'copy'}:{}),
   ]}));
  }catch(e){
   const reasons=e?.CancellationReasons;

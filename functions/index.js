@@ -4,7 +4,7 @@ import { defineSecret } from "firebase-functions/params";
 import { Firestore, FieldValue } from "@google-cloud/firestore";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { createIntakeHandler } from "./intake.js";
-import { createAttributionHandler } from "./attribution.js";
+import { createAttributionHandler, createReferralTracker } from "./attribution.js";
 import { createContactHandler } from "./contact.js";
 import { createIntakeConfigHandler } from "./intake-config.js";
 import { sendNotification } from "./notification.js";
@@ -239,35 +239,15 @@ export const blogNewsletter = onDocumentWritten({
 const attributionHandler = createAttributionHandler({
   enabled: () => Boolean(referralRateLimitSecret.value()),
   origins: (process.env.ALLOWED_ORIGIN || DEFAULT_ORIGINS).split(",").map((s) => s.trim()).filter(Boolean),
-  track: async ({ referralCode, visitId, ip }) => {
-    const now = Date.now();
-    const hour = Math.floor(now / 3600000);
-    const visitKey = createHash("sha256").update(`${referralCode}:${visitId}`).digest("hex");
-    const rateKey = createHmac("sha256", referralRateLimitSecret.value())
-      .update(`referral:${hour}:${ip}`).digest("hex");
-    const influencer = db.collection("influencers").doc(referralCode);
-    const visit = db.collection("attributionVisits").doc(visitKey);
-    const rate = db.collection("attributionLimits").doc(rateKey);
-    return db.runTransaction(async (tx) => {
-      const [influencerSnapshot, visitSnapshot, rateSnapshot] = await Promise.all([
-        tx.get(influencer), tx.get(visit), tx.get(rate),
-      ]);
-      if (!influencerSnapshot.exists || influencerSnapshot.data()?.active !== true || visitSnapshot.exists) {
-        return { tracked: false };
-      }
-      const count = rateSnapshot.data()?.count || 0;
-      if (count >= 120) return { tracked: false };
-      tx.set(rate, { count: count + 1, expiresAt: new Date(now + 7200000) });
-      tx.create(visit, {
-        referralCode, createdAt: FieldValue.serverTimestamp(),
-        expiresAt: new Date(now + 90 * 24 * 60 * 60 * 1000),
-      });
-      tx.update(influencer, {
-        clicks: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp(),
-      });
-      return { tracked: true };
-    });
-  },
+  track: createReferralTracker({
+    db,
+    FieldValue,
+    keys: ({ referralCode, visitId, ip, now }) => ({
+      visitKey: createHash("sha256").update(`${referralCode}:${visitId}`).digest("hex"),
+      rateKey: createHmac("sha256", referralRateLimitSecret.value())
+        .update(`referral:${Math.floor(now / 3600000)}:${ip}`).digest("hex"),
+    }),
+  }),
 });
 
 export const trackReferralClick = onRequest({

@@ -43,8 +43,8 @@ export default function Influencers() {
 
   const visibleItems = (items ?? []).filter((item) => !item.deleted);
   const totals = useMemo(() => (items ?? []).filter((item) => !item.deleted).reduce(
-    (sum, item) => ({ clicks: sum.clicks + item.clicks, leads: sum.leads + item.leads }),
-    { clicks: 0, leads: 0 },
+    (sum, item) => ({ clicks: sum.clicks + item.clicks, totalClicks: sum.totalClicks + (item.totalClicks ?? item.clicks), leads: sum.leads + item.leads }),
+    { clicks: 0, totalClicks: 0, leads: 0 },
   ), [items]);
 
   const create = async (event: React.FormEvent) => {
@@ -97,7 +97,7 @@ export default function Influencers() {
     <>
       <PageHeader
         title="Influencers"
-        lede="Create partner and paid social links, then compare unique visits, enquiries, and conversion rate."
+        lede="Create partner and paid social links, then compare clicks, unique visits, enquiries, and conversion rate."
         actions={<button type="button" className="admin-btn admin-btn-quiet" onClick={() => void load()}><RefreshCw size={16} /> Refresh</button>}
       />
 
@@ -105,6 +105,7 @@ export default function Influencers() {
 
       <div className="mb-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
         <Card><div className="admin-stat"><b>{(items ?? []).filter((item) => !item.deleted).length}</b><span>Partners</span></div></Card>
+        <Card><div className="admin-stat"><b>{totals.totalClicks}</b><span>Total clicks</span></div></Card>
         <Card><div className="admin-stat"><b>{totals.clicks}</b><span>Unique visits</span></div></Card>
         <Card><div className="admin-stat"><b>{totals.leads}</b><span>Enquiries</span></div></Card>
         <Card><div className="admin-stat"><b>{conversion}</b><span>Conversion</span></div></Card>
@@ -114,15 +115,15 @@ export default function Influencers() {
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg" style={{ background: "var(--a-brand-soft)", color: "var(--a-brand-text)" }}><BarChart3 size={19} /></span>
-            <div><p className="admin-label m-0">Meta Ads measurement</p><p className="admin-help mt-1 max-w-[720px]">Choose Meta Ads when you create a link. The URL includes a campaign name and Medville records unique visits, enquiries, and conversion rate without sending form answers or contact details to Meta.</p></div>
+            <div><p className="admin-label m-0">Meta Ads measurement</p><p className="admin-help mt-1 max-w-[720px]">Choose Meta Ads when you create a link. The URL includes a campaign name and Medville records clicks, unique visits, enquiries, and conversion rate without sending form answers or contact details to Meta.</p></div>
           </div>
           <Badge tone="ok">First-party tracking active</Badge>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <div className="rounded-lg p-4" style={{ background: "var(--a-brand-soft)" }}><div className="flex items-center gap-2"><ShieldCheck size={16} style={{ color: "var(--a-brand-text)" }} /><p className="admin-label m-0">Available now</p></div><p className="admin-help mt-2">Campaign link, unique visits, enquiries, and on-site conversion rate.</p></div>
+          <div className="rounded-lg p-4" style={{ background: "var(--a-brand-soft)" }}><div className="flex items-center gap-2"><ShieldCheck size={16} style={{ color: "var(--a-brand-text)" }} /><p className="admin-label m-0">Available now</p></div><p className="admin-help mt-2">Campaign link, clicks, unique visits, enquiries, and on-site conversion rate.</p></div>
           <div className="rounded-lg border p-4" style={{ borderColor: "var(--a-border)" }}><p className="admin-label m-0">Compliance boundary</p><p className="admin-help mt-2">Meta Pixel is intentionally not loaded on the public website, forms, or protected dashboard.</p></div>
         </div>
-        <p className="admin-help mt-4">Campaign links, unique visits, enquiries, and conversion rate are measured within Medville. Form answers and contact details are not sent to Meta.</p>
+        <p className="admin-help mt-4">Campaign links, clicks, unique visits, enquiries, and conversion rate are measured within Medville. Form answers and contact details are not sent to Meta.</p>
       </Card>
 
       <Card className="mb-4">
@@ -154,13 +155,13 @@ export default function Influencers() {
         ) : (
           <div className="admin-table-wrap">
             <table className="admin-table">
-              <thead><tr><th scope="col">Influencer</th><th scope="col">Referral link</th><th scope="col">Visits</th><th scope="col">Enquiries</th><th scope="col">Conversion</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+              <thead><tr><th scope="col">Influencer</th><th scope="col">Referral link</th><th scope="col">Clicks</th><th scope="col">Unique visits</th><th scope="col">Enquiries</th><th scope="col">Conversion</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
               <tbody>{visibleItems.map((item) => {
                 const rate = item.clicks ? `${((item.leads / item.clicks) * 100).toFixed(1)}%` : "0%";
                 return <tr key={item.slug}>
                   <td data-label="Influencer"><span className="font-semibold">{item.name}</span><span className="block text-xs" style={{ color: "var(--a-text-faint)" }}>{item.platform} · {item.handle}</span></td>
                   <td data-label="Referral link"><input className="admin-input min-w-[260px]" readOnly value={referralUrl(item)} aria-label={`Referral link for ${item.name}`} /></td>
-                  <td data-label="Visits">{item.clicks}</td><td data-label="Enquiries">{item.leads}</td><td data-label="Conversion">{rate}</td>
+                  <td data-label="Clicks">{item.totalClicks ?? item.clicks}</td><td data-label="Unique visits">{item.clicks}</td><td data-label="Enquiries">{item.leads}</td><td data-label="Conversion">{rate}</td>
                   <td data-label="Status"><Badge tone={item.active ? "ok" : "quiet"}>{item.active ? "Active" : "Paused"}</Badge></td>
       <td><button type="button" className="admin-btn admin-btn-quiet admin-btn-sm" onClick={() => void copy(item)}><Copy size={14} /> Copy</button><button type="button" className="admin-btn admin-btn-quiet admin-btn-sm ml-2" disabled={Boolean(busySlug)} onClick={() => void setActive(item)}>{item.active ? "Pause" : "Reactivate"}</button><button type="button" className="admin-btn admin-btn-quiet admin-btn-sm ml-2" disabled={Boolean(busySlug)} onClick={() => void setDeleted(item)}>Move to Recycle Bin</button></td>
                 </tr>;
