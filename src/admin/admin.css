@@ -498,27 +498,43 @@
 /* An input with an icon inside each end. 16px type stops phones zooming in. */
 .admin-signin-control { position: relative; }
 
-.admin-signin-input {
+/* Scoped twice so the general .admin-input rule, which comes later in this
+   file, cannot reset the padding and slide the text under the icons. */
+.admin-signin-control .admin-signin-input {
   min-height: 48px;
-  padding: 0 14px 0 42px;
+  padding: 0 14px 0 46px;
   font-size: 16px;
 }
 
-.admin-signin-input-end { padding-right: 52px; }
+.admin-signin-control .admin-signin-input-end { padding-right: 54px; }
 
+/* The icon sits above the field, including over a browser's autofill colour. */
 .admin-signin-lead {
   position: absolute;
+  z-index: 1;
   top: 50%;
-  left: 14px;
+  left: 15px;
   translate: 0 -50%;
-  color: var(--a-text-faint);
+  color: var(--a-text-muted);
   pointer-events: none;
+  transition: color 160ms ease;
 }
 
 .admin-signin-control:focus-within .admin-signin-lead { color: var(--a-brand); }
 
+/* Autofill paints its own pale blue. Keep the field on the card's colour. */
+.admin-signin-control .admin-signin-input:-webkit-autofill,
+.admin-signin-control .admin-signin-input:-webkit-autofill:hover,
+.admin-signin-control .admin-signin-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--a-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--a-surface) inset;
+  caret-color: var(--a-text);
+  transition: background-color 9999s ease-out 0s;
+}
+
 .admin-signin-reveal {
   position: absolute;
+  z-index: 1;
   top: 2px;
   right: 2px;
   display: inline-flex;
@@ -1272,7 +1288,11 @@
   width: min(360px, calc(100vw - 32px));
 }
 
-/* Every dashboard action receives a clear, top-level result card. */
+/* Every dashboard action receives a clear, top-level result card.
+   Motion, in order: the backdrop fades in, the card rises on a soft spring,
+   the badge pops, the tick draws itself, two rings ripple out, the words
+   follow, and a bar along the foot counts down the time left. Leaving is the
+   same in reverse, shorter, so the screen never snaps. */
 .admin .admin-action-notices {
   position: fixed;
   inset: 0;
@@ -1288,31 +1308,38 @@
 
 .admin .admin-action-notices.is-visible {
   pointer-events: auto;
-  background: rgb(0 29 41 / 0.58);
-  backdrop-filter: blur(8px);
-  animation: admin-modal-backdrop-in 220ms ease-out both;
+  background: rgb(0 29 41 / 0.42);
+  backdrop-filter: blur(3px);
+  animation: admin-modal-backdrop-in 240ms ease-out both;
 }
 
+.admin .admin-action-notices.is-leaving { animation: admin-modal-backdrop-out 260ms ease-in both; }
+
 .admin-action-notice {
+  position: relative;
   display: flex;
-  width: min(100%, 540px);
+  width: min(100%, 460px);
   align-items: center;
   gap: 16px;
-  padding: 22px;
+  overflow: hidden;
+  padding: 20px 18px 22px 20px;
   border: 1px solid var(--a-line);
   border-radius: 18px;
   background: var(--a-surface);
-  box-shadow: var(--a-shadow-lg, 0 24px 70px rgb(0 17 26 / 0.34));
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 24px 60px -18px rgb(0 17 26 / 0.55);
   color: var(--a-text);
   pointer-events: auto;
-  animation: admin-notice-in 360ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  transform-origin: 50% 70%;
+  animation: admin-notice-in 520ms cubic-bezier(0.22, 1.25, 0.36, 1) both;
 }
+
+.admin-action-notice.is-leaving { animation: admin-notice-out 260ms cubic-bezier(0.4, 0, 1, 1) both; }
 
 .admin-action-notice-motion {
   position: relative;
   display: inline-flex;
-  width: 58px;
-  height: 58px;
+  width: 52px;
+  height: 52px;
   flex: none;
   align-items: center;
   justify-content: center;
@@ -1329,31 +1356,42 @@
   border-radius: 999px;
   background: var(--a-ok-soft);
   color: var(--a-ok);
-  animation: admin-action-icon-in 520ms cubic-bezier(0.25, 1, 0.5, 1) 100ms both;
+  animation: admin-action-icon-in 560ms cubic-bezier(0.34, 1.56, 0.64, 1) 120ms both;
+}
+
+.admin-action-notice-tick {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: admin-action-tick 420ms cubic-bezier(0.65, 0, 0.35, 1) 360ms forwards;
 }
 
 .admin-action-notice-ring {
   position: absolute;
-  inset: 1px;
-  border: 2px solid color-mix(in srgb, var(--a-ok) 28%, transparent);
+  inset: 3px;
+  border: 2px solid color-mix(in srgb, var(--a-ok) 40%, transparent);
   border-radius: 999px;
-  animation: admin-action-ring 720ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  opacity: 0;
+  animation: admin-action-ring 900ms cubic-bezier(0.22, 1, 0.36, 1) 300ms both;
 }
 
 .admin-action-notice-ring-two {
-  inset: 7px;
-  border-color: color-mix(in srgb, var(--a-ok) 16%, transparent);
-  animation-delay: 100ms;
+  border-color: color-mix(in srgb, var(--a-ok) 24%, transparent);
+  animation-delay: 480ms;
 }
 
 .admin-action-notice-danger .admin-action-notice-icon {
   background: var(--a-danger-soft);
   color: var(--a-danger);
+  animation: admin-action-icon-in 560ms cubic-bezier(0.34, 1.56, 0.64, 1) 120ms both, admin-action-nudge 420ms ease-in-out 680ms both;
 }
 
 .admin-action-notice-danger .admin-action-notice-ring {
-  border-color: color-mix(in srgb, var(--a-danger) 26%, transparent);
+  border-color: color-mix(in srgb, var(--a-danger) 32%, transparent);
 }
+
+.admin-action-notice-text > * { animation: admin-notice-text-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.admin-action-notice-title { animation-delay: 200ms; }
+.admin-action-notice-message { animation-delay: 280ms; }
 
 .admin-action-notice-title {
   margin: 1px 0 3px;
@@ -1369,9 +1407,33 @@
   line-height: 1.55;
 }
 
+/* The countdown. Its end is what closes the notice, so it runs even when
+   motion is reduced; hovering or focusing the card pauses it. */
+.admin-action-notice-timer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--a-brand), color-mix(in srgb, var(--a-brand) 55%, transparent));
+  transform-origin: left center;
+  animation: admin-notice-timer var(--notice-ms, 4200ms) linear 360ms both;
+}
+
+.admin-action-notice-danger .admin-action-notice-timer { background: var(--a-danger-fill, var(--a-danger)); }
+
+.admin-action-notice:hover .admin-action-notice-timer,
+.admin-action-notice:focus-within .admin-action-notice-timer { animation-play-state: paused; }
+
 @keyframes admin-notice-in {
-  from { opacity: 0; transform: translateY(20px) scale(0.94); }
+  from { opacity: 0; transform: translateY(18px) scale(0.92); }
+  60% { opacity: 1; }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes admin-notice-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-10px) scale(0.96); }
 }
 
 @keyframes admin-modal-backdrop-in {
@@ -1379,16 +1441,40 @@
   to { opacity: 1; }
 }
 
+@keyframes admin-modal-backdrop-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
 @keyframes admin-action-icon-in {
-  from { opacity: 0; transform: scale(0.45) rotate(-12deg); }
-  72% { opacity: 1; transform: scale(1.1) rotate(2deg); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; transform: scale(0.3); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes admin-action-tick {
+  to { stroke-dashoffset: 0; }
 }
 
 @keyframes admin-action-ring {
-  from { opacity: 0; transform: scale(0.45); }
-  55% { opacity: 1; }
-  to { opacity: 0; transform: scale(1.25); }
+  0% { opacity: 0; transform: scale(0.8); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.6); }
+}
+
+@keyframes admin-action-nudge {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+@keyframes admin-notice-text-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes admin-notice-timer {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
 }
 
 .admin-scrim {
@@ -1480,7 +1566,13 @@
 @keyframes admin-confirm-spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .admin-action-notice,
+  /* A plain fade in and out, and the tick shown whole. The countdown stays. */
+  .admin-action-notice { animation: admin-modal-backdrop-in 160ms ease-out both; }
+  .admin-action-notice.is-leaving { animation: admin-modal-backdrop-out 160ms ease-in both; }
+  .admin-action-notice-tick { animation: none; stroke-dashoffset: 0; }
+  .admin-action-notice-ring { display: none; }
+  .admin-action-notice-text > *,
+  .admin-action-notice-danger .admin-action-notice-icon,
   .admin.admin-action-notices.is-visible,
   .admin-action-notice-icon,
   .admin-action-notice-ring,
