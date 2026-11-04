@@ -183,13 +183,14 @@ only change made to their wording.
   call leads but must not hold the list, because the owner does not want
   leads taken to competitors. A `sales` account sees only the enquiries
   assigned to it. Both sales roles receive phone and email already removed by
-  the AWS lead service, so the numbers are not in the page at all. Call asks
-  `leads.dial` for one number, which is audited, counted against a limit of
-  60 per person per hour, and handed straight to the computer's dialler
-  (Five9 on the client's machines) without being drawn. Copy, beside Call,
-  asks `leads.dial` with `copy: true` and writes the number straight to the
-  clipboard for pasting into Five9, for machines where the link does not open
-  it; it is limited, audited (`method: copy`) and in the history like a call. Neither sales role
+  the AWS lead service, so the numbers are not in the page at all. Since
+  2026-11-05, on the client's instruction, there is no Call button: Copy number
+  asks `leads.dial` with `copy: true` for one number, which is audited
+  (`method: copy`), counted against a limit of 60 per person per hour, written
+  to the lead's history with its time ("copied the phone number") so the Sales
+  manager can trace who copied which number and when, and put straight on the
+  clipboard for pasting into Five9 (on the client's machines) without being
+  drawn. Do not bring back a `tel:` link for the sales roles. Neither sales role
   can export, delete, restore or bulk import; the AWS service refuses those
   as well as the dashboard hiding them. The `manager` role assigns leads
   (`leads.assign`, which checks the assignee against the identity service's
@@ -228,6 +229,20 @@ only change made to their wording.
   move per run, in conditional batches of `BATCH_LIMIT` with a history entry
   each (`source: reshuffle`) and one audit entry per batch. Finished leads,
   Do not contact included, never move.
+- Sales team charts, since 2026-11-05. The Sales team screen opens on a
+  Performance section for the Owner and Sales manager: a calendar range picker
+  (`src/admin/RangePicker.tsx`, California days, presets and a month grid, at
+  most 92 days), headline figures against the same number of days just before,
+  daily lines, daily outcome columns, a funnel from enquiry to qualified, and
+  paired bars per salesperson (`src/admin/teamCharts.tsx`). The figures come
+  from `leads.team.activity` in `aws/src/admin.cjs`, which reads arrivals
+  (stage and assignee only) and the access log's `leads.dial` and
+  `leads.update` entries, returns counts per day and per person and never an
+  enquiry id, stops counting after 14 seconds and says so (`partial`), and is
+  itself audited. Charts use `--a-series-1` and `--a-series-2`, a cyan and
+  orange pair checked for colour blindness in both themes; keep each chart to
+  two series. "Calls recorded" can only be counted from 2026-11-03, when call
+  recording began.
 - Influencer clicks, since 2026-11-03. `trackReferralClick` (the `intake`
   codebase, logic in `createReferralTracker` in `functions/attribution.js`)
   counts every opening of a referral link in `totalClicks`, and the first from

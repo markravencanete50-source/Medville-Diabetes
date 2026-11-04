@@ -31,6 +31,7 @@ const AWS_ACTIONS = new Set([
   "leads.dial",
   "leads.history",
   "leads.team",
+  "leads.team.activity",
   "alerts.list",
   "alerts.set",
   "assign.auto.set",
@@ -227,6 +228,29 @@ export interface SalesTeamSummary {
   people: Record<string, SalesPersonFigures>;
   unassigned: { open: number; new: number; oldestNewAt: string | null };
   total: number;
+}
+
+/* The Sales team charts. Counts only, per Pacific day and per person, for the
+   chosen days and the same number of days just before them. "dials" counts
+   numbers released by Copy number (and, before it, by Call). */
+export interface ActivityCounts {
+  received: number;
+  dials: number;
+  recorded: number;
+  qualified: number;
+  notQualified: number;
+}
+export interface SalesActivity {
+  from: string;
+  to: string;
+  previousFrom: string;
+  previousTo: string;
+  days: (ActivityCounts & { day: string })[];
+  people: Record<string, ActivityCounts & { assigned: number }>;
+  current: ActivityCounts;
+  previous: ActivityCounts;
+  funnel: { received: number; contacted: number; qualified: number; notQualified: number; open: number };
+  partial: boolean;
 }
 
 /* One entry in a lead's history. Fixed facts only: never a note's text. */
@@ -434,6 +458,8 @@ export const adminApi = {
   salesTeam: (getToken: GetToken) => call<{ members: SalesMember[] }>(getToken, "team.members"),
 
   salesTeamSummary: (getToken: GetToken) => call<SalesTeamSummary>(getToken, "leads.team"),
+  salesTeamActivity: (getToken: GetToken, from: string, to: string) =>
+    call<SalesActivity>(getToken, "leads.team.activity", { from, to }),
 
   /* Email alerts are counts only. The address is taken from the person's
      account on the server, never from here. */

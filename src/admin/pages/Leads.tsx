@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Copy, Download, Phone, RefreshCw, Search, Trash2, Upload, UserCheck } from "lucide-react";
+import { Copy, Download, RefreshCw, Search, Trash2, Upload, UserCheck } from "lucide-react";
 import {
   adminApi,
   AdminApiError,
@@ -53,8 +53,9 @@ import { parseStatusImport, StatusCsvError } from "../statusCsv";
 
   The two sales roles see a narrower screen. Phone numbers and email addresses
   arrive from the server already removed, so they are not in the page at all.
-  Call asks the server for one number, which writes the request to the access
-  log, and hands it straight to the computer's dialler without drawing it.
+  Copy number asks the server for one number, which writes the copy and its
+  time to the lead's history and the access log, and puts it straight on the
+  clipboard for Five9 without drawing it.
   A salesperson receives only the leads assigned to them; the sales manager
   sees every lead and assigns them. Neither is offered export, delete or the
   status import, and the server refuses those for both.
@@ -173,28 +174,22 @@ export default function Leads() {
     finally { setOpening(false); }
   };
 
-  /* The number goes from the response to the dialler and nowhere else: it is
-     not stored in state, so it never renders. */
-  const dial = async (lead: Lead, copy = false) => {
+  /* The number goes from the response to the clipboard and nowhere else: it
+     is not stored in state, so it never renders. Each copy is written to the
+     lead's history with the time, so the Sales manager can trace it. */
+  const dial = async (lead: Lead) => {
     setDialingId(lead.id);
     try {
-      const result = await adminApi.dialLead(getToken, lead.id, copy);
-      if (copy) {
-        /* Straight to the clipboard for pasting into Five9. Never shown. */
-        const copied = await navigator.clipboard?.writeText(result.dial).then(() => true, () => false);
-        if (copied) toast("Number copied. Paste it into Five9. It is not shown here.");
-        else toast("Your browser blocked copying. Press Copy again.", "danger");
-      } else {
-        const link = document.createElement("a");
-        link.href = `tel:${result.dial}`;
-        link.click();
-      }
+      const result = await adminApi.dialLead(getToken, lead.id, true);
+      const copied = await navigator.clipboard?.writeText(result.dial).then(() => true, () => false);
+      if (copied) toast("Number copied. Paste it into Five9. It is not shown here.");
+      else toast("Your browser blocked copying. Press Copy number again.", "danger");
       const touched = { lastDialAt: new Date().toISOString(), dialCount: lead.dialCount + 1, callPending: true };
       setHistoryVersion((value) => value + 1);
       setLeads((current) => (current ?? []).map((item) => item.id === lead.id ? { ...item, ...touched } : item));
       setOpenLead((current) => current && current.id === lead.id ? { ...current, ...touched } : current);
     } catch (problem) {
-      toast(problem instanceof AdminApiError ? problem.message : "The call could not be started. Please try again.", "danger");
+      toast(problem instanceof AdminApiError ? problem.message : "The number could not be copied. Please try again.", "danger");
     } finally {
       setDialingId("");
     }
@@ -622,7 +617,7 @@ export default function Leads() {
                     {/* Beside the name so it never scrolls out of view. */}
                     {salesRole && (
                       <td>
-                        <CallButton lead={lead} busy={dialingId === lead.id} onCall={() => void dial(lead)} onCopy={() => void dial(lead, true)} />
+                        <CopyNumberButton lead={lead} busy={dialingId === lead.id} onCopy={() => void dial(lead)} />
                       </td>
                     )}
                     <td data-label="Received" style={{ color: "var(--a-text-muted)" }}>
@@ -668,7 +663,7 @@ export default function Leads() {
                 <Detail label="Phone">
                   <span className="inline-flex flex-wrap items-center gap-2">
                     <span aria-label="Hidden">{HIDDEN_PHONE}</span>
-                    <CallButton lead={openLead} busy={dialingId === openLead.id} onCall={() => void dial(openLead)} onCopy={() => void dial(openLead, true)} />
+                    <CopyNumberButton lead={openLead} busy={dialingId === openLead.id} onCopy={() => void dial(openLead)} />
                   </span>
                 </Detail>
                 <Detail label="Email">Hidden</Detail>
@@ -686,7 +681,7 @@ export default function Leads() {
               </>}
               <Detail label="Calls">
                 {openLead.dialCount
-                  ? `${openLead.callsLogged} recorded, last dialled ${formatDateTime(openLead.lastDialAt)}`
+                  ? `${openLead.callsLogged} recorded, number last copied ${formatDateTime(openLead.lastDialAt)}`
                   : "Not called yet"}
               </Detail>
               <Detail label="Location">
@@ -732,8 +727,8 @@ export default function Leads() {
               <>
                 {openLead.callPending && (
                   <Banner tone="info">
-                    You called this patient. Set the stage below to record how the call went. The call
-                    counts in your figures once you save the stage.
+                    You copied this number. After the call, set the stage below to record how it went.
+                    The call counts in your figures once you save the stage.
                   </Banner>
                 )}
                 <StageEditor lead={openLead} saving={saving} onSave={(patch) => void update(openLead, patch)} />
@@ -800,33 +795,22 @@ export default function Leads() {
   );
 }
 
-/* Call opens the computer's dialler. Copy puts the number on the clipboard
-   for when Five9 does not open from a link. Either way the number is
-   released by the server one at a time and never drawn on the screen. */
-function CallButton({ lead, busy, onCall, onCopy }: { lead: Lead; busy: boolean; onCall: () => void; onCopy: () => void }) {
+/* Copy puts the number on the clipboard for pasting into Five9. The server
+   releases it one at a time, writes the copy and its time to the lead's
+   history and the access log, and the number is never drawn on the screen. */
+function CopyNumberButton({ lead, busy, onCopy }: { lead: Lead; busy: boolean; onCopy: () => void }) {
   if (lead.status === "do-not-contact") return <Badge tone="danger">Do not call</Badge>;
   return (
-    <span className="inline-flex flex-wrap items-center gap-1.5">
-      <button
-        type="button"
-        className="admin-btn admin-btn-primary admin-btn-sm"
-        disabled={busy}
-        aria-label={`Call ${leadName(lead)}`}
-        onClick={onCall}
-      >
-        <Phone size={14} aria-hidden="true" /> {busy ? "Working" : "Call"}
-      </button>
-      <button
-        type="button"
-        className="admin-btn admin-btn-quiet admin-btn-sm"
-        disabled={busy}
-        aria-label={`Copy the number for ${leadName(lead)} to paste into Five9`}
-        title="Copy the number to paste into Five9"
-        onClick={onCopy}
-      >
-        <Copy size={14} aria-hidden="true" /> Copy
-      </button>
-    </span>
+    <button
+      type="button"
+      className="admin-btn admin-btn-primary admin-btn-sm"
+      disabled={busy}
+      aria-label={`Copy the number for ${leadName(lead)} to paste into Five9`}
+      title="Copy the number to paste into Five9"
+      onClick={onCopy}
+    >
+      <Copy size={14} aria-hidden="true" /> {busy ? "Copying" : "Copy number"}
+    </button>
   );
 }
 
@@ -909,7 +893,7 @@ function StageEditor({ lead, saving, onSave }: { lead: Lead; saving: boolean; on
         </Field>
       )}
       {status === "do-not-contact" && status !== lead.status && (
-        <p className="admin-help">The Call button is removed for this patient. Only an Owner can change this stage afterwards.</p>
+        <p className="admin-help">Copy number is removed for this patient. Only an Owner can change this stage afterwards.</p>
       )}
       <button
         type="button"
@@ -964,7 +948,7 @@ function historyText(entry: LeadHistoryEntry, myUid: string, members: Map<string
     /* A salesperson has no team list, so a colleague is named generically. */
     return `assigned it to ${member ? memberName(member) : members.size ? "a former team member" : "a teammate"}.`;
   }
-  if (entry.action === "call") return entry.source === "copy" ? "copied the number to call it." : "started a call.";
+  if (entry.action === "call") return entry.source === "copy" ? "copied the phone number." : "started a call.";
   if (entry.action === "note") return "updated the internal note.";
   if (entry.action === "delete") return "moved it to the Recycle Bin.";
   return "restored it from the Recycle Bin.";

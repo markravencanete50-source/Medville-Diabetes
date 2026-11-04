@@ -16,12 +16,14 @@ export function Popover({
   onClose,
   anchor,
   label,
+  className = "",
   children,
 }: {
   open: boolean;
   onClose: () => void;
   anchor: RefObject<HTMLElement | null>;
   label: string;
+  className?: string;
   children: ReactNode;
 }) {
   const panel = useRef<HTMLDivElement>(null);
@@ -47,7 +49,7 @@ export function Popover({
         ref={panel}
         role="dialog"
         aria-label={label}
-        className="admin-popover"
+        className={`admin-popover ${className}`.trim()}
         onKeyDown={(event) => {
           if (event.key !== "Escape") return;
           event.stopPropagation();
