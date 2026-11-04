@@ -37,8 +37,12 @@ for FN in trackReferralClick adminApi; do
   gsutil cp "gs://$BUCKET/$OBJECT" /tmp/live-$FN/source.zip
   (cd /tmp/live-$FN && unzip -oq source.zip && rm source.zip)
   git archive 84c0608 $DIR | tar -x -C /tmp/repo-$FN
+  # The intake upload also carries a copy of functions/admin from whenever the
+  # intake codebase was last deployed. adminApi is compared on its own, so leave
+  # that copy out of the intake comparison.
+  SKIP=$([ "$FN" = adminApi ] && echo "" || echo "-x admin")
   echo "== $FN"
-  diff -r --strip-trailing-cr -x node_modules -x package-lock.json -x '.env*' /tmp/repo-$FN/$DIR /tmp/live-$FN
+  diff -r --strip-trailing-cr -x node_modules -x package-lock.json -x '.env*' $SKIP /tmp/repo-$FN/$DIR /tmp/live-$FN
 done
 ```
 
@@ -48,8 +52,23 @@ and report the names of the files that differ.
 ## 3. Deploy
 
 The `.env` files stay as they are on the machine that last deployed. If they
-are missing, rebuild them as in step 3b of `DEPLOY-SALES-TEAM.md`: copy only
-the variables the code reads, never Google's own.
+are missing, rebuild them from the live functions as in step 3b of
+`DEPLOY-SALES-TEAM.md`: copy only the variables the code reads, never Google's
+own, and never invent a value.
+
+- `functions/admin/.env.medville-diabetes`, from `adminApi` and
+  `newsletterCampaignWorker`: `NOTIFICATION_FROM`, `ALLOWED_ORIGIN`,
+  `PUBLIC_SITE_URL`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`.
+- `functions/.env.medville-diabetes`, from `trackReferralClick`:
+  `ALLOWED_ORIGIN`, `PUBLIC_SITE_URL`, `NOTIFICATION_FROM`.
+
+Leave out any that are not set. On 2026-11-04 only `NOTIFICATION_FROM` was set.
+The click tracker's secret, `REFERRAL_RATE_LIMIT_SECRET`, stays in Secret
+Manager and is not copied.
+
+The live `trackReferralClick` used to carry `INTAKE_ENABLED`, a leftover from
+the retired Google patient form. Nothing in `functions/` reads it, so it is not
+on the list, and the 2026-11-04 deploy removed it. Do not add it back.
 
 ```bash
 firebase deploy --only functions:intake:trackReferralClick,functions:admin:adminApi --project medville-diabetes
