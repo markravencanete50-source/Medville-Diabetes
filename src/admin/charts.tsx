@@ -34,7 +34,7 @@ export function ChartFrame({
   title: string;
   note?: string;
   children: React.ReactNode;
-  table: { columns: [string, string]; rows: [string, string][] };
+  table: { columns: string[]; rows: string[][] };
 }) {
   const [showTable, setShowTable] = useState(false);
   const id = useId();
@@ -64,20 +64,18 @@ export function ChartFrame({
 
       {showTable ? (
         <div id={id} className="admin-table-wrap">
-          {/* Two narrow columns fit a phone as they are, so this table is
+          {/* A few narrow columns fit a phone as they are, so this table is
               exempt from the stacked layout. */}
           <table className="admin-table admin-table-keep">
             <thead>
               <tr>
-                <th scope="col">{table.columns[0]}</th>
-                <th scope="col">{table.columns[1]}</th>
+                {table.columns.map((column) => <th key={column} scope="col">{column}</th>)}
               </tr>
             </thead>
             <tbody>
-              {table.rows.map(([label, value]) => (
-                <tr key={label}>
-                  <td>{label}</td>
-                  <td>{value}</td>
+              {table.rows.map((row) => (
+                <tr key={row[0]}>
+                  {row.map((cell, index) => <td key={index}>{cell}</td>)}
                 </tr>
               ))}
             </tbody>

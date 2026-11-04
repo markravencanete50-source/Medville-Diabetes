@@ -364,3 +364,41 @@ test('AWS copying a number for Five9 is released, limited and recorded like a ca
  const call=runtime('Admin',{identity:salesperson,send:async c=>c.kind==='GetCommand'?{Item:assigned}:{}});await call.request({action:'leads.dial',id});
  assert.equal(call.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems[2].Put.Item.method,'call');
 });
+
+// Sales team charts: counts per Pacific day and per person, from arrivals and the access log only.
+const activityRun=(items={})=>runtime('Admin',{identity:manager,send:async c=>c.kind==='QueryCommand'?{Items:items[c.input.TableName]||[]}:{}});
+test('AWS team activity counts a chosen range and the period before it, without patient details',async()=>{
+ const leads=[
+  {createdAt:'2026-10-10T18:00:00.000Z',status:'qualified',assignedTo:salesperson.uid},
+  {createdAt:'2026-10-11T18:00:00.000Z',status:'new',assignedTo:salesperson.uid},
+  {createdAt:'2026-10-12T18:00:00.000Z',status:'not-qualified'},
+  {createdAt:'2026-10-08T18:00:00.000Z',status:'new'},
+  // 03:00 UTC on 11 October is still 10 October in California.
+  {createdAt:'2026-10-11T03:00:00.000Z',status:'callback'},
+ ];
+ const audit=[
+  {action:'leads.dial',actorUid:salesperson.uid,at:'2026-10-10T19:00:00.000Z'},
+  {action:'leads.dial',actorUid:salesperson.uid,at:'2026-10-11T19:00:00.000Z'},
+  {action:'leads.update',actorUid:salesperson.uid,at:'2026-10-10T19:05:00.000Z',stage:'qualified',callLogged:true},
+  {action:'leads.update',actorUid:salesperson.uid,at:'2026-10-12T19:05:00.000Z',stage:'not-qualified'},
+  {action:'leads.dial',actorUid:salesperson.uid,at:'2026-10-08T19:00:00.000Z'},
+ ];
+ const r=activityRun({leads,audit});const out=await r.request({action:'leads.team.activity',from:'2026-10-10',to:'2026-10-12'});
+ assert.equal(out.statusCode,200);
+ const queries=r.calls.filter(c=>c.kind==='QueryCommand');
+ for(const q of queries)assert.doesNotMatch(q.input.ProjectionExpression,/phone|email|firstName|lastName|note|injects|leadId|(^|,)id(,|$)/);
+ assert.equal(out.json.previousFrom,'2026-10-07');assert.equal(out.json.previousTo,'2026-10-09');
+ assert.deepEqual(plain(out.json.current),{received:4,dials:2,recorded:1,qualified:1,notQualified:1});
+ assert.deepEqual(plain(out.json.previous),{received:1,dials:1,recorded:0,qualified:0,notQualified:0});
+ assert.deepEqual(plain(out.json.days.map(d=>[d.day,d.received,d.dials])),[['2026-10-10',2,1],['2026-10-11',1,1],['2026-10-12',1,0]]);
+ assert.deepEqual(plain(out.json.funnel),{received:4,contacted:3,qualified:1,notQualified:1,open:2});
+ const p=out.json.people[salesperson.uid];assert.equal(p.assigned,2);assert.equal(p.dials,2);assert.equal(p.recorded,1);assert.equal(p.qualified,1);assert.equal(p.notQualified,1);
+ assert.doesNotMatch(out.body,/10000000-|Synthetic|example\.com/);
+ const logged=writes(r).at(-1).input.Item;assert.equal(logged.action,'leads.team.activity');assert.equal(logged.from,'2026-10-10');
+});
+test('AWS team activity refuses a missing, reversed or overlong range, and anyone but an owner or manager',async()=>{
+ for(const body of [{},{from:'2026-10-12',to:'2026-10-10'},{from:'2026-01-01',to:'2026-12-31'},{from:'not-a-day',to:'2026-10-10'}]){
+  const r=activityRun();assert.equal((await r.request({action:'leads.team.activity',...body})).statusCode,400);assert.equal(r.calls.filter(c=>c.kind==='QueryCommand').length,0);
+ }
+ for(const identity of [salesperson,{uid:'marketing',role:'marketing',features:['leads','salesTeam']}]){const r=runtime('Admin',{identity});assert.equal((await r.request({action:'leads.team.activity',from:'2026-10-10',to:'2026-10-12'})).statusCode,403);}
+});

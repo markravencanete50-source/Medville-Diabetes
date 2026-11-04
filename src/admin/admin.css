@@ -60,6 +60,10 @@
   --a-chart: #0b6a83;       /* series one: = brand */
   --a-chart-2: #00293b;     /* series two: navy */
   --a-chart-3: #b37b25;     /* series three: orange 70% into navy, 3.6:1; raw orange is 2.1:1 and fails as a bar */
+  /* two-series charts on the Sales team screen. Checked as a pair for colour
+     blindness and lightness: cyan deepened, orange deepened, both 3:1 or more */
+  --a-series-1: #0087ab;
+  --a-series-2: #b9741c;
 
   /* the navy surfaces, the same in both themes */
   --a-nav-bg: #00293b;      /* navy */
@@ -110,6 +114,8 @@
   --a-chart: #18bada;
   --a-chart-2: #b8c3c8;
   --a-chart-3: #ff9e1b;
+  --a-series-1: #0fa3c4;    /* cyan into navy; the pair passes on the navy surface */
+  --a-series-2: #c87810;    /* orange into navy */
 
   --a-scrim: rgb(0 0 0 / 0.6);
   --a-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 28px -16px rgb(0 0 0 / 0.7);
@@ -2032,4 +2038,146 @@
 @media (prefers-reduced-motion: reduce) {
   .admin-team-card,
   .admin-team-rate-bar > span { transition: none; }
+}
+
+/* ---- Sales team: performance charts ---- */
+
+.admin-section-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 10px;
+}
+
+.admin-perf-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+}
+.admin-perf-wide { grid-column: 1 / -1; }
+
+.admin-stat .admin-kpi-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+  color: var(--a-text-muted);
+}
+
+.admin-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+  color: var(--a-text-muted);
+}
+.admin-chart-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.admin-chart-swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+
+.admin-person-bar {
+  display: grid;
+  grid-template-columns: 1fr 3.5ch;
+  align-items: center;
+  gap: 8px;
+}
+.admin-person-bar + .admin-person-bar { margin-top: 2px; }
+.admin-person-bar-track {
+  display: block;
+  height: 10px;
+  background: var(--a-surface-2);
+  border-radius: 0 4px 4px 0;
+  overflow: hidden;
+}
+.admin-person-bar-track > span { display: block; height: 100%; border-radius: 0 4px 4px 0; }
+.admin-person-bar-value { font-size: 12.5px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---- the calendar range picker ---- */
+
+.admin-range-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1px solid var(--a-line-strong);
+  border-radius: var(--a-radius);
+  background: var(--a-surface);
+  color: var(--a-text);
+  cursor: pointer;
+}
+.admin-range-trigger:hover { border-color: var(--a-brand); }
+.admin-range-trigger > svg { color: var(--a-brand-text); flex: none; }
+.admin-range-trigger-label { display: block; font-size: 13px; font-weight: 700; }
+.admin-range-trigger-days { display: block; font-size: 12px; color: var(--a-text-muted); }
+
+.admin-popover.admin-popover-range { width: min(540px, calc(100vw - 32px)); left: auto; right: 0; }
+
+.admin-range-panel { display: grid; grid-template-columns: 150px 1fr; gap: 14px; }
+.admin-range-presets { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.admin-range-presets button {
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--a-radius-sm);
+  background: transparent;
+  color: var(--a-text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.admin-range-presets button:hover { background: var(--a-surface-2); }
+.admin-range-presets button[aria-pressed="true"] { background: var(--a-brand-soft); color: var(--a-brand-text); font-weight: 700; }
+
+.admin-range-month { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.admin-range-month p { margin: 0; font-weight: 700; font-size: 14px; }
+.admin-range-nav {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--a-line);
+  border-radius: var(--a-radius-sm);
+  background: transparent;
+  color: var(--a-text);
+  cursor: pointer;
+}
+.admin-range-nav:disabled { opacity: 0.35; cursor: default; }
+
+.admin-range-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px 0; }
+.admin-range-weekday { text-align: center; font-size: 11px; font-weight: 600; color: var(--a-text-faint); padding: 4px 0; }
+.admin-range-day {
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--a-text);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.admin-range-day:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--a-brand); border-radius: var(--a-radius-sm); }
+.admin-range-day[data-inside] { background: var(--a-brand-soft); }
+.admin-range-day[data-edge] { background: var(--a-brand); color: var(--a-on-brand); font-weight: 700; border-radius: var(--a-radius-sm); }
+.admin-range-day[data-today]:not([data-edge]) { text-decoration: underline; text-underline-offset: 3px; font-weight: 700; }
+.admin-range-day:disabled { color: var(--a-text-faint); opacity: 0.45; cursor: default; }
+
+@media (pointer: coarse) {
+  .admin-range-presets button,
+  .admin-range-nav,
+  .admin-range-day { min-height: 44px; }
+  .admin-range-nav { width: 44px; height: 44px; }
+  .admin-range-day { height: 44px; }
+}
+
+@media (max-width: 639px) {
+  .admin-range-panel { grid-template-columns: 1fr; }
+  .admin-range-presets { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  .admin-range-presets button { width: auto; border: 1px solid var(--a-line); }
+  .admin-popover.admin-popover-range { width: auto; left: 0; right: 0; }
 }

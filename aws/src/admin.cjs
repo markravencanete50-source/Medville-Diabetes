@@ -18,7 +18,7 @@ const CALLBACK_MAX_DAYS=90;
 const validId=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(x);
 const validUid=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(x);
 const validDay=x=>x===undefined||x===''||(typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(`${x}T00:00:00Z`)));
-const features={'leads.history':'leads','alerts.list':'salesTeam','alerts.set':'salesTeam','assign.auto.set':'salesTeam','leads.assign':'salesTeam','leads.reshuffle':'salesTeam','leads.team':'salesTeam','leads.dial':'leads','leads.list':'leads','leads.get':'leads','leads.update':'leads','leads.delete':'leads','leads.restore':'recycle','leads.confirmation.retry':'leads','leads.status.import':'leads','leads.stats':'overview','leads.export':'leads','leads.notify':'leads','audit.list':'audit','influencers.counts':'influencers'};
+const features={'leads.history':'leads','alerts.list':'salesTeam','alerts.set':'salesTeam','assign.auto.set':'salesTeam','leads.assign':'salesTeam','leads.reshuffle':'salesTeam','leads.team':'salesTeam','leads.team.activity':'salesTeam','leads.dial':'leads','leads.list':'leads','leads.get':'leads','leads.update':'leads','leads.delete':'leads','leads.restore':'recycle','leads.confirmation.retry':'leads','leads.status.import':'leads','leads.stats':'overview','leads.export':'leads','leads.notify':'leads','audit.list':'audit','influencers.counts':'influencers'};
 // Sales staff work leads without holding the list. Both sales roles see contact
 // details masked and dial through leads.dial; a salesperson reaches only the leads
 // assigned to them. Export, delete, restore and bulk import stay with Owner and Marketing.
@@ -307,6 +307,57 @@ async function teamSummary(actor){
  await audit(actor,'leads.team',{count:total});
  return{people,unassigned,total};
 }
+/* The Sales team charts: what the team did over a chosen run of days, and the
+   same length of time just before it, for the comparison. Counts only. It reads
+   the enquiries that arrived (stage and assignee, never a name or an answer)
+   and the access log's call and stage entries, and returns totals per Pacific
+   day and per person. No enquiry id leaves this function. */
+const ACTIVITY_MAX_DAYS=92,ACTIVITY_BUDGET_MS=14000;
+const shiftDay=(day,n)=>new Date(Date.parse(`${day}T12:00:00Z`)+n*86400000).toISOString().slice(0,10);
+async function teamActivity(actor,b){
+ if(!b.from||!b.to||!validDay(b.from)||!validDay(b.to)||b.from>b.to)return{error:'Invalid date range.'};
+ const days=Math.round((Date.parse(`${b.to}T00:00:00Z`)-Date.parse(`${b.from}T00:00:00Z`))/86400000)+1;
+ if(days>ACTIVITY_MAX_DAYS)return{error:`Please choose ${ACTIVITY_MAX_DAYS} days or fewer.`};
+ const prevFrom=shiftDay(b.from,-days),prevTo=shiftDay(b.from,-1),deadline=Date.now()+ACTIVITY_BUDGET_MS;
+ // Days are Pacific. The stored times are UTC, so the window is widened by a day each side and every item is placed by its Pacific day.
+ const window={':from':`${shiftDay(prevFrom,-1)}T00:00:00.000Z#`,':to':`${shiftDay(b.to,1)}T23:59:59.999Z#￿`};
+ const blank=()=>({received:0,dials:0,recorded:0,qualified:0,notQualified:0});
+ const byDay={},people={},current=blank(),previous=blank(),funnel={received:0,contacted:0,qualified:0,notQualified:0,open:0};
+ for(let d=b.from;d<=b.to;d=shiftDay(d,1))byDay[d]=blank();
+ const place=iso=>{if(typeof iso!=='string')return null;const t=Date.parse(iso);if(!Number.isFinite(t))return null;const day=pacificDay.format(new Date(t));return day>=b.from&&day<=b.to?{day,now:true}:day>=prevFrom&&day<=prevTo?{day,now:false}:null;};
+ const person=uid=>people[uid]||(people[uid]={...blank(),assigned:0});
+ const count=(where,field,uid)=>{if(!where)return;(where.now?current:previous)[field]++;if(!where.now)return;byDay[where.day][field]++;if(uid)person(uid)[field]++;};
+ let partial=false,leads=0,entries=0,key;
+ do{
+  const out=await db.send(new QueryCommand({TableName:process.env.LEADS_TABLE,IndexName:'LeadTimeline',KeyConditionExpression:'gsi1pk=:pk AND gsi1sk BETWEEN :from AND :to',ExpressionAttributeValues:{':pk':'LEAD',...window},ExpressionAttributeNames:{'#status':'status'},ProjectionExpression:'createdAt,#status,assignedTo',FilterExpression:'attribute_not_exists(deletedAt)',ExclusiveStartKey:key}));
+  for(const x of out.Items||[]){
+   const where=place(x.createdAt);if(!where)continue;leads++;
+   const uid=validUid(x.assignedTo)?x.assignedTo:'';count(where,'received',uid);
+   if(!where.now)continue;
+   if(uid)person(uid).assigned++;
+   funnel.received++;if(x.status!=='new')funnel.contacted++;
+   if(qualifiedStatuses.has(x.status))funnel.qualified++;else if(notQualifiedStatuses.has(x.status)||x.status==='closed')funnel.notQualified++;else funnel.open++;
+  }
+  key=out.LastEvaluatedKey;
+  if(key&&Date.now()>deadline){partial=true;break;}
+ }while(key);
+ key=undefined;
+ if(!partial)do{
+  const out=await db.send(new QueryCommand({TableName:process.env.AUDIT_TABLE,IndexName:'AuditTimeline',KeyConditionExpression:'gsi1pk=:pk AND gsi1sk BETWEEN :from AND :to',ExpressionAttributeValues:{':pk':'AUDIT',':dial':'leads.dial',':update':'leads.update',...window},ExpressionAttributeNames:{'#action':'action','#at':'at'},ProjectionExpression:'actorUid,#action,#at,stage,callLogged',FilterExpression:'#action IN (:dial, :update)',ExclusiveStartKey:key}));
+  for(const x of out.Items||[]){
+   const where=place(x.at);if(!where)continue;entries++;
+   const uid=validUid(x.actorUid)?x.actorUid:'';
+   if(x.action==='leads.dial'){count(where,'dials',uid);continue;}
+   if(x.callLogged===true)count(where,'recorded',uid);
+   if(qualifiedStatuses.has(x.stage))count(where,'qualified',uid);
+   else if(notQualifiedStatuses.has(x.stage))count(where,'notQualified',uid);
+  }
+  key=out.LastEvaluatedKey;
+  if(key&&Date.now()>deadline){partial=true;break;}
+ }while(key);
+ await audit(actor,'leads.team.activity',{from:b.from,to:b.to,count:leads,entries});
+ return{from:b.from,to:b.to,previousFrom:prevFrom,previousTo:prevTo,days:Object.entries(byDay).map(([day,v])=>({day,...v})),people,current,previous,funnel,partial};
+}
 // A failed condition returns the old item in DynamoDB's own attribute format.
 const attr=(item,key)=>{const v=item?.[key];return typeof v==='string'?v:typeof v?.S==='string'?v.S:undefined;};
 // A stage change also sets or clears the details that belong to the stage, so a lead never
@@ -435,6 +486,7 @@ async function route(actor,b,ctx){
  if(b.action==='leads.dial')return dialLead(actor,b);
  if(b.action==='leads.history')return leadHistory(actor,b);
  if(b.action==='leads.team')return teamSummary(actor);
+ if(b.action==='leads.team.activity')return teamActivity(actor,b);
  if(b.action==='alerts.list')return listAlerts();
  if(b.action==='alerts.set')return setAlerts(actor,b,ctx);
  if(b.action==='assign.auto.set')return setAutoAssign(actor,b,ctx);

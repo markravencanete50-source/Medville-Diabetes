@@ -5,13 +5,16 @@ import {
   AdminApiError,
   isAdminApiConfigured,
   memberName,
+  type SalesActivity,
   type SalesMember,
   type SalesPersonFigures,
   type SalesTeamSummary,
   type StaffAlert,
 } from "../api";
 import { useAdminAuth } from "../auth";
-import { StatTile } from "../charts";
+import { ChartFrame, StatTile } from "../charts";
+import RangePicker, { PRESETS, daysBetween, pacificToday, rangeText, type DayRange } from "../RangePicker";
+import { DailyColumns, DailyLines, Funnel, KpiTile, PersonBars } from "../teamCharts";
 import { Badge, Banner, Card, Drawer, Empty, PageHeader, Spinner, formatDateTime, useToast } from "../ui";
 
 /*
@@ -80,6 +83,9 @@ export default function SalesTeam() {
   const [sort, setSort] = useState<SortKey>("attention");
   const [shuffleOpen, setShuffleOpen] = useState(false);
   const [error, setError] = useState("");
+  const [range, setRange] = useState<DayRange>(() => PRESETS[3].range(pacificToday()));
+  const [activity, setActivity] = useState<SalesActivity | null>(null);
+  const [activityError, setActivityError] = useState("");
   const connected = isAdminApiConfigured();
   const myUid = session!.user.uid;
 
@@ -106,6 +112,26 @@ export default function SalesTeam() {
   useEffect(() => {
     if (connected) void refresh();
   }, [connected, refresh]);
+
+  /* The charts follow the chosen days. A slow answer for an older choice is
+     ignored once a newer one has been made. */
+  const loadActivity = useCallback(async (chosen: DayRange, isCurrent: () => boolean) => {
+    setActivity(null);
+    setActivityError("");
+    try {
+      const result = await adminApi.salesTeamActivity(getToken, chosen.from, chosen.to);
+      if (isCurrent()) setActivity(result);
+    } catch (problem) {
+      if (isCurrent()) setActivityError(problem instanceof AdminApiError ? problem.message : "The charts could not be loaded.");
+    }
+  }, [getToken]);
+  const [activityVersion, setActivityVersion] = useState(0);
+  useEffect(() => {
+    if (!connected) return;
+    let current = true;
+    void loadActivity(range, () => current);
+    return () => { current = false; };
+  }, [connected, range, loadActivity, activityVersion]);
 
   const toggleAlerts = async (uid: string, enabled: boolean) => {
     setAlertBusy(uid);
@@ -164,7 +190,7 @@ export default function SalesTeam() {
       lede="Who is working on what, and who needs your help next."
       actions={
         <>
-          <button type="button" className="admin-btn admin-btn-quiet" disabled={!connected} onClick={() => void refresh()}>
+          <button type="button" className="admin-btn admin-btn-quiet" disabled={!connected} onClick={() => { void refresh(); setActivityVersion((v) => v + 1); }}>
             <RefreshCw size={16} /> Refresh
           </button>
           <button type="button" className="admin-btn admin-btn-quiet" disabled={!connected || !members?.length} onClick={() => setShuffleOpen(true)}>
@@ -203,6 +229,9 @@ export default function SalesTeam() {
       {header}
       {error && <div className="mb-4"><Banner tone="warn">{error}</Banner></div>}
 
+      <Performance range={range} onRange={setRange} activity={activity} error={activityError} members={members} />
+
+      <h2 className="admin-section-title">Right now</h2>
       <div className="mb-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
         <StatTile
           label="Waiting for a salesperson"
@@ -211,7 +240,7 @@ export default function SalesTeam() {
         />
         <StatTile label="Open with the team" value={totals.open} hint="Assigned and not finished" />
         <StatTile label="Calls recorded today" value={totals.calledToday} hint="Outcome saved, Pacific time" />
-        <StatTile label="Calls not recorded" value={totals.notLogged} hint="Dialled, stage not updated yet" />
+        <StatTile label="Calls not recorded" value={totals.notLogged} hint="Number copied, stage not saved yet" />
         <StatTile label="Qualified" value={totals.qualified} hint="All time" />
       </div>
 
@@ -317,7 +346,7 @@ export default function SalesTeam() {
                   </div>
 
                   <p className="admin-team-sub">
-                    {figures.lastDialAt ? `Last dialled ${formatDateTime(figures.lastDialAt)}.` : "No calls yet."}
+                    {figures.lastDialAt ? `Last copied a number ${formatDateTime(figures.lastDialAt)}.` : "No numbers copied yet."}
                     {member ? (member.lastSignIn ? ` Last signed in ${formatDateTime(member.lastSignIn)}.` : " Never signed in.") : ""}
                   </p>
 
@@ -341,8 +370,9 @@ export default function SalesTeam() {
         </>
       )}
       <p className="admin-help mt-3">
-        A call is counted only when the person who made it saves the lead&apos;s stage afterwards.
-        A dial with no stage saved shows as a call not recorded. Automatic assignments and reshuffles
+        A call is counted only when the person who copied the number saves the lead&apos;s stage
+        afterwards. A copied number with no stage saved shows as a call not recorded. Every copy is
+        written to the enquiry&apos;s history with the time, so you can see who copied which number and when. Automatic assignments and reshuffles
         are written to each enquiry&apos;s history and to the access log. Opening this screen is
         recorded in the access log.
       </p>
@@ -356,6 +386,155 @@ export default function SalesTeam() {
         onDone={() => { setShuffleOpen(false); void refresh(); }}
       />
     </>
+  );
+}
+
+/*
+  The business view: what the team did over the chosen days, against the same
+  number of days just before. Counts only. Enquiries are counted on the day
+  they arrived; copies, recorded calls and outcomes on the day they happened.
+*/
+function Performance({
+  range,
+  onRange,
+  activity,
+  error,
+  members,
+}: {
+  range: DayRange;
+  onRange: (range: DayRange) => void;
+  activity: SalesActivity | null;
+  error: string;
+  members: SalesMember[];
+}) {
+  const periodDays = daysBetween(range.from, range.to);
+  const rate = (q: number, n: number) => (q + n ? Math.round((q / (q + n)) * 100) : null);
+
+  const people = useMemo(() => {
+    if (!activity) return [];
+    const known = new Set(members.map((member) => member.uid));
+    const rows = members
+      .filter((member) => !member.disabled || activity.people[member.uid])
+      .map((member) => ({ label: memberName(member), figures: activity.people[member.uid] }))
+      .map((row) => ({ label: row.label, dials: row.figures?.dials ?? 0, recorded: row.figures?.recorded ?? 0, qualified: row.figures?.qualified ?? 0, notQualified: row.figures?.notQualified ?? 0, assigned: row.figures?.assigned ?? 0 }));
+    /* Owners and anyone no longer on the team are added together, so every
+       copy and outcome is counted somewhere. */
+    const others = Object.entries(activity.people).filter(([uid]) => !known.has(uid)).map(([, f]) => f);
+    if (others.length) {
+      const sum = (key: "dials" | "recorded" | "qualified" | "notQualified" | "assigned") => others.reduce((total, f) => total + f[key], 0);
+      const row = { label: "Owners and former staff", dials: sum("dials"), recorded: sum("recorded"), qualified: sum("qualified"), notQualified: sum("notQualified"), assigned: sum("assigned") };
+      if (row.dials || row.recorded || row.qualified || row.notQualified) rows.push(row);
+    }
+    return rows.sort((a, b) => b.dials - a.dials || b.qualified - a.qualified || a.label.localeCompare(b.label));
+  }, [activity, members]);
+
+  const c = activity?.current;
+  const p = activity?.previous;
+
+  return (
+    <section className="mb-6" aria-labelledby="performance-title">
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 id="performance-title" className="admin-section-title m-0">Performance</h2>
+          <p className="admin-help m-0">
+            {activity ? `Compared with ${rangeText({ from: activity.previousFrom, to: activity.previousTo })}.` : "Counts only. California time."}
+          </p>
+        </div>
+        <RangePicker value={range} onChange={onRange} />
+      </div>
+
+      {error && <div className="mb-3"><Banner tone="warn">{error}</Banner></div>}
+      {activity?.partial && (
+        <div className="mb-3">
+          <Banner tone="warn">There was too much to count in time, so these figures are not complete. Choose fewer days.</Banner>
+        </div>
+      )}
+
+      {!activity && !error ? (
+        <Card><Spinner label="Drawing the charts" /></Card>
+      ) : c && p ? (
+        <>
+          <div className="mb-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
+            <KpiTile label="Enquiries received" value={c.received} previous={p.received} periodDays={periodDays} />
+            <KpiTile label="Numbers copied" value={c.dials} previous={p.dials} periodDays={periodDays} />
+            <KpiTile label="Calls recorded" value={c.recorded} previous={p.recorded} periodDays={periodDays} />
+            <KpiTile label="Marked qualified" value={c.qualified} previous={p.qualified} periodDays={periodDays} />
+            <KpiTile label="Qualified rate" percent value={rate(c.qualified, c.notQualified)} previous={rate(p.qualified, p.notQualified)} periodDays={periodDays} hint="Of the outcomes recorded" />
+          </div>
+
+          <div className="admin-perf-grid">
+            <Card className="admin-perf-wide">
+              <ChartFrame
+                title="Daily activity"
+                note="Enquiries received and numbers copied to call, each day."
+                table={{ columns: ["Day", "Enquiries received", "Numbers copied"], rows: activity!.days.map((d) => [d.day, String(d.received), String(d.dials)]) }}
+              >
+                <DailyLines
+                  days={activity!.days.map((d) => ({ day: d.day, values: [d.received, d.dials] }))}
+                  series={[{ key: "received", label: "Enquiries received" }, { key: "dials", label: "Numbers copied" }]}
+                />
+              </ChartFrame>
+            </Card>
+
+            <Card className="admin-perf-wide">
+              <ChartFrame
+                title="Outcomes per day"
+                note="Stage changes to qualified and to not qualified."
+                table={{ columns: ["Day", "Qualified", "Not qualified"], rows: activity!.days.map((d) => [d.day, String(d.qualified), String(d.notQualified)]) }}
+              >
+                <DailyColumns
+                  days={activity!.days.map((d) => ({ day: d.day, values: [d.qualified, d.notQualified] as [number, number] }))}
+                  series={[{ key: "qualified", label: "Qualified" }, { key: "notQualified", label: "Not qualified" }]}
+                />
+              </ChartFrame>
+            </Card>
+
+            <Card>
+              <ChartFrame
+                title="From enquiry to qualified"
+                note={`What became of the ${c.received.toLocaleString()} ${c.received === 1 ? "enquiry" : "enquiries"} received in these days.`}
+                table={{ columns: ["Step", "Enquiries"], rows: [["Received", String(activity!.funnel.received)], ["Contacted", String(activity!.funnel.contacted)], ["Qualified", String(activity!.funnel.qualified)], ["Not qualified or closed", String(activity!.funnel.notQualified)], ["Still open", String(activity!.funnel.open)]] }}
+              >
+                <Funnel
+                  steps={[
+                    { label: "Received", value: activity!.funnel.received },
+                    { label: "Contacted", value: activity!.funnel.contacted, note: "Moved past New." },
+                    { label: "Qualified", value: activity!.funnel.qualified, note: `${activity!.funnel.notQualified} not qualified or closed, ${activity!.funnel.open} still open.` },
+                  ]}
+                />
+              </ChartFrame>
+            </Card>
+
+
+            <Card>
+              <ChartFrame
+                title="Calls by salesperson"
+                note="A call is recorded when its stage is saved after copying the number."
+                table={{ columns: ["Person", "Numbers copied", "Calls recorded"], rows: people.map((row) => [row.label, String(row.dials), String(row.recorded)]) }}
+              >
+                <PersonBars
+                  rows={people.map((row) => ({ label: row.label, values: [row.dials, row.recorded] as [number, number] }))}
+                  series={[{ key: "dials", label: "Numbers copied" }, { key: "recorded", label: "Calls recorded" }]}
+                />
+              </ChartFrame>
+            </Card>
+
+            <Card>
+              <ChartFrame
+                title="Results by salesperson"
+                note="Outcomes each person recorded in these days."
+                table={{ columns: ["Person", "Qualified", "Not qualified", "Qualified rate"], rows: people.map((row) => [row.label, String(row.qualified), String(row.notQualified), rate(row.qualified, row.notQualified) === null ? "No outcomes" : `${rate(row.qualified, row.notQualified)}%`]) }}
+              >
+                <PersonBars
+                  rows={people.map((row) => ({ label: row.label, values: [row.qualified, row.notQualified] as [number, number] }))}
+                  series={[{ key: "qualified", label: "Qualified" }, { key: "notQualified", label: "Not qualified" }]}
+                />
+              </ChartFrame>
+            </Card>
+          </div>
+        </>
+      ) : null}
+    </section>
   );
 }
 

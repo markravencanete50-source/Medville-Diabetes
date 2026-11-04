@@ -29,9 +29,15 @@ lead can only be assigned to an active member of the sales team.
 
 Sales roles (2026-10-27): `manager` assigns leads and sees per-person counts;
 `sales` sees only the leads assigned to them. Both receive phone and email
-removed. Call releases one number per click through `leads.dial`, which is
-audited and limited to 60 per person per hour. Neither role can export, delete,
-restore or bulk import enquiries.
+removed. Copy number releases one number per click through `leads.dial`, which
+is audited, written to the lead's history with its time, and limited to 60 per
+person per hour. Since 2026-11-05 there is no Call button. Neither role can
+export, delete, restore or bulk import enquiries.
+
+Sales team charts (2026-11-05): the Owner and Sales manager see a Performance
+section with a calendar range, from the new `leads.team.activity` action. It
+returns counts per day and per person only and is audited. It needs the AWS
+admin function update in `DEPLOY-SALES-CHARTS.md`; no Google change.
 
 Deploying this change needs the CloudFormation update (it adds the
 `AssigneeTimeline` index to the leads table, gives the admin Lambda `RATE_TABLE`

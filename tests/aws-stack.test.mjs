@@ -60,3 +60,12 @@ test("the public intake may touch only the rota item of the staff settings table
   assert.match(role, /Action: \[dynamodb:PutItem\]\n\s+Resource: \[!GetAtt HistoryTable\.Arn, !GetAtt AuditTable\.Arn\]/);
   assert.doesNotMatch(role, /dynamodb:(Scan|Query|GetItem)[^\n]*\n\s+Resource: !GetAtt AlertsTable/);
 });
+
+test("sales staff copy numbers only: no Call button, and every copy is recorded", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const leads = await readFile(new URL("../src/admin/pages/Leads.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(leads, /tel:\$\{result\.dial\}/);
+  assert.doesNotMatch(leads, /function CallButton/);
+  assert.match(leads, /adminApi\.dialLead\(getToken, lead\.id, true\)/);
+  assert.match(leads, /copied the phone number\./);
+});
