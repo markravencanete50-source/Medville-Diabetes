@@ -253,7 +253,7 @@ export interface SalesActivity {
   partial: boolean;
 }
 
-/* One entry in a lead's history. Fixed facts only: never a note's text. */
+/* One entry in a lead's history: fixed facts, and the text of a saved note. */
 export interface LeadHistoryEntry {
   at: string;
   action: "stage" | "note" | "assign" | "call" | "delete" | "restore";
@@ -265,6 +265,11 @@ export interface LeadHistoryEntry {
   callbackAt: string;
   assignee: string;
   source: string;
+  /* A note entry carries the text that was saved, since 2026-11-05. Older
+     note entries have none. */
+  note?: string;
+  /* Set on the entry whose save recorded the call made after copying the number. */
+  callLogged?: boolean;
 }
 
 /* The most enquiries one assignment or status import may touch. Each needs

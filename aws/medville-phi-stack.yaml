@@ -974,7 +974,7 @@ Resources:
             const out = await db.send(new QueryCommand({ TableName: process.env.HISTORY_TABLE, KeyConditionExpression: "leadId=:id", ExpressionAttributeValues: { ":id": b.id }, ScanIndexForward: false, Limit: 100 }));
             await audit(actor, "leads.history.read", { leadId: b.id, count: out.Items?.length || 0 });
             const text = (x) => typeof x === "string" ? x : "";
-            return { history: (out.Items || []).filter((x) => historyActions.has(x.action)).map((x) => ({ at: text(x.at), action: x.action, actorUid: text(x.actorUid), actorEmail: text(x.actorEmail), actorRole: text(x.actorRole), status: text(x.status), statusReason: text(x.statusReason), callbackAt: text(x.callbackAt), assignee: text(x.assignee), source: text(x.source) })) };
+            return { history: (out.Items || []).filter((x) => historyActions.has(x.action)).map((x) => ({ at: text(x.at), action: x.action, actorUid: text(x.actorUid), actorEmail: text(x.actorEmail), actorRole: text(x.actorRole), status: text(x.status), statusReason: text(x.statusReason), callbackAt: text(x.callbackAt), assignee: text(x.assignee), source: text(x.source), ...x.action === "note" && typeof x.note === "string" ? { note: x.note } : {}, ...x.callLogged === true ? { callLogged: true } : {} })) };
           }
           async function teamMembers(header, origin) {
             const r = await fetch(process.env.IDENTITY_VERIFY_URL, { method: "POST", headers: { Authorization: header, "Content-Type": "application/json", Origin: origin }, body: JSON.stringify({ action: "team.members" }), signal: AbortSignal.timeout(5e3) });
@@ -1274,11 +1274,13 @@ Resources:
           async function updateLead(actor, b) {
             if (!validId(b.id)) return { error: "Invalid enquiry." };
             const names = {}, values = {}, sets = [], removes = [], adds = [], conditions = ["attribute_exists(id)", "attribute_not_exists(deletedAt)"];
+            let item = null;
             if (b.status !== void 0) {
               const problem = stageChange(b, names, values, sets, removes);
               if (problem) return { error: problem };
-              const [item] = await arrivalKeys([b.id]) || [];
-              if (!item) return { error: "Enquiry not found.", status: 404 };
+              const [found] = await arrivalKeys([b.id]) || [];
+              if (!found) return { error: "Enquiry not found.", status: 404 };
+              item = found;
               names["#workSk"] = "workSk";
               values[":workSk"] = workKey(b.status, item.gsi1sk);
               sets.push("#workSk=:workSk");
@@ -1286,21 +1288,27 @@ Resources:
                 conditions.push("#status<>:dnc");
                 values[":dnc"] = DO_NOT_CONTACT;
               }
-              if (item.callOpenBy === actor.uid) {
-                values[":caller"] = actor.uid;
-                values[":loggedAt"] = (/* @__PURE__ */ new Date()).toISOString();
-                values[":oneCall"] = 1;
-                sets.push("lastCallLoggedAt=:loggedAt", "lastCallLoggedBy=:caller");
-                removes.push("callOpenBy", "callOpenAt");
-                adds.push("callsLogged :oneCall");
-                conditions.push("callOpenBy=:caller");
-              }
             }
             if (b.note !== void 0) {
               if (typeof b.note !== "string" || b.note.length > 2e3 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(b.note)) return { error: "Invalid note." };
               names["#note"] = "note";
               values[":note"] = b.note;
               sets.push("#note=:note");
+              if (!item) {
+                const [found] = await arrivalKeys([b.id]) || [];
+                if (!found) return { error: "Enquiry not found.", status: 404 };
+                item = found;
+              }
+            }
+            const callLogged = Boolean(item && item.callOpenBy === actor.uid);
+            if (callLogged) {
+              values[":caller"] = actor.uid;
+              values[":loggedAt"] = (/* @__PURE__ */ new Date()).toISOString();
+              values[":oneCall"] = 1;
+              sets.push("lastCallLoggedAt=:loggedAt", "lastCallLoggedBy=:caller");
+              removes.push("callOpenBy", "callOpenAt");
+              adds.push("callsLogged :oneCall");
+              conditions.push("callOpenBy=:caller");
             }
             if (!sets.length) return { error: "Invalid update." };
             if (actor.role === "sales") {
@@ -1309,8 +1317,8 @@ Resources:
             }
             try {
               const history = [];
-              if (b.status !== void 0) history.push(historyItem(actor, b.id, "stage", { status: b.status, ...values[":statusReason"] ? { statusReason: values[":statusReason"] } : {}, ...values[":callbackAt"] ? { callbackAt: values[":callbackAt"] } : {} }));
-              if (b.note !== void 0) history.push(historyItem(actor, b.id, "note"));
+              if (b.status !== void 0) history.push(historyItem(actor, b.id, "stage", { status: b.status, ...values[":statusReason"] ? { statusReason: values[":statusReason"] } : {}, ...values[":callbackAt"] ? { callbackAt: values[":callbackAt"] } : {}, ...callLogged ? { callLogged: true } : {} }));
+              if (b.note !== void 0) history.push(historyItem(actor, b.id, "note", { note: b.note, ...callLogged && b.status === void 0 ? { callLogged: true } : {} }));
               await db.send(new TransactWriteCommand({ TransactItems: [{ Update: { TableName: process.env.LEADS_TABLE, Key: { id: b.id }, UpdateExpression: `SET ${sets.join(", ")}${removes.length ? ` REMOVE ${removes.join(", ")}` : ""}${adds.length ? ` ADD ${adds.join(", ")}` : ""}`, ExpressionAttributeNames: names, ExpressionAttributeValues: values, ConditionExpression: conditions.join(" AND "), ReturnValuesOnConditionCheckFailure: "ALL_OLD" } }, { Put: { TableName: process.env.AUDIT_TABLE, Item: auditItem(actor, "leads.update", { leadId: b.id, fields: Object.keys(names).map((x) => names[x]), ...b.status !== void 0 ? { stage: b.status } : {}, ...adds.length ? { callLogged: true } : {} }), ConditionExpression: "attribute_not_exists(id)" } }, ...history] }));
             } catch (e) {
               const reason = e?.CancellationReasons?.[0];

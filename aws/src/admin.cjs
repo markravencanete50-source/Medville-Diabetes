@@ -130,7 +130,7 @@ async function leadHistory(actor,b){
  const out=await db.send(new QueryCommand({TableName:process.env.HISTORY_TABLE,KeyConditionExpression:'leadId=:id',ExpressionAttributeValues:{':id':b.id},ScanIndexForward:false,Limit:100}));
  await audit(actor,'leads.history.read',{leadId:b.id,count:out.Items?.length||0});
  const text=x=>typeof x==='string'?x:'';
- return{history:(out.Items||[]).filter(x=>historyActions.has(x.action)).map(x=>({at:text(x.at),action:x.action,actorUid:text(x.actorUid),actorEmail:text(x.actorEmail),actorRole:text(x.actorRole),status:text(x.status),statusReason:text(x.statusReason),callbackAt:text(x.callbackAt),assignee:text(x.assignee),source:text(x.source)}))};
+ return{history:(out.Items||[]).filter(x=>historyActions.has(x.action)).map(x=>({at:text(x.at),action:x.action,actorUid:text(x.actorUid),actorEmail:text(x.actorEmail),actorRole:text(x.actorRole),status:text(x.status),statusReason:text(x.statusReason),callbackAt:text(x.callbackAt),assignee:text(x.assignee),source:text(x.source),...(x.action==='note'&&typeof x.note==='string'?{note:x.note}:{}),...(x.callLogged===true?{callLogged:true}:{})}))};
 }
 // Ask the identity service who is on the sales team. Only the staff member's own token travels.
 async function teamMembers(header,origin){
@@ -379,29 +379,40 @@ function stageChange(b,names,values,sets,removes){
 async function updateLead(actor,b){
  if(!validId(b.id))return{error:'Invalid enquiry.'};
  const names={},values={},sets=[],removes=[],adds=[],conditions=['attribute_exists(id)','attribute_not_exists(deletedAt)'];
+ let item=null;
  if(b.status!==undefined){
   const problem=stageChange(b,names,values,sets,removes);if(problem)return{error:problem};
-  const [item]=await arrivalKeys([b.id])||[];
-  if(!item)return{error:'Enquiry not found.',status:404};
+  const [found]=await arrivalKeys([b.id])||[];
+  if(!found)return{error:'Enquiry not found.',status:404};item=found;
   names['#workSk']='workSk';values[':workSk']=workKey(b.status,item.gsi1sk);sets.push('#workSk=:workSk');
   if(actor.role!=='owner'){conditions.push('#status<>:dnc');values[':dnc']=DO_NOT_CONTACT;}
-  /* A call counts only once the person who made it records how it went. Their
-     next stage change closes the open call and adds one to the lead's logged
-     calls; the condition stops two saves from counting the same call twice. */
-  if(item.callOpenBy===actor.uid){
-   values[':caller']=actor.uid;values[':loggedAt']=new Date().toISOString();values[':oneCall']=1;
-   sets.push('lastCallLoggedAt=:loggedAt','lastCallLoggedBy=:caller');removes.push('callOpenBy','callOpenAt');adds.push('callsLogged :oneCall');
-   conditions.push('callOpenBy=:caller');
-  }
  }
- if(b.note!==undefined){if(typeof b.note!=='string'||b.note.length>2000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(b.note))return{error:'Invalid note.'};names['#note']='note';values[':note']=b.note;sets.push('#note=:note');}
+ if(b.note!==undefined){
+  if(typeof b.note!=='string'||b.note.length>2000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(b.note))return{error:'Invalid note.'};
+  names['#note']='note';values[':note']=b.note;sets.push('#note=:note');
+  if(!item){const [found]=await arrivalKeys([b.id])||[];if(!found)return{error:'Enquiry not found.',status:404};item=found;}
+ }
+ /* A call counts only once the person who made it records how it went: their
+  next stage change or note closes the open call and adds one to the lead's
+  logged calls. The condition stops two saves from counting the same call twice. */
+ const callLogged=Boolean(item&&item.callOpenBy===actor.uid);
+ if(callLogged){
+  values[':caller']=actor.uid;values[':loggedAt']=new Date().toISOString();values[':oneCall']=1;
+  sets.push('lastCallLoggedAt=:loggedAt','lastCallLoggedBy=:caller');removes.push('callOpenBy','callOpenAt');adds.push('callsLogged :oneCall');
+  conditions.push('callOpenBy=:caller');
+ }
  if(!sets.length)return{error:'Invalid update.'};
  if(actor.role==='sales'){values[':me']=actor.uid;conditions.push('assignedTo=:me');}
  try{
   // The change and its audit commit together. Audit failure cannot leave an unrecorded change.
   const history=[];
-  if(b.status!==undefined)history.push(historyItem(actor,b.id,'stage',{status:b.status,...(values[':statusReason']?{statusReason:values[':statusReason']}:{}),...(values[':callbackAt']?{callbackAt:values[':callbackAt']}:{})}));
-  if(b.note!==undefined)history.push(historyItem(actor,b.id,'note'));
+  // The call is marked on the first entry the save writes, so the history says which save recorded it.
+  if(b.status!==undefined)history.push(historyItem(actor,b.id,'stage',{status:b.status,...(values[':statusReason']?{statusReason:values[':statusReason']}:{}),...(values[':callbackAt']?{callbackAt:values[':callbackAt']}:{}),...(callLogged?{callLogged:true}:{})}));
+  /* Since 2026-11-05, on the client's instruction, the note's text is kept in
+     the history, so earlier notes are not lost when a new one is saved. The
+     history table is encrypted and protected like the lead itself, and is read
+     only by people who can open the lead. The access log still never holds it. */
+  if(b.note!==undefined)history.push(historyItem(actor,b.id,'note',{note:b.note,...(callLogged&&b.status===undefined?{callLogged:true}:{})}));
   await db.send(new TransactWriteCommand({TransactItems:[{Update:{TableName:process.env.LEADS_TABLE,Key:{id:b.id},UpdateExpression:`SET ${sets.join(', ')}${removes.length?` REMOVE ${removes.join(', ')}`:''}${adds.length?` ADD ${adds.join(', ')}`:''}`,ExpressionAttributeNames:names,ExpressionAttributeValues:values,ConditionExpression:conditions.join(' AND '),ReturnValuesOnConditionCheckFailure:'ALL_OLD'}},{Put:{TableName:process.env.AUDIT_TABLE,Item:auditItem(actor,'leads.update',{leadId:b.id,fields:Object.keys(names).map(x=>names[x]),...(b.status!==undefined?{stage:b.status}:{}),...(adds.length?{callLogged:true}:{})}),ConditionExpression:'attribute_not_exists(id)'}},...history]}));
  }catch(e){
   const reason=e?.CancellationReasons?.[0];

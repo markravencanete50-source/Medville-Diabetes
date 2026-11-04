@@ -240,7 +240,7 @@ export default function SalesTeam() {
         />
         <StatTile label="Open with the team" value={totals.open} hint="Assigned and not finished" />
         <StatTile label="Calls recorded today" value={totals.calledToday} hint="Outcome saved, Pacific time" />
-        <StatTile label="Calls not recorded" value={totals.notLogged} hint="Number copied, stage not saved yet" />
+        <StatTile label="Calls not recorded" value={totals.notLogged} hint="Number copied, nothing saved yet" />
         <StatTile label="Qualified" value={totals.qualified} hint="All time" />
       </div>
 
@@ -370,8 +370,8 @@ export default function SalesTeam() {
         </>
       )}
       <p className="admin-help mt-3">
-        A call is counted only when the person who copied the number saves the lead&apos;s stage
-        afterwards. A copied number with no stage saved shows as a call not recorded. Every copy is
+        A call is counted only when the person who copied the number saves the lead&apos;s stage or a
+        note afterwards. A copied number with nothing saved shows as a call not recorded. Every copy is
         written to the enquiry&apos;s history with the time, so you can see who copied which number and when. Automatic assignments and reshuffles
         are written to each enquiry&apos;s history and to the access log. Opening this screen is
         recorded in the access log.
@@ -509,7 +509,7 @@ function Performance({
             <Card>
               <ChartFrame
                 title="Calls by salesperson"
-                note="A call is recorded when its stage is saved after copying the number."
+                note="A call is recorded when a stage or a note is saved after copying the number."
                 table={{ columns: ["Person", "Numbers copied", "Calls recorded"], rows: people.map((row) => [row.label, String(row.dials), String(row.recorded)]) }}
               >
                 <PersonBars

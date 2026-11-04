@@ -41,9 +41,9 @@ test('AWS owner can read; sensitive internals are not returned; audit names the 
  const out=await r.request({action:'leads.get',id});assert.equal(out.statusCode,200);assert.equal(out.json.lead.requestHash,undefined);assert.equal(out.json.lead.message,'');assert.equal(r.calls[0].input.ConsistentRead,true);assert.equal(r.calls[1].input.Item.leadId,id);assert.equal(out.headers['Cache-Control'],'no-store');
 });
 test('AWS audit failure cannot disclose a record',async()=>{const r=runtime('Admin',{send:async c=>{if(c.kind==='PutCommand')throw Error('audit unavailable');return{Item:{...valid,id}}}});const out=await r.request({action:'leads.get',id});assert.equal(out.statusCode,503);assert.equal(out.json.lead,undefined);});
-test('AWS update and audit use one transaction, with no PHI in audit',async()=>{
- const r=runtime('Admin');assert.equal((await r.request({action:'leads.update',id,status:'contacted',note:'Synthetic private note'})).statusCode,200);assert.equal(writes(r).length,1);const tx=writes(r)[0];assert.equal(tx.kind,'TransactWriteCommand');assert.equal(tx.input.TransactItems.length,4);assert.equal(JSON.stringify(tx.input.TransactItems.slice(1)).includes('Synthetic private note'),false);
- const history=tx.input.TransactItems.slice(2).map(x=>x.Put);assert.deepEqual(plain(history.map(x=>[x.TableName,x.Item.action,x.Item.leadId])),[['history','stage',id],['history','note',id]]);assert.equal(history[0].Item.status,'contacted');
+test('AWS update and audit use one transaction; the note text reaches the history but never the audit',async()=>{
+ const r=runtime('Admin');assert.equal((await r.request({action:'leads.update',id,status:'contacted',note:'Synthetic private note'})).statusCode,200);assert.equal(writes(r).length,1);const tx=writes(r)[0];assert.equal(tx.kind,'TransactWriteCommand');assert.equal(tx.input.TransactItems.length,4);assert.equal(JSON.stringify(tx.input.TransactItems[1]).includes('Synthetic private note'),false);assert.equal(tx.input.TransactItems[1].Put.TableName,'audit');
+ const history=tx.input.TransactItems.slice(2).map(x=>x.Put);assert.deepEqual(plain(history.map(x=>[x.TableName,x.Item.action,x.Item.leadId])),[['history','stage',id],['history','note',id]]);assert.equal(history[0].Item.status,'contacted');assert.equal(history[1].Item.note,'Synthetic private note');assert.equal(history[0].Item.note,undefined);
 });
 test('AWS update failure returns no success and no separate mutation',async()=>{const r=runtime('Admin',{send:async()=>{throw Error('write unavailable')}});assert.equal((await r.request({action:'leads.update',id,status:'contacted'})).statusCode,503);assert.equal(r.calls.length,1);});
 test('AWS delete creates a seven-day recycle window and audit without copying lead details',async()=>{const r=runtime('Admin',{identity:{uid:'marketing',email:'marketing@example.com',role:'marketing',features:['leads']}});assert.equal((await r.request({action:'leads.delete',id})).statusCode,200);const tx=r.calls[0];assert.equal(tx.kind,'TransactWriteCommand');assert.deepEqual({...tx.input.TransactItems[0].Update.Key},{id});const values=tx.input.TransactItems[0].Update.ExpressionAttributeValues;assert.ok(values[':purgeAt']>Math.floor(Date.now()/1000)+(6*24*60*60));assert.equal(tx.input.TransactItems[1].Put.Item.action,'leads.delete');assert.equal(JSON.stringify(tx.input.TransactItems).includes('synthetic@example.com'),false);});
@@ -209,7 +209,7 @@ test('AWS work key puts finished leads under done and open leads under open',asy
  let tx=r.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems[0].Update;assert.equal(tx.ExpressionAttributeValues[':workSk'],`done#2026-10-01T00:00:00.000Z#${id}`);
  const again=runtime('Admin',{identity:salesperson});await again.request({action:'leads.update',id,status:'callback',callbackAt:later});
  tx=again.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems[0].Update;assert.equal(tx.ExpressionAttributeValues[':workSk'],`open#2026-10-01T00:00:00.000Z#${id}`);
- const note=runtime('Admin',{identity:salesperson});await note.request({action:'leads.update',id,note:'Synthetic note'});assert.equal(note.calls.some(c=>c.kind==='GetCommand'),false);
+ const note=runtime('Admin',{identity:salesperson});await note.request({action:'leads.update',id,note:'Synthetic note'});assert.doesNotMatch(note.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems[0].Update.UpdateExpression,/workSk/);
 });
 test('AWS assignment writes the work key from the stage it read and refuses if the stage moved',async()=>{
  const fetchImpl=async(url,options)=>({ok:true,status:200,json:async()=>JSON.parse(options.body).action==='team.members'?{members:[{uid:salesperson.uid,role:'sales',disabled:false}]}:{actor:manager}});
@@ -231,11 +231,11 @@ test('Alerts read only open leads from each person',async()=>{
  const q=r.calls.find(c=>c.kind==='QueryCommand'&&c.input.IndexName==='AssigneeTimeline').input;assert.match(q.KeyConditionExpression,/begins_with\(workSk,:open\)/);assert.equal(q.ExpressionAttributeValues[':open'],'open#');
 });
 
-test('AWS history read is limited to people who can open the lead, audited, and holds no note text',async()=>{
- const entries=[{leadId:id,sk:'b',at:'2026-10-29T10:00:00.000Z',action:'stage',actorUid:'u',actorEmail:'a@example.com',actorRole:'sales',status:'callback',callbackAt:later,note:'Synthetic private note'},{leadId:id,sk:'a',action:'made-up'}];
+test('AWS history read is limited to people who can open the lead, audited, and returns note text only on note entries',async()=>{
+ const entries=[{leadId:id,sk:'b',at:'2026-10-29T10:00:00.000Z',action:'stage',actorUid:'u',actorEmail:'a@example.com',actorRole:'sales',status:'callback',callbackAt:later,note:'Synthetic private note'},{leadId:id,sk:'a',action:'made-up'},{leadId:id,sk:'c',at:'2026-10-29T11:00:00.000Z',action:'note',actorUid:'u',actorRole:'sales',note:'Synthetic left a voicemail',callLogged:true}];
  const r=runtime('Admin',{identity:salesperson,send:async c=>c.kind==='GetCommand'?{Item:assigned}:c.kind==='QueryCommand'?{Items:entries}:{}});
  const out=await r.request({action:'leads.history',id});assert.equal(out.statusCode,200);assert.equal(out.headers['Cache-Control'],'no-store');
- assert.equal(out.json.history.length,1);assert.equal(out.json.history[0].status,'callback');assert.equal(out.body.includes('Synthetic private note'),false);
+ assert.equal(out.json.history.length,2);assert.equal(out.json.history[0].status,'callback');assert.equal(out.body.includes('Synthetic private note'),false);assert.equal(out.json.history[1].note,'Synthetic left a voicemail');assert.equal(out.json.history[1].callLogged,true);
  const q=r.calls.find(c=>c.kind==='QueryCommand').input;assert.equal(q.TableName,'history');assert.equal(q.ExpressionAttributeValues[':id'],id);assert.equal(q.ScanIndexForward,false);
  assert.equal(r.calls.at(-1).input.Item.action,'leads.history.read');
  const other=runtime('Admin',{identity:salesperson,send:async c=>c.kind==='GetCommand'?{Item:{...assigned,assignedTo:'someone-else'}}:{Items:entries}});
@@ -319,8 +319,13 @@ test('AWS dial opens a call that only the caller closes, by changing the stage',
  assert.equal((await logged.request({action:'leads.update',id,status:'no-answer'})).statusCode,200);
  const tx=logged.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems,u=tx[0].Update;
  assert.match(u.UpdateExpression,/ REMOVE .*callOpenBy, callOpenAt ADD /);assert.match(u.UpdateExpression,/ ADD callsLogged :oneCall$/);assert.match(u.ConditionExpression,/callOpenBy=:caller/);assert.equal(tx[1].Put.Item.callLogged,true);
+ // Since 2026-11-05 a note saved by the caller also records the call.
  const note=runtime('Admin',{identity:salesperson,send:async c=>c.kind==='GetCommand'?{Item:open}:{}});await note.request({action:'leads.update',id,note:'Synthetic note.'});
- assert.doesNotMatch(note.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems[0].Update.UpdateExpression,/callsLogged/);
+ const noteTx=note.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems;
+ assert.match(noteTx[0].Update.UpdateExpression,/ ADD callsLogged :oneCall$/);assert.match(noteTx[0].Update.ConditionExpression,/callOpenBy=:caller/);assert.equal(noteTx[1].Put.Item.callLogged,true);
+ assert.equal(noteTx[2].Put.Item.action,'note');assert.equal(noteTx[2].Put.Item.callLogged,true);assert.equal(noteTx[2].Put.Item.note,'Synthetic note.');
+ const plainNote=runtime('Admin',{identity:salesperson,send:async c=>c.kind==='GetCommand'?{Item:{...open,callOpenBy:undefined}}:{}});await plainNote.request({action:'leads.update',id,note:'Synthetic note.'});
+ assert.doesNotMatch(plainNote.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems[0].Update.UpdateExpression,/callsLogged/);
  const other=runtime('Admin',{identity:manager,send:async c=>c.kind==='GetCommand'?{Item:open}:{}});await other.request({action:'leads.update',id,status:'no-answer'});
  assert.doesNotMatch(other.calls.find(c=>c.kind==='TransactWriteCommand').input.TransactItems[0].Update.UpdateExpression,/callsLogged/);
  const shown=runtime('Admin',{identity:salesperson,send:async c=>c.kind==='GetCommand'?{Item:open}:{}});const lead=(await shown.request({action:'leads.get',id})).json.lead;assert.equal(lead.callPending,true);assert.equal(lead.callsLogged,0);

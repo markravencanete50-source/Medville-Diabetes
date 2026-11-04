@@ -2181,3 +2181,15 @@
   .admin-range-presets button { width: auto; border: 1px solid var(--a-line); }
   .admin-popover.admin-popover-range { width: auto; left: 0; right: 0; }
 }
+
+/* A saved note in a lead's history, kept as it was typed. */
+.admin-history-note {
+  display: block;
+  margin: 4px 0 2px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--a-brand);
+  border-radius: 0 var(--a-radius-sm) var(--a-radius-sm) 0;
+  background: var(--a-surface-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

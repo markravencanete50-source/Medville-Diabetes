@@ -217,9 +217,12 @@ only change made to their wording.
   Administrators screen also takes the person off the rota.
 - Calls and reshuffles, since 2026-11-03. A call counts only when its outcome
   is recorded: `leads.dial` opens a call (`callOpenBy`, `callOpenAt`), and the
-  caller's next stage change in `leads.update` closes it, adding one to
-  `callsLogged` and setting `lastCallLoggedAt`. A note alone, or someone
-  else's change, does not count it. The Sales team figures read "Calls
+  caller's next stage change or note in `leads.update` closes it, adding one to
+  `callsLogged` and setting `lastCallLoggedAt` (a note counts it since
+  2026-11-05, on the client's instruction). Someone else's change does not
+  count it. The history entry that closed the call carries `callLogged`, and
+  the same stage may be saved again after a call, because a second voicemail
+  is still a call to record. The Sales team figures read "Calls
   recorded" and "Calls today" from those fields, and show dials still open as
   "Calls not recorded". Reassigning a lead clears its open call.
   `leads.reshuffle` (Owner and Sales manager) takes the open enquiries of
@@ -264,8 +267,12 @@ only change made to their wording.
   `leadId`, sort `sk` = time and a random id) holds one entry per stage
   change, assignment, call, note edit, delete and restore, written by
   `historyItem` in `aws/src/admin.cjs` inside the same transaction as the
-  change. Entries carry fixed fields only (who, when, stage, reason, callback
-  time, assignee); a note's text is never copied. It is protected like the
+  change. Entries carry fixed fields (who, when, stage, reason, callback
+  time, assignee). Since 2026-11-05, on the client's instruction, a note
+  entry also carries the note's text, so earlier notes stay readable after a
+  new one is saved; the box warns that a saved note cannot be removed and
+  must not hold medical details. The note's text never goes to the access log,
+  only the field name does. It is protected like the
   lead and audit tables (KMS, point-in-time recovery, deletion protection).
   `leads.history` returns it to anyone who can open the lead and is audited.
   Because each lead's history entry shares the transaction, bulk assignment
