@@ -1,0 +1,4 @@
+# Every text file is stored and checked out with LF endings, on every machine.
+# Windows Git otherwise converts files to CRLF on checkout, and the AWS stack
+# test then fails because the template no longer matches the generated one.
+* text=auto eol=lf
