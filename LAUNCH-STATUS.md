@@ -88,12 +88,14 @@ rollback, are in `DEPLOY-SALES-TEAM.md`.
 
 Lead stages and staff alerts (2026-10-28): the CloudFormation update also adds the
 `medville-staff-alerts` table, the `medville-staff-alerts` Lambda and its two-minute
-EventBridge schedule. Alerts send through the same SES identity as customer
-receipts, so the same two gates apply: the DKIM records in GoDaddy and SES
-production access. Until production access is granted, every staff address that
-should receive alerts must be verified in SES one by one, or the dashboard shows
-"On, last email failed" for that person. A run that finds nothing reads lead
-stages and times but sends nothing and writes no audit entry.
+EventBridge schedule. Since 2026-11-05 the alerts are three kinds of email (every
+new enquiry and enquiries not called within 30 minutes, to Owners and the Sales
+manager; assignments and due callbacks, to each person by first name) and are
+sent through Resend from the medvillediabetes.com sender, like the customer
+receipts. They hold counts only, never patient details, so they need no
+BAA-covered sender, and they do not depend on SES production access. A run that
+finds nothing reads lead stages and times but sends nothing and writes no audit
+entry.
 
 Automatic assignment (2026-11-03): new enquiries go in turn to the people an
 Owner or the Sales manager puts on the rota (Sales team screen, Gets new

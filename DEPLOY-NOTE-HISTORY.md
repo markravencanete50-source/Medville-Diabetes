@@ -14,9 +14,10 @@ What changes:
   email instead of one combined count. Owners and the Sales manager get one
   for every new enquiry, and one when an enquiry has waited 30 minutes with no
   number copied. Each salesperson gets their own, greeted by name, when an
-  enquiry is assigned to them or a callback is due. Alerts now go through the
-  `medville-phi-company` configuration set, so bounces and complaints are
-  recorded. `AlertsFunction` changes, along with `AdminFunction`.
+  enquiry is assigned to them or a callback is due. Alerts are now sent through
+  Resend, with the key the customer receipts already use, so they no longer
+  wait on SES production access. `AlertsFunction` changes, along with
+  `AdminFunction`.
 - **Google**: nothing.
 
 The order is AWS first, then the merge. With the new website and the old AWS
@@ -85,8 +86,11 @@ aws cloudformation describe-change-set --stack-name medville-phi --change-set-na
 ```
 
 Every detail must read `ResourceAttribute` or `ResourceReference`, with
-`AlertsFunction...` or `AdminFunction...` as the cause. A `DirectModification`
-means the template edited it: stop. **Stop and do not execute** if anything shows
+`AlertsFunction...`, `AdminFunction...` or `AlertsSchedule.Arn` as the cause.
+`AlertsSchedule.Arn` is the indirect step: the permission points at the
+schedule, and the schedule points at the function. Neither is replaced, so
+neither address changes. A `DirectModification` means the template edited it:
+stop. **Stop and do not execute** if anything shows
 Add, Remove, or Replacement `True` or `Conditional`. Delete the change set and
 report the table. Otherwise:
 
@@ -121,8 +125,8 @@ Then the alerts, with invented details only:
    the same for each salesperson who should receive alerts.
 6. Submit the Contact form once with invented details. Within about two
    minutes the manager receives "New enquiry received".
-7. Assign it to a salesperson whose address is verified in SES. Within about
-   two minutes they receive "A new enquiry was assigned to you", starting with
+7. Assign it to a salesperson with alerts on. Within about two minutes they
+   receive "A new enquiry was assigned to you", starting with
    their first name.
 8. Leave a second test enquiry untouched for 30 minutes. The manager receives
    "1 enquiry not called after 30 minutes".

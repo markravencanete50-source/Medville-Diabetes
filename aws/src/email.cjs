@@ -1,5 +1,3 @@
-const {SESv2Client,SendEmailCommand}=require('@aws-sdk/client-sesv2');
-const ses=new SESv2Client({});
 
 /*
  Staff alerts. Three kinds, each its own email:
@@ -52,17 +50,22 @@ function alertMessage(kind,data,dashboardUrl){
  };
 }
 
-// Sent through the company configuration set, so bounces and complaints are recorded
-// with the same TLS rule and event destination as the company notifications.
-async function sendStaffAlert(email,kind,data,dashboardUrl){
- if(typeof email!=='string'||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!process.env.SENDER_EMAIL)throw new Error('email unavailable');
+// Sent through Resend, which the site already uses for receipts and the newsletter,
+// from the same verified medvillediabetes.com sender. Alerts hold no patient details,
+// so they need no BAA-covered sender. Resend stops sending to an address that bounced
+// or complained. The idempotency key names the person, the kind and the newest record
+// counted, so a retry after a lost reply cannot send the same email twice.
+async function sendStaffAlert(email,kind,data,dashboardUrl,key='',fetcher=fetch){
+ if(typeof email!=='string'||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!process.env.SENDER_EMAIL||!process.env.RESEND_API_KEY)throw new Error('email unavailable');
  const message=alertMessage(kind,data,dashboardUrl);
- await ses.send(new SendEmailCommand({
-  FromEmailAddress:`Medville Diabetes <${process.env.SENDER_EMAIL}>`,
-  Destination:{ToAddresses:[email]},
-  ...(process.env.SES_CONFIG_SET?{ConfigurationSetName:process.env.SES_CONFIG_SET,EmailTags:[{Name:'kind',Value:`staff-${kind}`}]}:{}),
-  Content:{Simple:{Subject:{Data:message.subject,Charset:'UTF-8'},Body:{Text:{Data:message.text,Charset:'UTF-8'},Html:{Data:message.html,Charset:'UTF-8'}}}},
- }));
+ const result=await fetcher('https://api.resend.com/emails',{
+  method:'POST',
+  headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`,'Content-Type':'application/json',...(key?{'Idempotency-Key':`medville-alert-${key}`.slice(0,256)}:{})},
+  body:JSON.stringify({from:`Medville Diabetes <${process.env.SENDER_EMAIL}>`,to:[email],subject:message.subject,text:message.text,html:message.html,tags:[{name:'kind',value:`staff_${kind}`}]}),
+  signal:AbortSignal.timeout(10000),
+ });
+ // 409: an email with this key was already accepted, so this one is already delivered.
+ if(!result?.ok&&result?.status!==409)throw new Error('email unavailable');
 }
 
 module.exports={alertMessage,sendStaffAlert};

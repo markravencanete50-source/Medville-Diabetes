@@ -294,15 +294,18 @@ only change made to their wording.
   `assignedSince`, `callbackSince`), which moves only after that email is
   accepted, so a failed send retries; the 30-minute check starts when it is
   first seen, so it never sends a backlog. It reads only lead keys, stages,
-  assignment and times, and only open leads per person. Alerts go through the
-  `medville-phi-company` configuration set, so bounces and complaints are
-  recorded like the company notifications. Each run that sends writes one
+  assignment and times, and only open leads per person. Alerts are sent
+  through Resend (`RESEND_API_KEY`, the key the customer receipts already use)
+  from the medvillediabetes.com sender: they hold no patient details, so they
+  need no BAA-covered sender and do not wait on SES production access. Resend
+  stops sending to an address that bounced or complained, and each email
+  carries an idempotency key (person, kind, newest record counted), so a retry
+  never sends it twice. Each run that sends writes one
   `alerts.sent` audit entry naming the counted records. Alerts are switched
   on per person by an Owner or the Sales manager on the Sales team screen;
   the address and name always come from the identity service, never the
   browser. The staff address and on/off state live in `medville-staff-alerts`,
-  which holds no patient data. Until SES production access is granted, only
-  addresses verified in SES receive them.
+  which holds no patient data.
 - Administrator invitations. An owner invites by email from the dashboard's
   Administrators screen. `admins.invite` in `functions/admin/index.js` creates
   the Identity Platform account and sets the role claim but never a password,
