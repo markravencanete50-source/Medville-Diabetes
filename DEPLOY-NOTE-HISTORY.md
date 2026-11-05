@@ -86,8 +86,11 @@ aws cloudformation describe-change-set --stack-name medville-phi --change-set-na
 ```
 
 Every detail must read `ResourceAttribute` or `ResourceReference`, with
-`AlertsFunction...` or `AdminFunction...` as the cause. A `DirectModification`
-means the template edited it: stop. **Stop and do not execute** if anything shows
+`AlertsFunction...`, `AdminFunction...` or `AlertsSchedule.Arn` as the cause.
+`AlertsSchedule.Arn` is the indirect step: the permission points at the
+schedule, and the schedule points at the function. Neither is replaced, so
+neither address changes. A `DirectModification` means the template edited it:
+stop. **Stop and do not execute** if anything shows
 Add, Remove, or Replacement `True` or `Conditional`. Delete the change set and
 report the table. Otherwise:
 
