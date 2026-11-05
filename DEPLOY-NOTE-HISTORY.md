@@ -73,7 +73,20 @@ aws cloudformation describe-change-set --stack-name medville-phi --change-set-na
 ```
 
 The table should show `Modify AdminFunction False` and
-`Modify AlertsFunction False`, and possibly `Modify AdminIntegration False`. **Stop and do not execute** if anything shows
+`Modify AlertsFunction False`. It may also show `Modify AdminIntegration False`,
+`Modify AlertsSchedule False` and `Modify AlertsSchedulePermission Conditional`.
+Those three are not edited in the template: they only point at a changed
+function, and AWS cannot tell in advance that the function keeps its name.
+Allow them only if their details name nothing but that function as the cause:
+
+```bash
+aws cloudformation describe-change-set --stack-name medville-phi --change-set-name "$CS" \
+  --query "Changes[?ResourceChange.LogicalResourceId=='AlertsSchedulePermission' || ResourceChange.LogicalResourceId=='AlertsSchedule' || ResourceChange.LogicalResourceId=='AdminIntegration'].ResourceChange.[LogicalResourceId,Details[].[ChangeSource,CausingEntity,Evaluation]]"
+```
+
+Every detail must read `ResourceAttribute` or `ResourceReference`, with
+`AlertsFunction...` or `AdminFunction...` as the cause. A `DirectModification`
+means the template edited it: stop. **Stop and do not execute** if anything shows
 Add, Remove, or Replacement `True` or `Conditional`. Delete the change set and
 report the table. Otherwise:
 
