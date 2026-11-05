@@ -74,7 +74,8 @@ exports.handler=async()=>{
   if(!emails.length&&!Object.keys(marks).length)continue;
   let failed=false,delivered=0;
   for(const email of emails){
-   try{await sendStaffAlert(sub.email,email.kind,email.data,process.env.DASHBOARD_ORIGIN);delivered++;sent++;touched.push(...email.ids);Object.assign(marks,email.marks);}
+   const key=`${sub.uid}-${email.kind}-${Object.values(email.marks).filter(Boolean).join('-')}`;
+   try{await sendStaffAlert(sub.email,email.kind,email.data,process.env.DASHBOARD_ORIGIN,key);delivered++;sent++;touched.push(...email.ids);Object.assign(marks,email.marks);}
    catch{failed=true;}
   }
   const values={':at':nowIso};const sets=[];

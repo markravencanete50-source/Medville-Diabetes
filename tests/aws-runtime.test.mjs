@@ -171,8 +171,10 @@ test('AWS alerts take the address from the identity service and start counting n
  const stranger=runtime('Admin',{identity:manager,fetchImpl});assert.equal((await stranger.request({action:'alerts.set',uid:'not-on-team',enabled:true})).statusCode,400);
 });
 test('AWS salesperson cannot change or read alert settings',async()=>{for(const action of ['alerts.list','alerts.set']){const r=runtime('Admin',{identity:salesperson});assert.equal((await r.request({action,uid:salesperson.uid,enabled:true})).statusCode,403);}});
-function alertsRun(subs,leads,{failSend=false}={}){
- return runtime('Alerts',{emailSend:async()=>{if(failSend)throw Error('mail unavailable');return{MessageId:'m'}},send:async c=>{
+// Staff alerts go through Resend. Each sent email, as the request body Resend received.
+const alertMails=r=>r.fetches.filter(f=>f.url==='https://api.resend.com/emails').map(f=>({...JSON.parse(f.options.body),headers:f.options.headers}));
+function alertsRun(subs,leads,{failSend=false,status}={}){
+ return runtime('Alerts',{fetchImpl:async()=>failSend?{ok:false,status:status||500}:{ok:true,status:200,json:async()=>({id:'synthetic-email'})},send:async c=>{
   if(c.kind==='ScanCommand')return{Items:subs};
   if(c.kind==='QueryCommand')return{Items:c.input.IndexName==='LeadTimeline'?leads.filter(x=>!x.assignedTo||true):leads.filter(x=>x.assignedTo===c.input.ExpressionAttributeValues[':uid'])};
   return{};
@@ -184,22 +186,23 @@ test('Alerts email counts only, then moves each watermark without writing a lead
  const leads=[{id,createdAt:past,status:'new',firstName:'Synthetic',phone:'2025550142'},{id:'10000000-0000-4000-8000-000000000002',createdAt:past,assignedTo:salesperson.uid,assignedAt:past,status:'new'},{id:'10000000-0000-4000-8000-000000000003',createdAt:earlier,assignedTo:salesperson.uid,status:'callback',callbackAt:past}];
  const r=alertsRun(subs,leads);
  const out=await r.handler({});assert.equal(out.sent,2);
- assert.equal(r.emails.length,2);
- const [toManager,toSales]=r.emails.map(e=>e.input);
+ const mails=alertMails(r);assert.equal(mails.length,2);
+ const [toManager,toSales]=mails;
  // Every new enquiry reaches the manager, assigned or not.
- assert.deepEqual([...toManager.Destination.ToAddresses],['manager@example.com']);assert.match(toManager.Content.Simple.Body.Text.Data,/2 new enquiries came in\.\n1 of them is not assigned yet\./);
- assert.match(toManager.Content.Simple.Subject.Data,/^2 new enquiries received/);
+ assert.deepEqual(toManager.to,['manager@example.com']);assert.match(toManager.text,/2 new enquiries came in\.\n1 of them is not assigned yet\./);
+ assert.match(toManager.subject,/^2 new enquiries received/);
  // The salesperson's own email greets them by first name and holds their assignments and callbacks.
- const salesText=toSales.Content.Simple.Body.Text.Data;assert.match(salesText,/^Hi Jeff,/);assert.match(salesText,/1 new enquiry was assigned to you/);assert.match(salesText,/1 callback is due now/);
- assert.match(toSales.Content.Simple.Subject.Data,/^A new enquiry was assigned to you/);
- for(const e of r.emails){const all=JSON.stringify(e.input);assert.equal(all.includes('Synthetic'),false);assert.equal(all.includes('2025550142'),false);assert.doesNotMatch(all,/\u2014/);assert.equal(e.input.ConfigurationSetName,'medville-phi-company');}
+ const salesText=toSales.text;assert.match(salesText,/^Hi Jeff,/);assert.match(salesText,/1 new enquiry was assigned to you/);assert.match(salesText,/1 callback is due now/);
+ assert.match(toSales.subject,/^A new enquiry was assigned to you/);
+ for(const e of mails){const all=JSON.stringify(e);assert.equal(all.includes('Synthetic'),false);assert.equal(all.includes('2025550142'),false);assert.doesNotMatch(all,/\u2014/);assert.equal(e.from,'Medville Diabetes <info@medvillediabetes.com>');assert.match(e.headers['Idempotency-Key'],/^medville-alert-/);assert.equal(e.headers.Authorization,'Bearer synthetic-test-key');}
+ assert.equal(r.emails.length,0);
  for(const q of r.calls.filter(c=>c.kind==='QueryCommand'))assert.doesNotMatch(q.input.ProjectionExpression,/phone|email|firstName|lastName|injects/);
  assert.equal(r.calls.some(c=>c.kind==='UpdateCommand'&&c.input.TableName==='leads'),false);
  const marks=r.calls.filter(c=>c.kind==='UpdateCommand'&&c.input.TableName==='alerts');assert.equal(marks.length,2);
  const m=marks[0].input.ExpressionAttributeValues;assert.equal(m[':newSince'],past);assert.ok(m[':overdueSince']);
  assert.equal(marks[1].input.ExpressionAttributeValues[':callbackSince'],past);assert.equal(marks[1].input.ExpressionAttributeValues[':assignedSince'],past);
  // The next run with those watermarks sends nothing again.
- const again=alertsRun(subs.map((x,i)=>i<2?{...x,newSince:past,assignedSince:past,callbackSince:past,overdueSince:m[':overdueSince']}:x),leads);await again.handler({});assert.equal(again.emails.length,0);
+ const again=alertsRun(subs.map((x,i)=>i<2?{...x,newSince:past,assignedSince:past,callbackSince:past,overdueSince:m[':overdueSince']}:x),leads);await again.handler({});assert.equal(alertMails(again).length,0);
  const auditEntry=r.calls.find(c=>c.kind==='PutCommand');assert.equal(auditEntry.input.Item.action,'alerts.sent');assert.equal(auditEntry.input.Item.count,2);
 });
 test('Alerts tell the manager once about an enquiry nobody called within 30 minutes',async()=>{
@@ -214,29 +217,34 @@ test('Alerts tell the manager once about an enquiry nobody called within 30 minu
  ];
  const sub={uid:manager.uid,email:'manager@example.com',role:'manager',enabled:true,newSince:t(1),overdueSince:start};
  const r=alertsRun([sub],leads);await r.handler({});
- assert.equal(r.emails.length,1);const mail=r.emails[0].input;
- assert.match(mail.Content.Simple.Subject.Data,/^2 enquiries not called after 30 minutes/);
- assert.match(mail.Content.Simple.Body.Text.Data,/2 new enquiries have waited more than 30 minutes without a call\.\n1 of them is not assigned yet\./);
+ const mail=alertMails(r)[0];assert.equal(alertMails(r).length,1);
+ assert.match(mail.subject,/^2 enquiries not called after 30 minutes/);
+ assert.match(mail.text,/2 new enquiries have waited more than 30 minutes without a call\.\n1 of them is not assigned yet\./);
  const mark=r.calls.find(c=>c.kind==='UpdateCommand'&&c.input.TableName==='alerts').input.ExpressionAttributeValues[':overdueSince'];
  assert.ok(mark>=leads[0].createdAt&&mark<leads[4].createdAt);
  // The next run does not repeat it, and the 10-minute-old enquiry is still waiting its turn.
- const again=alertsRun([{...sub,overdueSince:mark}],leads);await again.handler({});assert.equal(again.emails.length,0);
+ const again=alertsRun([{...sub,overdueSince:mark}],leads);await again.handler({});assert.equal(alertMails(again).length,0);
 });
 test('Alerts start the 30 minute check without a backlog, and greet a person with no stored name plainly',async()=>{
  const t=m=>new Date(Date.now()-m*60000).toISOString();
  const r=alertsRun([{uid:manager.uid,email:'manager@example.com',role:'manager',enabled:true,newSince:t(1)}],[{id,createdAt:t(300),status:'new'}]);await r.handler({});
- assert.equal(r.emails.length,0);assert.ok(r.calls.find(c=>c.kind==='UpdateCommand'&&c.input.TableName==='alerts').input.ExpressionAttributeValues[':overdueSince']);
+ assert.equal(alertMails(r).length,0);assert.ok(r.calls.find(c=>c.kind==='UpdateCommand'&&c.input.TableName==='alerts').input.ExpressionAttributeValues[':overdueSince']);
  const p=alertsRun([{uid:salesperson.uid,email:'person@example.com',role:'sales',enabled:true,assignedSince:t(60)}],[{id,createdAt:t(5),assignedTo:salesperson.uid,assignedAt:t(5),status:'new'}]);await p.handler({});
- assert.match(p.emails[0].input.Content.Simple.Body.Text.Data,/^Hello,\n\n1 new enquiry was assigned to you/);
+ assert.match(alertMails(p)[0].text,/^Hello,\n\n1 new enquiry was assigned to you/);
  const html=alertsRun([{uid:salesperson.uid,email:'person@example.com',role:'sales',name:'<b>Jeff</b> Example',enabled:true,assignedSince:t(60)}],[{id,createdAt:t(5),assignedTo:salesperson.uid,assignedAt:t(5),status:'new'}]);await html.handler({});
- assert.doesNotMatch(html.emails[0].input.Content.Simple.Body.Html.Data,/<b>Jeff/);
+ assert.doesNotMatch(alertMails(html)[0].html,/<b>Jeff/);
 });
 test('Alerts keep the watermark when delivery fails so the next run retries',async()=>{
  const past=new Date(Date.now()-600000).toISOString(),earlier=new Date(Date.now()-3600000).toISOString();
  const r=alertsRun([{uid:manager.uid,email:'manager@example.com',role:'manager',enabled:true,newSince:earlier,assignedSince:earlier}],[{id,createdAt:past}],{failSend:true});
  await r.handler({});const mark=r.calls.find(c=>c.kind==='UpdateCommand'&&c.input.TableName==='alerts');assert.equal(mark.input.ExpressionAttributeValues[':status'],'failed');assert.equal(mark.input.ExpressionAttributeValues[':newSince'],undefined);assert.equal(r.calls.some(c=>c.kind==='PutCommand'),false);
 });
-test('Alerts do nothing and send nothing when nobody is subscribed',async()=>{const r=alertsRun([],[]);await r.handler({});assert.equal(r.emails.length,0);assert.equal(r.calls.length,1);});
+test('Alerts do nothing and send nothing when nobody is subscribed',async()=>{const r=alertsRun([],[]);await r.handler({});assert.equal(alertMails(r).length,0);assert.equal(r.calls.length,1);});
+test('Alerts treat a send Resend already accepted under the same key as delivered',async()=>{
+ const past=new Date(Date.now()-600000).toISOString(),earlier=new Date(Date.now()-3600000).toISOString();
+ const r=alertsRun([{uid:manager.uid,email:'manager@example.com',role:'manager',enabled:true,newSince:earlier,overdueSince:earlier}],[{id,createdAt:past,status:'new'}],{failSend:true,status:409});
+ await r.handler({});const mark=r.calls.find(c=>c.kind==='UpdateCommand'&&c.input.TableName==='alerts').input.ExpressionAttributeValues;assert.equal(mark[':status'],'sent');assert.equal(mark[':newSince'],past);
+});
 
 test('AWS work key puts finished leads under done and open leads under open',async()=>{
  const r=runtime('Admin',{identity:salesperson});
@@ -343,7 +351,7 @@ test('AWS alert list reports the rota separately and the alert job never mistake
  const rota={uid:'#auto-assign',members:new Set(['zed-person','amy-person']),enabled:true,email:'rota@example.com',role:'owner'};
  const r=runtime('Admin',{identity:manager,send:async c=>c.kind==='ScanCommand'?{Items:[rota,{uid:salesperson.uid,enabled:true}]}:{}});
  const out=await r.request({action:'alerts.list'});assert.deepEqual(out.json.autoAssign,['amy-person','zed-person']);assert.deepEqual(out.json.alerts.map(x=>x.uid),[salesperson.uid]);
- const job=alertsRun([rota],[]);assert.deepEqual(plain(await job.handler({})),{sent:0});assert.equal(job.emails.length,0);
+ const job=alertsRun([rota],[]);assert.deepEqual(plain(await job.handler({})),{sent:0});assert.equal(alertMails(job).length,0);
 });
 // A call counts only once the person who made it records the outcome.
 test('AWS dial opens a call that only the caller closes, by changing the stage',async()=>{
