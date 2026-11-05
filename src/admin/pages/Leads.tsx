@@ -353,8 +353,8 @@ export default function Leads() {
       const applied: Partial<Lead> = patch.status
         ? { ...patch, statusReason: patch.statusReason ?? "", callbackAt: patch.status === "callback" ? patch.callbackAt ?? "" : "" }
         : { ...patch };
-      /* Recording the stage after a call is what counts the call. */
-      if (patch.status && lead.callPending) Object.assign(applied, { callPending: false, callsLogged: lead.callsLogged + 1 });
+      /* Saving a stage or a note after a call is what counts the call. */
+      if ((patch.status || patch.note !== undefined) && lead.callPending) Object.assign(applied, { callPending: false, callsLogged: lead.callsLogged + 1 });
       setLeads((current) =>
         (current ?? []).map((item) => (item.id === lead.id ? { ...item, ...applied } : item)),
       );
@@ -427,7 +427,7 @@ export default function Leads() {
       <PageHeader
         title={ownLeadsOnly ? "My leads" : "Enquiries"}
         lede={ownLeadsOnly
-          ? "The enquiries assigned to you. Press Call to dial. The phone number is never shown."
+          ? "The enquiries assigned to you. Press Copy number and paste it into Five9. The phone number is never shown."
           : salesRole
             ? "Every enquiry and who is working it. Assign new enquiries to your team. Contact details stay hidden."
             : "Eligibility submissions and general contact questions, with their current status."}
@@ -586,7 +586,7 @@ export default function Leads() {
                 <tr>
                   {(!salesRole || canAssign) && <th scope="col"><span className="sr-only">Select enquiry</span></th>}
                   <th scope="col">Name</th>
-                  {salesRole && <th scope="col" className="relative"><span className="sr-only">Call</span></th>}
+                  {salesRole && <th scope="col" className="relative"><span className="sr-only">Copy number</span></th>}
                   <th scope="col">Received</th>
                   <th scope="col">Location</th>
                   <th scope="col">Enquiry</th>
@@ -727,8 +727,8 @@ export default function Leads() {
               <>
                 {openLead.callPending && (
                   <Banner tone="info">
-                    You copied this number. After the call, set the stage below to record how it went.
-                    The call counts in your figures once you save the stage.
+                    You copied this number. After the call, save the stage or a note below to record
+                    how it went. The call counts in your figures once you save one of them.
                   </Banner>
                 )}
                 <StageEditor lead={openLead} saving={saving} onSave={(patch) => void update(openLead, patch)} />
@@ -856,7 +856,9 @@ function StageEditor({ lead, saving, onSave }: { lead: Lead; saving: boolean; on
   const callbackTime = status === "callback" && when ? new Date(when) : null;
   const callbackValid = Boolean(callbackTime && !Number.isNaN(callbackTime.getTime()) && callbackTime.getTime() > Date.now() - 5 * 60000);
   const ready = (!reasons || reasons.some((item) => item.value === reason)) && (status !== "callback" || callbackValid);
-  const unchanged = status === lead.status && reason === lead.statusReason
+  /* After a call, the same stage can be saved again: a second voicemail is
+     still a call to record. */
+  const unchanged = !lead.callPending && status === lead.status && reason === lead.statusReason
     && (status !== "callback" || (callbackTime?.toISOString() ?? "") === lead.callbackAt);
   const offered = LEAD_STATUSES.includes(lead.status) ? LEAD_STATUSES : [lead.status, ...LEAD_STATUSES];
 
@@ -934,6 +936,7 @@ function historyText(entry: LeadHistoryEntry, myUid: string, members: Map<string
     const label = LEAD_STATUS_LABEL[status] ?? entry.status;
     const reason = stageReasonLabel(status, entry.statusReason);
     const when = entry.callbackAt ? `, for ${formatDateTime(entry.callbackAt)}` : "";
+    if (entry.callLogged) return `recorded the call: ${label}${reason ? `, ${reason}` : ""}${when}.`;
     return `changed the stage to ${label}${reason ? `: ${reason}` : ""}${when}${entry.source === "import" ? ", by import" : ""}.`;
   }
   if (entry.action === "assign") {
@@ -949,7 +952,11 @@ function historyText(entry: LeadHistoryEntry, myUid: string, members: Map<string
     return `assigned it to ${member ? memberName(member) : members.size ? "a former team member" : "a teammate"}.`;
   }
   if (entry.action === "call") return entry.source === "copy" ? "copied the phone number." : "started a call.";
-  if (entry.action === "note") return "updated the internal note.";
+  if (entry.action === "note") {
+    if (entry.note === undefined) return "updated the internal note.";
+    if (!entry.note.trim()) return "cleared the internal note.";
+    return entry.callLogged ? "recorded the call with a note:" : "added a note:";
+  }
   if (entry.action === "delete") return "moved it to the Recycle Bin.";
   return "restored it from the Recycle Bin.";
 }
@@ -1001,6 +1008,10 @@ function HistoryPanel({
             <li key={`${entry.at}-${entry.action}-${entry.actorUid}`} className="text-[14px] leading-snug">
               <span className="font-semibold">{historyActor(entry, myUid, memberByUid)}</span>{" "}
               {historyText(entry, myUid, memberByUid)}
+              {entry.action === "note" && entry.note?.trim() && (
+                /* Shown as text, never as markup, and kept as it was typed. */
+                <span className="admin-history-note">{entry.note}</span>
+              )}
               <span className="block text-[12px]" style={{ color: "var(--a-text-muted)" }}>{formatDateTime(entry.at)}</span>
             </li>
           ))}
@@ -1061,7 +1072,7 @@ function NoteEditor({
     <Field
       label="Internal note"
       htmlFor="lead-note"
-      help="Seen only by administrators. Keep it factual."
+      help="Saved notes are kept in this enquiry's history with your name and the time, and cannot be removed. Seen only by administrators. Keep it factual. Do not write medical details."
     >
       <textarea
         id="lead-note"

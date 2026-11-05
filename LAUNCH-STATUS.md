@@ -39,6 +39,11 @@ section with a calendar range, from the new `leads.team.activity` action. It
 returns counts per day and per person only and is audited. It needs the AWS
 admin function update in `DEPLOY-SALES-CHARTS.md`; no Google change.
 
+Notes (2026-11-05): a saved note's text is kept in the lead's history (the
+encrypted history table, read only by people who can open the lead; never the
+access log), and a note saved after copying a number records the call. Steps
+are in `DEPLOY-NOTE-HISTORY.md`, an admin function update only.
+
 Deploying this change needs the CloudFormation update (it adds the
 `AssigneeTimeline` index to the leads table, gives the admin Lambda `RATE_TABLE`
 and update access to the limits table) and a redeploy of the Google `adminApi`
