@@ -276,10 +276,12 @@ async function setAlerts(actor,b,ctx){
  }
  let person;
  if(b.uid===actor.uid)person={email:actor.email,role:actor.role};
- else{const member=(await teamMembers(ctx.header,ctx.origin)).find(m=>m.uid===b.uid);if(!member||member.disabled)return{error:'Choose an active member of the sales team.'};person={email:member.email,role:member.role};}
+ else{const member=(await teamMembers(ctx.header,ctx.origin)).find(m=>m.uid===b.uid);if(!member||member.disabled)return{error:'Choose an active member of the sales team.'};person={email:member.email,role:member.role,name:member.name};}
  if(typeof person.email!=='string'||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(person.email))return{error:'That account has no email address.'};
  // Counting starts now, so switching alerts on never sends a backlog.
- await db.send(new UpdateCommand({TableName:process.env.ALERTS_TABLE,Key:{uid:b.uid},UpdateExpression:'SET enabled=:on, email=:email, #role=:role, newSince=:at, assignedSince=:at, callbackSince=:at, updatedAt=:at, updatedBy=:by',ExpressionAttributeNames:{'#role':'role'},ExpressionAttributeValues:{':on':true,':email':person.email.toLowerCase(),':role':person.role,':at':nowIso,':by':actor.uid}}));
+ // The staff member's own name, for the greeting on their alerts. Never a patient's.
+ const name=typeof person.name==='string'?person.name.replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,80):'';
+ await db.send(new UpdateCommand({TableName:process.env.ALERTS_TABLE,Key:{uid:b.uid},UpdateExpression:'SET enabled=:on, email=:email, #role=:role, #name=:name, newSince=:at, assignedSince=:at, callbackSince=:at, overdueSince=:at, updatedAt=:at, updatedBy=:by',ExpressionAttributeNames:{'#role':'role','#name':'name'},ExpressionAttributeValues:{':on':true,':email':person.email.toLowerCase(),':role':person.role,':name':name,':at':nowIso,':by':actor.uid}}));
  await audit(actor,'alerts.set',{targetUid:b.uid,enabled:true});
  return{ok:true};
 }

@@ -259,8 +259,10 @@ export default function SalesTeam() {
             <div className="min-w-0 flex-1 basis-[220px]">
               <p className="admin-label">Your email alerts</p>
               <p className="admin-help" style={{ marginTop: 2 }}>
-                Counts only, never a patient&apos;s name, number or answers: new enquiries waiting,
-                enquiries assigned to you, and callbacks due.
+                Counts only, never a patient&apos;s name, number or answers. You get an email for
+                every new enquiry, and another when an enquiry has waited 30 minutes without a call.
+                Each salesperson gets their own email when an enquiry is assigned to them or a
+                callback is due.
               </p>
               <AlertState alert={alerts.get(myUid)} />
             </div>

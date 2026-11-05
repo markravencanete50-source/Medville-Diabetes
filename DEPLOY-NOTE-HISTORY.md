@@ -1,4 +1,4 @@
-# Deploy: note text in the history, and notes that record a call
+# Deploy: note history, notes that record a call, and the three staff alerts
 
 What changes:
 
@@ -10,6 +10,13 @@ What changes:
 - **Website**: the history shows each note's text, the call banner and the
   Sales team wording mention notes, and the note box warns that saved notes
   cannot be removed. Deployed by merging the pull request.
+- **AWS** (`medville-phi` stack): the staff alert job sends three kinds of
+  email instead of one combined count. Owners and the Sales manager get one
+  for every new enquiry, and one when an enquiry has waited 30 minutes with no
+  number copied. Each salesperson gets their own, greeted by name, when an
+  enquiry is assigned to them or a callback is due. Alerts now go through the
+  `medville-phi-company` configuration set, so bounces and complaints are
+  recorded. `AlertsFunction` changes, along with `AdminFunction`.
 - **Google**: nothing.
 
 The order is AWS first, then the merge. With the new website and the old AWS
@@ -65,8 +72,8 @@ aws cloudformation describe-change-set --stack-name medville-phi --change-set-na
   --query "Changes[].ResourceChange.[Action,LogicalResourceId,Replacement]" --output table
 ```
 
-The table should show `Modify AdminFunction False`, and possibly
-`Modify AdminIntegration False`. **Stop and do not execute** if anything shows
+The table should show `Modify AdminFunction False` and
+`Modify AlertsFunction False`, and possibly `Modify AdminIntegration False`. **Stop and do not execute** if anything shows
 Add, Remove, or Replacement `True` or `Conditional`. Delete the change set and
 report the table. Otherwise:
 
@@ -93,6 +100,20 @@ Use invented details only, never a real patient.
    history reads "You recorded the call: ..." and the count goes up again.
 4. As the Sales manager, open the same enquiry. The history names the
    salesperson, the time and the note text.
+
+Then the alerts, with invented details only:
+
+5. As an Owner or the Sales manager, turn your email alerts off and on again on
+   the Sales team screen, so your name and the 30-minute check are stored. Do
+   the same for each salesperson who should receive alerts.
+6. Submit the Contact form once with invented details. Within about two
+   minutes the manager receives "New enquiry received".
+7. Assign it to a salesperson whose address is verified in SES. Within about
+   two minutes they receive "A new enquiry was assigned to you", starting with
+   their first name.
+8. Leave a second test enquiry untouched for 30 minutes. The manager receives
+   "1 enquiry not called after 30 minutes".
+9. Move the test enquiries to the Recycle Bin.
 
 ## Rolling back
 

@@ -280,19 +280,29 @@ only change made to their wording.
   `aws/src/admin.cjs` and `src/admin/api.ts`), within DynamoDB's 100 writes
   per transaction. The panel closes with the arrival of the enquiry, taken
   from the lead itself.
-- Staff email alerts, since 2026-10-28. `aws/src/alerts.cjs` runs every two
-  minutes. It reads only open leads (the "open#" part of `workSk`), and only
-  their keys, stages, assignment and times, so its cost follows the open work
-  rather than the whole history. It emails
-  each subscribed person one message of counts: new enquiries waiting to be
-  assigned (Owner and Sales manager), enquiries assigned to them, and their
-  callbacks now due. A person's watermark moves only after their email is
-  accepted, so a failed send retries. Each run that sends writes one
+- Staff email alerts, since 2026-10-28, in three kinds since 2026-11-05 on the
+  client's instruction. `aws/src/alerts.cjs` runs every two minutes and sends,
+  through `aws/src/email.cjs`: to each Owner and Sales manager with alerts on,
+  one email counting every enquiry that arrived since their last ("new"), and
+  one counting enquiries still at New with no number copied 30 minutes after
+  they arrived ("overdue"); and to each person, one email counting enquiries
+  newly assigned to them (by hand, automatically or by a reshuffle) and their
+  callbacks now due, greeted by their own first name ("personal"). No email
+  holds a patient name, number, product, answer or the time of an enquiry; the
+  only name is the staff member's own, stored as `name` when alerts are
+  switched on. Each kind keeps its own watermark (`newSince`, `overdueSince`,
+  `assignedSince`, `callbackSince`), which moves only after that email is
+  accepted, so a failed send retries; the 30-minute check starts when it is
+  first seen, so it never sends a backlog. It reads only lead keys, stages,
+  assignment and times, and only open leads per person. Alerts go through the
+  `medville-phi-company` configuration set, so bounces and complaints are
+  recorded like the company notifications. Each run that sends writes one
   `alerts.sent` audit entry naming the counted records. Alerts are switched
   on per person by an Owner or the Sales manager on the Sales team screen;
-  the address always comes from the identity service, never the browser.
-  The staff address and on/off state live in `medville-staff-alerts`, which
-  holds no patient data.
+  the address and name always come from the identity service, never the
+  browser. The staff address and on/off state live in `medville-staff-alerts`,
+  which holds no patient data. Until SES production access is granted, only
+  addresses verified in SES receive them.
 - Administrator invitations. An owner invites by email from the dashboard's
   Administrators screen. `admins.invite` in `functions/admin/index.js` creates
   the Identity Platform account and sets the role claim but never a password,
